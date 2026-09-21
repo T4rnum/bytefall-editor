@@ -42,7 +42,7 @@
 
 ## Быстрый старт
 
-Нужен **Node 22** (версия зафиксирована в `.nvmrc`; на Node 20 сборщик не запустится).
+Нужен **Node 24** (версия зафиксирована в `.nvmrc`). Минимум — 22.12, на Node 20 сборщик не запустится.
 
 ```bash
 npm ci
@@ -92,7 +92,7 @@ Document ──composite()──▶ CellBuffer ──GridMesh.update()──▶ 
 ## Стек
 
 TypeScript 5.9 strict · React 19 · Zustand 5 · Three.js r186 (WebGL2) · zod 4 · Vite 8 · Vitest 5 ·
-ESLint 10 · Node 22.
+ESLint 10 · Node 24.
 
 Один пакет без воркспейсов, относительные импорты, без алиасов. Выбор стека и отвергнутые
 альтернативы разобраны в [docs/DESIGN.md](docs/DESIGN.md#стек).
