@@ -1,0 +1,49 @@
+{
+  "format": "blendphoto",
+  "version": 4,
+  "name": "Fixture v4",
+  "width": 6,
+  "height": 3,
+  "font": "press-start-2p",
+  "background": "#1d2b53",
+  "palette": ["#000000", "#ffffff", "#ffa300"],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Background",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [
+            { "x": 0, "y": 2, "g": "#", "f": "#ffa300" },
+            { "x": 1, "y": 2, "g": "#", "f": "#ffa300" }
+          ],
+          "effects": [
+            {
+              "id": "effect-fire",
+              "kind": "fire",
+              "enabled": true,
+              "height": 3,
+              "period": 90,
+              "palette": "fire",
+              "glyphs": ".:*#"
+            },
+            {
+              "id": "effect-pulse",
+              "kind": "pulse",
+              "enabled": false,
+              "period": 1000,
+              "amplitude": 0.4,
+              "spread": 0.25
+            }
+          ]
+        }
+      ],
+      "objects": []
+    }
+  ]
+}

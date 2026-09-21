@@ -1,0 +1,5 @@
+4x2
+0,0 'A' fg=808080ff bg=088787ff
+1,0 'B' fg=40ff40ff bg=ffffff40
+2,0 '' fg=00000000 bg=0000ffff
+3,1 'C' fg=ffff0080 bg=00000000

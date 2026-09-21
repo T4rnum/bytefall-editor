@@ -7,10 +7,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    benchmark: { include: ['src/**/*.bench.ts'] },
     coverage: {
       provider: 'v8',
       include: ['src/core/**/*.ts'],
-      exclude: ['src/core/**/*.test.ts', 'src/core/index.ts'],
+      exclude: ['src/core/__tests__/**', 'src/core/__bench__/**', 'src/core/index.ts'],
       reporter: ['text', 'html'],
     },
   },

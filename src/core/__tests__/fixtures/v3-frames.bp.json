@@ -1,0 +1,64 @@
+{
+  "format": "blendphoto",
+  "version": 3,
+  "name": "Fixture v3",
+  "width": 6,
+  "height": 3,
+  "font": "press-start-2p",
+  "background": null,
+  "palette": ["#000000", "#ffffff", "#00e436"],
+  "frames": [
+    {
+      "id": "frame-a",
+      "duration": 120,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Background",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [{ "x": 0, "y": 0, "g": "A", "f": "#00e436" }]
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-mover",
+          "name": "Mover",
+          "layerId": "layer-base",
+          "x": 1,
+          "y": 1,
+          "visible": true,
+          "locked": false,
+          "cells": [{ "x": 0, "y": 0, "g": "o", "f": "#ffffff" }]
+        }
+      ]
+    },
+    {
+      "id": "frame-b",
+      "duration": 250,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Background",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [{ "x": 0, "y": 0, "g": "B", "f": "#00e436" }]
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-mover",
+          "name": "Mover",
+          "layerId": "layer-base",
+          "x": 3,
+          "y": 1,
+          "visible": true,
+          "locked": false,
+          "cells": [{ "x": 0, "y": 0, "g": "o", "f": "#ffffff" }]
+        }
+      ]
+    }
+  ]
+}

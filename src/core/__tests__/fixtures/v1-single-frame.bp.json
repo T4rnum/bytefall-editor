@@ -1,0 +1,25 @@
+{
+  "format": "blendphoto",
+  "version": 1,
+  "name": "Fixture v1",
+  "width": 6,
+  "height": 3,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff", "#ff004d"],
+  "layers": [
+    {
+      "id": "layer-base",
+      "name": "Background",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "cells": [
+        { "x": 0, "y": 0, "g": "B", "f": "#ffffff" },
+        { "x": 1, "y": 0, "g": "P", "f": "#ff004d", "b": "#000000" },
+        { "x": 2, "y": 1, "g": "1", "f": "#ffffff", "a": { "glow": 2, "tag": "corner" } },
+        { "x": 5, "y": 2, "g": "", "f": "#ffffff", "b": "#ff004d" }
+      ]
+    }
+  ]
+}

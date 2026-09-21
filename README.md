@@ -61,6 +61,7 @@ npm run check
 | `npm run build` | typecheck + production-сборка |
 | `npm test` | юнит-тесты ядра |
 | `npm run coverage` | покрытие `src/core` |
+| `npm run bench` | бенчмарки ядра, см. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run format` | Prettier, запись |
@@ -85,7 +86,11 @@ Document ──composite()──▶ CellBuffer ──GridMesh.update()──▶ 
 - **`src/app`** — React и Zustand. Панели, инструменты, файловые операции.
 
 Подробно: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — как устроено сейчас,
-[docs/DESIGN.md](docs/DESIGN.md) — куда это развивается и почему именно так.
+[docs/DESIGN.md](docs/DESIGN.md) — куда это развивается и почему именно так,
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md) — база производительности.
+
+Ядро покрыто тестами примерно на 98%, включая замороженные фикстуры всех версий формата файла и
+золотые снимки композитора.
 
 ## Стек
 

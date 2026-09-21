@@ -1,0 +1,47 @@
+{
+  "format": "blendphoto",
+  "version": 2,
+  "name": "Fixture v2",
+  "width": 6,
+  "height": 3,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff", "#29adff"],
+  "layers": [
+    {
+      "id": "layer-base",
+      "name": "Background",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "cells": [
+        { "x": 0, "y": 0, "g": "B", "f": "#ffffff" },
+        { "x": 1, "y": 0, "g": "2", "f": "#ffffff" }
+      ]
+    },
+    {
+      "id": "layer-top",
+      "name": "Top",
+      "visible": true,
+      "locked": true,
+      "opacity": 0.5,
+      "cells": [{ "x": 4, "y": 2, "g": "t", "f": "#29adff", "b": "#000000" }]
+    }
+  ],
+  "objects": [
+    {
+      "id": "object-star",
+      "name": "Star",
+      "layerId": "layer-top",
+      "x": 2,
+      "y": 1,
+      "visible": true,
+      "locked": false,
+      "cells": [
+        { "x": 0, "y": 0, "g": "*", "f": "#29adff" },
+        { "x": 1, "y": 0, "g": "*", "f": "#ffffff" }
+      ],
+      "props": { "kind": "decor", "weight": 3, "pinned": true }
+    }
+  ]
+}
