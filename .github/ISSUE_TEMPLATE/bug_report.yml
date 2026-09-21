@@ -1,0 +1,59 @@
+name: Баг
+description: Что-то работает не так, как ожидалось
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Ожидаемое поведение и фактическое.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Создать документ 64×32
+        2. Выбрать инструмент эллипса
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: document
+    attributes:
+      label: Документ
+      description: Приложите `.bp.json`, на котором баг воспроизводится. Без него баг почти всегда невоспроизводим.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Область
+      options:
+        - Инструменты и рисование
+        - Слои и объекты
+        - Анимация
+        - Эффекты
+        - Рендер и производительность
+        - Файлы и экспорт
+        - Интерфейс
+        - Другое
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Браузер и ОС
+      placeholder: Chrome 140, Windows 10
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Консоль
+      description: Ошибки из devtools, если есть.
+      render: text

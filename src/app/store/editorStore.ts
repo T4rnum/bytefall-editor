@@ -1,0 +1,106 @@
+import { create } from 'zustand';
+import { DEFAULT_FG } from '../../core/cell';
+import type { Preview } from '../../core/compositor';
+import type { Document } from '../../core/document';
+import type { Point, Rect } from '../../core/geometry';
+import type { Clip } from '../../core/selection';
+import { DEFAULT_POST, type PostSettings } from '../../render/post';
+import type { CameraState } from '../../render/SceneView';
+import type { ToolId } from '../tools/types';
+
+export interface EditorState {
+  readonly tool: ToolId;
+  readonly glyph: string;
+  readonly fg: string;
+  readonly bg: string | null;
+  /** Заливать ли фигуры (прямоугольник, эллипс). */
+  readonly shapeFill: boolean;
+  readonly camera: CameraState;
+  readonly showGrid: boolean;
+  readonly workspaceColor: string;
+  readonly cursorCell: Point | null;
+  readonly selection: Rect | null;
+  readonly clipboard: Clip | null;
+  readonly preview: Preview | null;
+  readonly textCursor: Point | null;
+  readonly selectedObjectId: string | null;
+  /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
+  readonly draft: Document | null;
+  readonly isPlaying: boolean;
+  /** Показывать соседние кадры полупрозрачно. */
+  readonly onionSkin: boolean;
+  /** Крутить ли часы эффектов в редакторе. */
+  readonly effectsLive: boolean;
+  /** Время эффектов в миллисекундах. */
+  readonly effectTime: number;
+  /** Постэффекты уровня пикселей: свечение и CRT. */
+  readonly post: PostSettings;
+
+  setTool: (tool: ToolId) => void;
+  setGlyph: (glyph: string) => void;
+  setFg: (fg: string) => void;
+  setBg: (bg: string | null) => void;
+  swapColors: () => void;
+  setShapeFill: (fill: boolean) => void;
+  setCamera: (camera: CameraState) => void;
+  setShowGrid: (show: boolean) => void;
+  setCursorCell: (cell: Point | null) => void;
+  setSelection: (rect: Rect | null) => void;
+  setClipboard: (clip: Clip | null) => void;
+  setPreview: (preview: Preview | null) => void;
+  setTextCursor: (cell: Point | null) => void;
+  setSelectedObject: (id: string | null) => void;
+  setDraft: (doc: Document | null) => void;
+  setPlaying: (playing: boolean) => void;
+  setOnionSkin: (enabled: boolean) => void;
+  setEffectsLive: (live: boolean) => void;
+  setEffectTime: (time: number) => void;
+  setPost: (patch: Partial<PostSettings>) => void;
+}
+
+const samePoint = (a: Point | null, b: Point | null): boolean =>
+  a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
+
+export const useEditorStore = create<EditorState>((set) => ({
+  tool: 'pencil',
+  glyph: '#',
+  fg: DEFAULT_FG,
+  bg: null,
+  shapeFill: false,
+  camera: { centerX: 0, centerY: 0, zoom: 16 },
+  showGrid: true,
+  workspaceColor: '#111114',
+  cursorCell: null,
+  selection: null,
+  clipboard: null,
+  preview: null,
+  textCursor: null,
+  selectedObjectId: null,
+  draft: null,
+  isPlaying: false,
+  onionSkin: false,
+  effectsLive: true,
+  effectTime: 0,
+  post: DEFAULT_POST,
+
+  setTool: (tool) => set({ tool, preview: null, textCursor: null, draft: null }),
+  setGlyph: (glyph) => set({ glyph }),
+  setFg: (fg) => set({ fg }),
+  setBg: (bg) => set({ bg }),
+  swapColors: () => set((s) => ({ fg: s.bg ?? s.fg, bg: s.bg === null ? null : s.fg })),
+  setShapeFill: (shapeFill) => set({ shapeFill }),
+  setCamera: (camera) => set({ camera }),
+  setShowGrid: (showGrid) => set({ showGrid }),
+  setCursorCell: (cell) => set((s) => (samePoint(s.cursorCell, cell) ? s : { cursorCell: cell })),
+  setSelection: (selection) => set({ selection }),
+  setClipboard: (clipboard) => set({ clipboard }),
+  setPreview: (preview) => set({ preview }),
+  setTextCursor: (textCursor) => set({ textCursor }),
+  setSelectedObject: (selectedObjectId) => set({ selectedObjectId }),
+  setDraft: (draft) => set({ draft }),
+  setPlaying: (isPlaying) => set({ isPlaying }),
+  setOnionSkin: (onionSkin) => set({ onionSkin }),
+  setEffectsLive: (effectsLive) => set({ effectsLive }),
+  setEffectTime: (effectTime) => set({ effectTime }),
+  setPost: (patch) => set((s) => ({ post: { ...s.post, ...patch } })),
+}));
