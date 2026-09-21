@@ -4,6 +4,7 @@ import { PRESS_START_2P, loadFont } from '../render/font/pressStart2P';
 import { ColorPanel } from './components/ColorPanel';
 import { EffectsPanel } from './components/EffectsPanel';
 import { GlyphPanel } from './components/GlyphPanel';
+import { HotkeysDialog } from './components/HotkeysDialog';
 import { LayersPanel } from './components/LayersPanel';
 import { LookPanel } from './components/LookPanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
@@ -16,6 +17,8 @@ import { useEffectClock } from './hooks/useEffectClock';
 import { useHotkeys } from './hooks/useHotkeys';
 import { usePlayback } from './hooks/usePlayback';
 import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
+import { useUiStore } from './store/uiStore';
+import { Resizer } from './ui/Resizer';
 
 /** Пикселей на ячейку атласа: кратно 8, чтобы пиксели шрифта ложились ровно. 32 даёт 4 текселя на пиксель шрифта. */
 const ATLAS_CELL_SIZE = 32;
@@ -23,6 +26,10 @@ const ATLAS_CELL_SIZE = 32;
 export function App() {
   const [atlas, setAtlas] = useState<GlyphAtlas | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const sidebarWidth = useUiStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
+  const hotkeysOpen = useUiStore((s) => s.hotkeysOpen);
+  const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   useHotkeys();
   useUnsavedChangesGuard();
   usePlayback();
@@ -45,11 +52,18 @@ export function App() {
   if (!atlas) return <div className="boot">Loading font…</div>;
 
   return (
-    <div className="app">
+    <div className="app" style={{ '--sidebar-w': `${sidebarWidth}px` } as React.CSSProperties}>
       <TopBar />
       <div className="app-body">
         <ToolBar />
         <Viewport atlas={atlas} />
+        {/* Сайдбар растёт при движении влево, поэтому знак смещения отрицательный. */}
+        <Resizer
+          value={sidebarWidth}
+          onChange={setSidebarWidth}
+          sign={-1}
+          ariaLabel="Ширина боковой панели"
+        />
         <aside className="sidebar">
           <LayersPanel />
           <ObjectsPanel />
@@ -61,6 +75,7 @@ export function App() {
       </div>
       <TimelinePanel />
       <StatusBar />
+      <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
     </div>
   );
 }

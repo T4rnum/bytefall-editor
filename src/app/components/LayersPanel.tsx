@@ -19,6 +19,7 @@ import {
   updateLayerAction,
 } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
+import { Button, Panel, Slider, TextField } from '../ui';
 
 function LayerRow({
   layer,
@@ -35,59 +36,57 @@ function LayerRow({
 
   return (
     <li
-      className={`layer-row${active ? ' is-active' : ''}${layer.visible ? '' : ' is-hidden'}`}
+      className={`item-row${active ? ' is-active' : ''}${layer.visible ? '' : ' is-hidden'}`}
       onClick={onActivate}
     >
-      <button
-        type="button"
-        className="icon-btn icon-btn--small"
-        title={layer.visible ? 'Hide' : 'Show'}
+      <Button
+        icon
+        size="sm"
+        label={layer.visible ? 'Hide layer' : 'Show layer'}
         onClick={(e) => {
           e.stopPropagation();
           updateLayerAction(layer.id, { visible: !layer.visible }, 'Toggle visibility');
         }}
       >
         <VisibleIcon size={14} />
-      </button>
-      <button
-        type="button"
-        className={`icon-btn icon-btn--small${layer.locked ? ' is-active' : ''}`}
-        title={layer.locked ? 'Unlock' : 'Lock'}
+      </Button>
+      <Button
+        icon
+        size="sm"
+        active={layer.locked}
+        label={layer.locked ? 'Unlock layer' : 'Lock layer'}
         onClick={(e) => {
           e.stopPropagation();
           updateLayerAction(layer.id, { locked: !layer.locked }, 'Toggle lock');
         }}
       >
         <LockIcon size={14} />
-      </button>
+      </Button>
       {editing ? (
-        <input
-          className="layer-name-input"
-          autoFocus
-          defaultValue={layer.name}
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            if (name && name !== layer.name) updateLayerAction(layer.id, { name }, 'Rename layer');
-            setEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-            if (e.key === 'Escape') setEditing(false);
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
+        <div className="item-name" onClick={(e) => e.stopPropagation()}>
+          <TextField
+            value={layer.name}
+            size="sm"
+            className="item-name-input"
+            ariaLabel="Layer name"
+            onCommit={(text) => {
+              const name = text.trim();
+              if (name && name !== layer.name)
+                updateLayerAction(layer.id, { name }, 'Rename layer');
+              setEditing(false);
+            }}
+          />
+        </div>
       ) : (
         <span
-          className="layer-name"
+          className="item-name"
           onDoubleClick={() => setEditing(true)}
-          title="Double-click to rename"
+          title="Двойной щелчок — переименовать"
         >
           {layer.name}
         </span>
       )}
-      {layer.opacity < 1 && (
-        <span className="layer-opacity">{Math.round(layer.opacity * 100)}%</span>
-      )}
+      {layer.opacity < 1 && <span className="item-meta">{Math.round(layer.opacity * 100)}%</span>}
     </li>
   );
 }
@@ -97,65 +96,43 @@ export function LayersPanel() {
   const activeLayerId = useDocumentStore((s) => s.activeLayerId);
   const setActiveLayer = useDocumentStore((s) => s.setActiveLayer);
   const active = doc.layers.find((l) => l.id === activeLayerId);
+  /** Пока ползунок тянут, значение живёт локально: иначе каждый кадр жеста уйдёт в историю. */
   const [opacityDraft, setOpacityDraft] = useState<number | null>(null);
   const opacity = opacityDraft ?? Math.round((active?.opacity ?? 1) * 100);
 
-  const commitOpacity = (): void => {
-    if (opacityDraft !== null && active) {
-      updateLayerAction(active.id, { opacity: opacityDraft / 100 }, 'Layer opacity');
-    }
-    setOpacityDraft(null);
-  };
-
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <span>Layers</span>
-        <div className="panel-actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Add layer"
-            onClick={addLayerAction}
-          >
+    <Panel
+      id="layers"
+      title="Layers"
+      badge={`${doc.layers.length}`}
+      actions={
+        <>
+          <Button icon size="sm" label="Add layer" onClick={addLayerAction}>
             <Plus size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Duplicate layer"
-            onClick={duplicateActiveLayerAction}
-          >
+          </Button>
+          <Button icon size="sm" label="Duplicate layer" onClick={duplicateActiveLayerAction}>
             <Copy size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Move up"
-            onClick={() => moveActiveLayerAction(1)}
-          >
+          </Button>
+          <Button icon size="sm" label="Move up" onClick={() => moveActiveLayerAction(1)}>
             <ChevronUp size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Move down"
-            onClick={() => moveActiveLayerAction(-1)}
-          >
+          </Button>
+          <Button icon size="sm" label="Move down" onClick={() => moveActiveLayerAction(-1)}>
             <ChevronDown size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Delete layer"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            variant="danger"
+            label="Delete layer"
             disabled={doc.layers.length <= 1}
             onClick={removeActiveLayerAction}
           >
             <Trash2 size={14} />
-          </button>
-        </div>
-      </header>
-      <ul className="layer-list">
+          </Button>
+        </>
+      }
+    >
+      <ul className="item-list">
         {[...doc.layers].reverse().map((layer) => (
           <LayerRow
             key={layer.id}
@@ -165,21 +142,19 @@ export function LayersPanel() {
           />
         ))}
       </ul>
-      <label className="range-row">
-        <span>Opacity</span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={opacity}
-          disabled={!active}
-          onChange={(e) => setOpacityDraft(Number(e.target.value))}
-          onPointerUp={commitOpacity}
-          onKeyUp={commitOpacity}
-          onBlur={commitOpacity}
-        />
-        <span className="range-value">{opacity}%</span>
-      </label>
-    </section>
+      <Slider
+        label="Opacity"
+        value={opacity}
+        min={0}
+        max={100}
+        suffix="%"
+        disabled={!active}
+        onChange={setOpacityDraft}
+        onCommit={(value) => {
+          setOpacityDraft(null);
+          if (active) updateLayerAction(active.id, { opacity: value / 100 }, 'Layer opacity');
+        }}
+      />
+    </Panel>
   );
 }

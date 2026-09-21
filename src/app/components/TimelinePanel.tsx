@@ -22,10 +22,7 @@ import {
   stepFrameAction,
   togglePlaybackAction,
 } from '../store/frameActions';
-
-const commitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-  if (e.key === 'Enter') e.currentTarget.blur();
-};
+import { Button, NumberField } from '../ui';
 
 /** Полоса кадров: переход, проигрывание, onion skin, добавление и длительность. */
 export function TimelinePanel() {
@@ -49,48 +46,37 @@ export function TimelinePanel() {
   return (
     <section className="timeline" aria-label="Timeline">
       <div className="timeline-controls">
-        <button
-          type="button"
-          className="icon-btn"
-          title="Previous frame (,)"
-          onClick={() => stepFrameAction(-1)}
-        >
+        <Button icon label="Previous frame" hotkey="," onClick={() => stepFrameAction(-1)}>
           <SkipBack size={16} />
-        </button>
-        <button
-          type="button"
-          className={`icon-btn${isPlaying ? ' is-active' : ''}`}
-          title="Play / pause (Enter)"
+        </Button>
+        <Button
+          icon
+          label="Play / pause"
+          hotkey="Enter"
+          active={isPlaying}
           onClick={togglePlaybackAction}
         >
           <PlayIcon size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Next frame (.)"
-          onClick={() => stepFrameAction(1)}
-        >
+        </Button>
+        <Button icon label="Next frame" hotkey="." onClick={() => stepFrameAction(1)}>
           <SkipForward size={16} />
-        </button>
-        <button
-          type="button"
-          className={`icon-btn${onionSkin ? ' is-active' : ''}`}
-          title="Onion skin: show neighbouring frames"
-          aria-pressed={onionSkin}
+        </Button>
+        <Button
+          icon
+          label="Onion skin: show neighbouring frames"
+          active={onionSkin}
           onClick={() => setOnionSkin(!onionSkin)}
         >
           <Ghost size={16} />
-        </button>
-        <button
-          type="button"
-          className={`icon-btn${effectsLive ? ' is-active' : ''}`}
-          title="Live effects: animate layer effects in the editor"
-          aria-pressed={effectsLive}
+        </Button>
+        <Button
+          icon
+          label="Live effects: animate layer effects in the editor"
+          active={effectsLive}
           onClick={() => setEffectsLive(!effectsLive)}
         >
           <Sparkles size={16} />
-        </button>
+        </Button>
       </div>
 
       <ol className="frame-strip">
@@ -109,63 +95,39 @@ export function TimelinePanel() {
       </ol>
 
       <div className="timeline-controls">
-        <button
-          type="button"
-          className="icon-btn"
-          title="New empty frame"
-          onClick={() => addFrameAction('empty')}
-        >
+        <Button icon label="New empty frame" onClick={() => addFrameAction('empty')}>
           <Plus size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Duplicate frame"
-          onClick={() => addFrameAction('duplicate')}
-        >
+        </Button>
+        <Button icon label="Duplicate frame" onClick={() => addFrameAction('duplicate')}>
           <Copy size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Move frame left"
-          onClick={() => moveFrameAction(-1)}
-        >
+        </Button>
+        <Button icon label="Move frame left" onClick={() => moveFrameAction(-1)}>
           <ChevronLeft size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Move frame right"
-          onClick={() => moveFrameAction(1)}
-        >
+        </Button>
+        <Button icon label="Move frame right" onClick={() => moveFrameAction(1)}>
           <ChevronRight size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Delete frame"
+        </Button>
+        <Button
+          icon
+          variant="danger"
+          label="Delete frame"
           disabled={animation.frames.length <= 1}
           onClick={removeFrameAction}
         >
           <Trash2 size={16} />
-        </button>
-        <label className="inline-row">
-          <input
-            key={`${frame.id}:${frame.duration}`}
-            className="num-input"
-            type="number"
-            min={MIN_FRAME_DURATION}
-            max={MAX_FRAME_DURATION}
-            step={10}
-            defaultValue={frame.duration}
-            aria-label="Frame duration, milliseconds"
-            onFocus={() => setPlaying(false)}
-            onBlur={(e) => setFrameDurationAction(Number(e.target.value))}
-            onKeyDown={commitOnEnter}
-          />
-          <span>ms</span>
-        </label>
+        </Button>
+        <NumberField
+          value={frame.duration}
+          min={MIN_FRAME_DURATION}
+          max={MAX_FRAME_DURATION}
+          step={10}
+          suffix=" ms"
+          title="Длительность кадра. Тяни, чтобы менять, щёлкни для ввода"
+          onChange={(value) => {
+            setPlaying(false);
+            setFrameDurationAction(value);
+          }}
+        />
         <span className="dim">
           {frameIndex + 1}/{animation.frames.length} · {animationDuration(animation)} ms
         </span>

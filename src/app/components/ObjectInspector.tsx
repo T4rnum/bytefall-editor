@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
+import { MAX_DIMENSION } from '../../core/document';
 import type { SceneObject } from '../../core/object';
 import {
   parsePropValue,
@@ -7,28 +8,18 @@ import {
   setObjectPropAction,
   updateObjectAction,
 } from '../store/objectActions';
+import { Button, Field, NumberField, TextField } from '../ui';
 
 interface Props {
   readonly object: SceneObject;
 }
 
-const commitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-  if (e.key === 'Enter') e.currentTarget.blur();
-};
-
-/** Позиция и произвольные свойства выбранного объекта. Поля неконтролируемые, коммит по blur. */
+/** Позиция и произвольные свойства выбранного объекта. */
 export function ObjectInspector({ object }: Props) {
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
-  /** Пустое или нечисловое поле возвращается к текущему значению, а не сбрасывает позицию в 0. */
-  const commitPosition = (axis: 'x' | 'y', input: HTMLInputElement): void => {
-    const raw = input.value.trim();
-    const value = Math.round(Number(raw));
-    if (raw === '' || !Number.isFinite(value)) {
-      input.value = String(object[axis]);
-      return;
-    }
+  const move = (axis: 'x' | 'y', value: number): void => {
     if (value !== object[axis]) updateObjectAction(object.id, { [axis]: value }, 'Move object');
   };
 
@@ -41,27 +32,25 @@ export function ObjectInspector({ object }: Props) {
 
   return (
     <div className="inspector">
-      <div className="inline-row">
-        <span>X</span>
-        <input
-          key={`${object.id}:x:${object.x}`}
-          className="num-input"
-          type="number"
-          defaultValue={object.x}
-          onBlur={(e) => commitPosition('x', e.target)}
-          onKeyDown={commitOnEnter}
+      <Field label="Position">
+        <NumberField
+          label="X"
+          value={object.x}
+          min={-MAX_DIMENSION}
+          max={MAX_DIMENSION}
+          onChange={(value) => move('x', value)}
+          width="var(--field-w-sm)"
         />
-        <span>Y</span>
-        <input
-          key={`${object.id}:y:${object.y}`}
-          className="num-input"
-          type="number"
-          defaultValue={object.y}
-          onBlur={(e) => commitPosition('y', e.target)}
-          onKeyDown={commitOnEnter}
+        <NumberField
+          label="Y"
+          value={object.y}
+          min={-MAX_DIMENSION}
+          max={MAX_DIMENSION}
+          onChange={(value) => move('y', value)}
+          width="var(--field-w-sm)"
         />
-        <span className="dim">{object.cells.size} cells</span>
-      </div>
+      </Field>
+      <span className="dim">{object.cells.size} cells</span>
 
       <div className="props">
         {Object.entries(object.props).map(([key, value]) => (
@@ -69,50 +58,52 @@ export function ObjectInspector({ object }: Props) {
             <span className="prop-key" title={typeof value}>
               {key}
             </span>
-            <input
-              key={`${object.id}:${key}:${String(value)}`}
-              className="prop-input"
-              defaultValue={String(value)}
-              onBlur={(e) => {
-                const next = parsePropValue(e.target.value);
+            <TextField
+              value={String(value)}
+              size="sm"
+              ariaLabel={`Value of ${key}`}
+              onCommit={(text) => {
+                const next = parsePropValue(text);
                 if (next !== value) setObjectPropAction(object.id, key, next);
               }}
-              onKeyDown={commitOnEnter}
             />
-            <button
-              type="button"
-              className="icon-btn icon-btn--small"
-              title="Remove property"
+            <Button
+              icon
+              size="sm"
+              variant="danger"
+              label="Remove property"
               onClick={() => removeObjectPropAction(object.id, key)}
             >
               <X size={12} />
-            </button>
+            </Button>
           </div>
         ))}
         <div className="prop-row">
           <input
-            className="prop-input"
+            className="textfield textfield--sm prop-key-input"
             placeholder="property"
+            aria-label="New property name"
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addProp()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') addProp();
+            }}
           />
           <input
-            className="prop-input"
+            className="textfield textfield--sm"
             placeholder="value"
+            aria-label="New property value"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addProp()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') addProp();
+            }}
           />
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Add property"
-            disabled={!newKey.trim()}
-            onClick={addProp}
-          >
+          <Button icon size="sm" label="Add property" disabled={!newKey.trim()} onClick={addProp}>
             <Plus size={12} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

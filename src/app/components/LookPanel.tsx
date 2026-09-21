@@ -1,5 +1,7 @@
+import { RotateCcw } from 'lucide-react';
 import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import { useEditorStore } from '../store/editorStore';
+import { Button, Panel, Slider } from '../ui';
 
 const CONTROLS: readonly {
   readonly key: keyof PostSettings;
@@ -17,33 +19,26 @@ export function LookPanel() {
   const setPost = useEditorStore((s) => s.setPost);
 
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <span>Look</span>
-        <div className="panel-actions">
-          <button
-            type="button"
-            className="text-btn text-btn--small"
-            onClick={() => setPost(DEFAULT_POST)}
-          >
-            reset
-          </button>
-        </div>
-      </header>
+    <Panel
+      id="look"
+      title="Look"
+      actions={
+        <Button icon size="sm" label="Reset look" onClick={() => setPost(DEFAULT_POST)}>
+          <RotateCcw size={13} />
+        </Button>
+      }
+    >
       {CONTROLS.map((control) => (
-        <label className="range-row" key={control.key}>
-          <span>{control.label}</span>
-          <input
-            type="range"
-            min={0}
-            max={control.max}
-            step={0.05}
-            value={post[control.key]}
-            onChange={(e) => setPost({ [control.key]: Number(e.target.value) })}
-          />
-          <span className="range-value">{post[control.key].toFixed(2)}</span>
-        </label>
+        <Slider
+          key={control.key}
+          label={control.label}
+          value={post[control.key]}
+          min={0}
+          max={control.max}
+          step={0.05}
+          onChange={(value) => setPost({ [control.key]: value })}
+        />
       ))}
-    </section>
+    </Panel>
   );
 }

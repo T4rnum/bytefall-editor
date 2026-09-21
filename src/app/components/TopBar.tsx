@@ -5,6 +5,7 @@ import {
   FolderOpen,
   Grid3x3,
   Image,
+  Keyboard,
   LayoutGrid,
   Maximize,
   Redo2,
@@ -26,10 +27,13 @@ import {
   openDocumentAction,
   saveDocumentAction,
 } from '../store/fileActions';
+import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
+import { Button, Select, TextField } from '../ui';
 import { NewDocumentDialog } from './NewDocumentDialog';
 
 const PNG_SCALES = [8, 16, 32, 64] as const;
+const SCALE_OPTIONS = PNG_SCALES.map((s) => ({ value: String(s), label: `${s} px/cell` }));
 
 export function TopBar() {
   const doc = useDocumentStore((s) => s.doc);
@@ -41,157 +45,96 @@ export function TopBar() {
   const showGrid = useEditorStore((s) => s.showGrid);
   const setShowGrid = useEditorStore((s) => s.setShowGrid);
   const [newOpen, setNewOpen] = useState(false);
-  const [pngScale, setPngScale] = useState<number>(16);
+  const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
+  const [pngScale, setPngScale] = useState(16);
 
   return (
     <header className="topbar">
       <div className="brand">Bytefall</div>
-      <input
+      <TextField
+        value={doc.name}
         className="doc-name"
-        key={doc.name}
-        defaultValue={doc.name}
-        aria-label="Document name"
-        onBlur={(e) => {
-          renameDocumentAction(e.target.value);
-          e.target.value = useDocumentStore.getState().doc.name;
-        }}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        ariaLabel="Document name"
+        onCommit={renameDocumentAction}
       />
       {dirty && <span className="dirty-dot" title="Unsaved changes" />}
 
       <div className="topbar-group">
-        <button
-          type="button"
-          className="icon-btn"
-          title="New (canvas size…)"
-          onClick={() => setNewOpen(true)}
-        >
+        <Button icon label="New document" onClick={() => setNewOpen(true)}>
           <FilePlus size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Open (Ctrl+O)"
-          onClick={() => void openDocumentAction()}
-        >
+        </Button>
+        <Button icon label="Open" hotkey="Ctrl+O" onClick={() => void openDocumentAction()}>
           <FolderOpen size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Save (Ctrl+S)"
-          onClick={() => void saveDocumentAction(false)}
-        >
+        </Button>
+        <Button icon label="Save" hotkey="Ctrl+S" onClick={() => void saveDocumentAction(false)}>
           <Save size={16} />
-        </button>
-        <button
-          type="button"
-          className="text-btn"
-          title="Save As (Ctrl+Shift+S)"
-          onClick={() => void saveDocumentAction(true)}
-        >
+        </Button>
+        <Button label="Save as" hotkey="Ctrl+Shift+S" onClick={() => void saveDocumentAction(true)}>
           Save as
-        </button>
+        </Button>
       </div>
 
       <div className="topbar-group">
-        <select
-          className="select"
-          value={pngScale}
-          aria-label="Export scale, pixels per cell"
-          onChange={(e) => setPngScale(Number(e.target.value))}
-        >
-          {PNG_SCALES.map((s) => (
-            <option key={s} value={s}>
-              {s} px/cell
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Export current frame as PNG"
+        <Select
+          value={String(pngScale)}
+          options={SCALE_OPTIONS}
+          ariaLabel="Export scale, pixels per cell"
+          onChange={(value) => setPngScale(Number(value))}
+        />
+        <Button
+          icon
+          label="Export current frame as PNG"
           onClick={() => void exportPngAction(pngScale)}
         >
           <Image size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Export animated GIF"
-          onClick={() => void exportGifAction(pngScale)}
-        >
+        </Button>
+        <Button icon label="Export animated GIF" onClick={() => void exportGifAction(pngScale)}>
           <Film size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Export sprite sheet PNG"
+        </Button>
+        <Button
+          icon
+          label="Export sprite sheet PNG"
           onClick={() => void exportSpriteSheetAction(pngScale)}
         >
           <LayoutGrid size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Export current frame as text"
-          onClick={() => void exportTextAction()}
-        >
+        </Button>
+        <Button icon label="Export current frame as text" onClick={() => void exportTextAction()}>
           <FileText size={16} />
-        </button>
+        </Button>
       </div>
 
       <div className="topbar-group">
-        <button
-          type="button"
-          className="icon-btn"
-          title="Undo (Ctrl+Z)"
-          disabled={!canUndo(history)}
-          onClick={undo}
-        >
+        <Button icon label="Undo" hotkey="Ctrl+Z" disabled={!canUndo(history)} onClick={undo}>
           <Undo2 size={16} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Redo (Ctrl+Shift+Z)"
-          disabled={!canRedo(history)}
-          onClick={redo}
-        >
+        </Button>
+        <Button icon label="Redo" hotkey="Ctrl+Shift+Z" disabled={!canRedo(history)} onClick={redo}>
           <Redo2 size={16} />
-        </button>
+        </Button>
       </div>
 
       <div className="topbar-group topbar-group--right">
-        <button
-          type="button"
-          className="icon-btn"
-          title="Zoom out (-)"
-          onClick={() => zoomByAction(0.8)}
-        >
+        <Button icon label="Zoom out" hotkey="-" onClick={() => zoomByAction(0.8)}>
           <ZoomOut size={16} />
-        </button>
+        </Button>
         <span className="zoom-label">{Math.round(zoom)} px</span>
-        <button
-          type="button"
-          className="icon-btn"
-          title="Zoom in (+)"
-          onClick={() => zoomByAction(1.25)}
-        >
+        <Button icon label="Zoom in" hotkey="+" onClick={() => zoomByAction(1.25)}>
           <ZoomIn size={16} />
-        </button>
-        <button type="button" className="icon-btn" title="Fit (0)" onClick={fitViewAction}>
+        </Button>
+        <Button icon label="Fit to window" hotkey="0" onClick={fitViewAction}>
           <Maximize size={16} />
-        </button>
-        <button
-          type="button"
-          className={`icon-btn${showGrid ? ' is-active' : ''}`}
-          title="Toggle grid (`)"
-          aria-pressed={showGrid}
+        </Button>
+        <Button
+          icon
+          label="Toggle grid"
+          hotkey="`"
+          active={showGrid}
           onClick={() => setShowGrid(!showGrid)}
         >
           <Grid3x3 size={16} />
-        </button>
+        </Button>
+        <Button icon label="Keyboard shortcuts" hotkey="?" onClick={() => setHotkeysOpen(true)}>
+          <Keyboard size={16} />
+        </Button>
       </div>
 
       <NewDocumentDialog open={newOpen} onClose={() => setNewOpen(false)} />

@@ -85,7 +85,13 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       if (state.epoch !== lastEpoch) {
         lastEpoch = state.epoch;
         const editor = useEditorStore.getState();
-        editor.setCamera(view.fitCamera(state.doc.width, state.doc.height));
+        // Подгонку откладываем на кадр: на монтировании контейнер ещё может не иметь размера,
+        // и тогда fitCamera упёрся бы в минимальный зум вместо настоящего.
+        const { width, height } = state.doc;
+        requestAnimationFrame(() => {
+          if (viewRef.current !== view) return;
+          useEditorStore.getState().setCamera(view.fitCamera(width, height));
+        });
         editor.setSelection(null);
         editor.setTextCursor(null);
         editor.setPreview(null);

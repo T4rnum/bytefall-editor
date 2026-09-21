@@ -9,9 +9,20 @@ import {
 } from '../../core/effects';
 import { useDocumentStore } from '../store/documentStore';
 import { addEffectAction, removeEffectAction, updateEffectAction } from '../store/effectActions';
+import {
+  Button,
+  Checkbox,
+  Field,
+  FieldGroup,
+  NumberField,
+  Panel,
+  Select,
+  TextField,
+  optionsOf,
+} from '../ui';
 
-/** Поле панели; ключ проверяется компилятором против интерфейса эффекта. */
-type Field<K extends string = string> =
+/** Описание поля эффекта; ключ проверяется компилятором против интерфейса эффекта. */
+type EffectField<K extends string = string> =
   | {
       readonly key: K;
       readonly label: string;
@@ -30,7 +41,7 @@ type Field<K extends string = string> =
     };
 
 type FieldsByKind = {
-  readonly [K in EffectKind]: readonly Field<Extract<keyof EffectByKind[K], string>>[];
+  readonly [K in EffectKind]: readonly EffectField<Extract<keyof EffectByKind[K], string>>[];
 };
 
 const num = <K extends string>(
@@ -39,7 +50,7 @@ const num = <K extends string>(
   min: number,
   max: number,
   step: number,
-): Field<K> => ({
+): EffectField<K> => ({
   key,
   label,
   type: 'number',
@@ -76,85 +87,63 @@ const FIELDS: FieldsByKind = {
   ],
 };
 
-const label = (kind: EffectKind): string =>
+const kindLabel = (kind: EffectKind): string =>
   EFFECT_KINDS.find((k) => k.kind === kind)?.label ?? kind;
 
-function FieldEditor({ effect, field }: { effect: LayerEffect; field: Field }) {
+function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectField }) {
   const values = effect as unknown as Record<string, string | number | boolean>;
   const value = values[field.key];
   const commit = (next: string | number | boolean): void => {
     if (next === value) return;
     updateEffectAction(effect, { [field.key]: next });
   };
-  const inputKey = `${effect.id}:${field.key}:${String(value)}`;
 
-  switch (field.type) {
-    case 'boolean':
-      return (
-        <label className="fx-field">
-          <input
-            type="checkbox"
-            checked={Boolean(value)}
-            onChange={(e) => commit(e.target.checked)}
-          />
-          <span>{field.label}</span>
-        </label>
-      );
-    case 'select':
-      return (
-        <label className="fx-field">
-          <span>{field.label}</span>
-          <select
-            className="select select--small"
-            value={String(value)}
-            onChange={(e) => commit(e.target.value)}
-          >
-            {field.options.map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-        </label>
-      );
-    case 'text':
-      return (
-        <label className="fx-field">
-          <span>{field.label}</span>
-          <input
-            key={inputKey}
-            className="prop-input glyph-text"
-            defaultValue={String(value)}
-            onBlur={(e) => commit(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
-        </label>
-      );
-    default:
-      return (
-        <label className="fx-field">
-          <span>{field.label}</span>
-          <input
-            key={inputKey}
-            className="num-input"
-            type="number"
-            min={field.min}
-            max={field.max}
-            step={field.step}
-            defaultValue={Number(value)}
-            onBlur={(e) => {
-              const parsed = Number(e.target.value);
-              if (!Number.isFinite(parsed)) {
-                e.target.value = String(value);
-                return;
-              }
-              commit(Math.max(field.min, Math.min(field.max, parsed)));
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          />
-        </label>
-      );
+  if (field.type === 'boolean') {
+    return (
+      <Checkbox checked={Boolean(value)} onChange={commit}>
+        {field.label}
+      </Checkbox>
+    );
   }
+  if (field.type === 'select') {
+    return (
+      <Field label={field.label}>
+        <Select
+          value={String(value)}
+          options={optionsOf(field.options)}
+          size="sm"
+          ariaLabel={field.label}
+          onChange={commit}
+        />
+      </Field>
+    );
+  }
+  if (field.type === 'text') {
+    return (
+      <Field label={field.label}>
+        <TextField
+          value={String(value)}
+          size="sm"
+          pixel
+          ariaLabel={field.label}
+          onCommit={commit}
+        />
+      </Field>
+    );
+  }
+  return (
+    <Field label={field.label}>
+      <NumberField
+        value={Number(value)}
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        onCommit={commit}
+        onChange={commit}
+        width="var(--field-w-sm)"
+      />
+    </Field>
+  );
 }
 
 /** Эффекты активного слоя: список с параметрами и добавление нового. */
@@ -166,68 +155,62 @@ export function EffectsPanel() {
   if (!layer) return null;
 
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <span>Effects</span>
-        <span className="dim">{layer.name}</span>
-        <div className="panel-actions">
-          <select
-            className="select select--small"
+    <Panel
+      id="effects"
+      title="Effects"
+      badge={layer.name}
+      actions={
+        <>
+          <Select
             value={kind}
-            aria-label="Effect to add"
-            onChange={(e) => setKind(e.target.value as EffectKind)}
-          >
-            {EFFECT_KINDS.map((k) => (
-              <option key={k.kind} value={k.kind}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Add effect to the active layer"
+            options={EFFECT_KINDS.map((k) => ({ value: k.kind, label: k.label }))}
+            size="sm"
+            ariaLabel="Effect to add"
+            onChange={setKind}
+          />
+          <Button
+            icon
+            size="sm"
+            label="Add effect to the active layer"
             onClick={() => addEffectAction(kind)}
           >
             <Plus size={14} />
-          </button>
-        </div>
-      </header>
+          </Button>
+        </>
+      }
+    >
       {layer.effects.length === 0 ? (
-        <p className="panel-hint">
-          Effects animate the layer without changing its cells. Try Fire.
-        </p>
+        <p className="panel-hint">Эффекты анимируют слой, не меняя его ячейки. Попробуй Fire.</p>
       ) : (
         <ul className="fx-list">
           {layer.effects.map((effect) => (
             <li key={effect.id} className="fx-row">
               <div className="fx-head">
-                <label className="fx-field">
-                  <input
-                    type="checkbox"
-                    checked={effect.enabled}
-                    onChange={(e) => updateEffectAction(effect, { enabled: e.target.checked })}
-                  />
-                  <span className="fx-name">{label(effect.kind)}</span>
-                </label>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--small"
-                  title="Remove effect"
+                <Checkbox
+                  checked={effect.enabled}
+                  onChange={(enabled) => updateEffectAction(effect, { enabled })}
+                >
+                  <span className="fx-name">{kindLabel(effect.kind)}</span>
+                </Checkbox>
+                <Button
+                  icon
+                  size="sm"
+                  variant="danger"
+                  label="Remove effect"
                   onClick={() => removeEffectAction(effect.id)}
                 >
                   <X size={12} />
-                </button>
+                </Button>
               </div>
-              <div className="fx-fields">
+              <FieldGroup columns={2} className="fx-fields">
                 {FIELDS[effect.kind].map((field) => (
                   <FieldEditor key={field.key} effect={effect} field={field} />
                 ))}
-              </div>
+              </FieldGroup>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }

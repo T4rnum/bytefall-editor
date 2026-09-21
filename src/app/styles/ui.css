@@ -1,0 +1,451 @@
+/**
+ * Стили базовых контролов из src/app/ui. Ничего прикладного здесь быть не должно: если правило
+ * знает про слои, кадры или инструменты — ему место в app.css.
+ *
+ * Все значения берутся из tokens.css. Литеральный цвет в этом файле — ошибка ревью.
+ */
+
+/* ── Общее для полей ввода ─────────────────────────────────────────────── */
+.btn,
+.select,
+.textfield,
+.numfield {
+  height: var(--control-h);
+  border-radius: var(--radius);
+  font: inherit;
+  color: var(--text);
+}
+
+.btn:focus-visible,
+.select:focus-visible,
+.textfield:focus-visible,
+.numfield:focus-visible,
+.tab:focus-visible,
+.checkbox input:focus-visible,
+.slider-track:focus-visible,
+.panel-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ── Кнопка ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
+}
+
+.btn--sm {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.btn--lg {
+  height: var(--control-h-lg);
+}
+
+.btn--icon {
+  width: var(--control-h);
+  padding: 0;
+}
+
+.btn--icon.btn--sm {
+  width: var(--control-h-sm);
+}
+
+.btn--icon.btn--lg {
+  width: var(--control-h-lg);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--state-hover);
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn--danger {
+  color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--danger-text);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--state-pressed);
+}
+
+.btn.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn.is-active:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: default;
+}
+
+/* ── Выпадающий список ─────────────────────────────────────────────────── */
+.select {
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.select--sm {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.select--lg {
+  height: var(--control-h-lg);
+}
+
+.select:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: default;
+}
+
+/* ── Текстовое поле ────────────────────────────────────────────────────── */
+.textfield {
+  min-width: 0;
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.textfield:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.textfield:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.textfield--sm {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.textfield--lg {
+  height: var(--control-h-lg);
+}
+
+.textfield--pixel {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.textfield:disabled {
+  opacity: var(--disabled-opacity);
+}
+
+/* ── Числовое поле с перетаскиванием ───────────────────────────────────── */
+.numfield {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: var(--field-w);
+  padding: 0 var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+  transition:
+    background var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
+}
+
+.numfield:hover {
+  background: var(--panel-raised);
+  border-color: var(--border-strong);
+}
+
+.numfield-label {
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.numfield-value {
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.numfield--editing {
+  display: block;
+  padding: 0 var(--space-3);
+  text-align: right;
+  cursor: text;
+  border-color: var(--accent);
+  outline: none;
+}
+
+.numfield.is-disabled {
+  opacity: var(--disabled-opacity);
+  cursor: default;
+}
+
+/* ── Флажок ────────────────────────────────────────────────────────────── */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox input {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checkbox-label {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkbox.is-disabled {
+  opacity: var(--disabled-opacity);
+  cursor: default;
+}
+
+/* ── Ползунок ──────────────────────────────────────────────────────────── */
+.slider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.slider-label {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.slider-track {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h-sm);
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Вкладки ───────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tab {
+  flex: 1;
+  padding: var(--space-1) 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease);
+}
+
+.tab:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+.tab.is-active {
+  background: var(--panel-raised);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ── Поле с подписью ───────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.field-label {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-control {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.field--stacked .field-label {
+  flex: none;
+}
+
+.field--stacked .field-control {
+  flex: 1;
+}
+
+.field--stacked .field-control > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-group {
+  display: grid;
+  gap: var(--space-2) var(--space-4);
+  min-width: 0;
+}
+
+.field-group--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ── Панель сайдбара ───────────────────────────────────────────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel--grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel.is-collapsed {
+  gap: 0;
+  padding-bottom: var(--space-3);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.panel-toggle,
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.panel-title {
+  cursor: default;
+}
+
+.panel-toggle:hover {
+  color: var(--text);
+}
+
+.panel-badge {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.panel-actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.panel-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

@@ -23,6 +23,7 @@ import {
   ungroupSelectedObjectAction,
   updateObjectAction,
 } from '../store/objectActions';
+import { Button, Panel, TextField } from '../ui';
 import { ObjectInspector } from './ObjectInspector';
 
 interface RowProps {
@@ -39,58 +40,58 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
 
   return (
     <li
-      className={`layer-row${active ? ' is-active' : ''}${object.visible ? '' : ' is-hidden'}`}
+      className={`item-row${active ? ' is-active' : ''}${object.visible ? '' : ' is-hidden'}`}
       onClick={onActivate}
     >
-      <button
-        type="button"
-        className="icon-btn icon-btn--small"
-        title={object.visible ? 'Hide' : 'Show'}
+      <Button
+        icon
+        size="sm"
+        label={object.visible ? 'Hide object' : 'Show object'}
         onClick={(e) => {
           e.stopPropagation();
           updateObjectAction(object.id, { visible: !object.visible }, 'Toggle object visibility');
         }}
       >
         <VisibleIcon size={14} />
-      </button>
-      <button
-        type="button"
-        className={`icon-btn icon-btn--small${object.locked ? ' is-active' : ''}`}
-        title={object.locked ? 'Unlock' : 'Lock'}
+      </Button>
+      <Button
+        icon
+        size="sm"
+        active={object.locked}
+        label={object.locked ? 'Unlock object' : 'Lock object'}
         onClick={(e) => {
           e.stopPropagation();
           updateObjectAction(object.id, { locked: !object.locked }, 'Toggle object lock');
         }}
       >
         <LockIcon size={14} />
-      </button>
+      </Button>
       {editing ? (
-        <input
-          className="layer-name-input"
-          autoFocus
-          defaultValue={object.name}
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            if (name && name !== object.name)
-              updateObjectAction(object.id, { name }, 'Rename object');
-            setEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-            if (e.key === 'Escape') setEditing(false);
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
+        <div className="item-name" onClick={(e) => e.stopPropagation()}>
+          <TextField
+            value={object.name}
+            size="sm"
+            className="item-name-input"
+            ariaLabel="Object name"
+            onCommit={(text) => {
+              const name = text.trim();
+              if (name && name !== object.name) {
+                updateObjectAction(object.id, { name }, 'Rename object');
+              }
+              setEditing(false);
+            }}
+          />
+        </div>
       ) : (
         <span
-          className="layer-name"
+          className="item-name"
           onDoubleClick={() => setEditing(true)}
-          title="Double-click to rename"
+          title="Двойной щелчок — переименовать"
         >
           {object.name}
         </span>
       )}
-      <span className="dim">{layerName}</span>
+      <span className="item-meta">{layerName}</span>
     </li>
   );
 }
@@ -104,70 +105,77 @@ export function ObjectsPanel() {
   const selected = selectedId ? findObject(doc, selectedId) : undefined;
 
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <span>Objects</span>
-        <div className="panel-actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Group selection into object (Ctrl+G)"
+    <Panel
+      id="objects"
+      title="Objects"
+      badge={objects.length > 0 ? `${objects.length}` : undefined}
+      actions={
+        <>
+          <Button
+            icon
+            size="sm"
+            label="Group selection into object"
+            hotkey="Ctrl+G"
             disabled={!hasSelection}
             onClick={groupSelectionAction}
           >
             <Group size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Ungroup: bake into layer (Ctrl+Shift+G)"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Ungroup: bake into layer"
+            hotkey="Ctrl+Shift+G"
             disabled={!selected}
             onClick={ungroupSelectedObjectAction}
           >
             <Ungroup size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Duplicate object (Ctrl+D)"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Duplicate object"
+            hotkey="Ctrl+D"
             disabled={!selected}
             onClick={duplicateSelectedObjectAction}
           >
             <Copy size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Bring forward"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Bring forward"
             disabled={!selected}
             onClick={() => moveSelectedObjectOrderAction(1)}
           >
             <ChevronUp size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Send backward"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Send backward"
             disabled={!selected}
             onClick={() => moveSelectedObjectOrderAction(-1)}
           >
             <ChevronDown size={14} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Delete object"
+          </Button>
+          <Button
+            icon
+            size="sm"
+            variant="danger"
+            label="Delete object"
             disabled={!selected}
             onClick={deleteSelectedObjectAction}
           >
             <Trash2 size={14} />
-          </button>
-        </div>
-      </header>
+          </Button>
+        </>
+      }
+    >
       {objects.length === 0 ? (
-        <p className="panel-hint">Select cells and press Ctrl+G to turn them into an object.</p>
+        <p className="panel-hint">Выдели ячейки и нажми Ctrl+G, чтобы собрать из них объект.</p>
       ) : (
-        <ul className="layer-list">
+        <ul className="item-list">
           {objects.map((object) => (
             <ObjectRow
               key={object.id}
@@ -180,6 +188,6 @@ export function ObjectsPanel() {
         </ul>
       )}
       {selected && <ObjectInspector key={selected.id} object={selected} />}
-    </section>
+    </Panel>
   );
 }

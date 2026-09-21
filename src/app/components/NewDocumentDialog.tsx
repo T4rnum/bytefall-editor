@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { MAX_DIMENSION, MIN_DIMENSION } from '../../core/document';
 import { newDocumentAction } from '../store/fileActions';
+import { Button, Field, NumberField, TextField } from '../ui';
 
 interface Props {
   readonly open: boolean;
@@ -30,41 +31,34 @@ export function NewDocumentDialog({ open, onClose }: Props) {
     <dialog ref={ref} className="dialog" onClose={onClose}>
       <form onSubmit={submit}>
         <h2>New document</h2>
-        <label>
-          Name
-          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-        </label>
+        <Field label="Name" stacked>
+          <TextField value={name} ariaLabel="Document name" onCommit={setName} />
+        </Field>
         <div className="dialog-row">
-          <label>
-            Width, cells
-            <input
-              type="number"
-              min={MIN_DIMENSION}
-              max={MAX_DIMENSION}
+          <Field label="Width, cells" stacked>
+            <NumberField
               value={width}
-              onChange={(e) => setWidth(Number(e.target.value))}
-              required
-            />
-          </label>
-          <label>
-            Height, cells
-            <input
-              type="number"
               min={MIN_DIMENSION}
               max={MAX_DIMENSION}
-              value={height}
-              onChange={(e) => setHeight(Number(e.target.value))}
-              required
+              onChange={setWidth}
+              width="100%"
             />
-          </label>
+          </Field>
+          <Field label="Height, cells" stacked>
+            <NumberField
+              value={height}
+              min={MIN_DIMENSION}
+              max={MAX_DIMENSION}
+              onChange={setHeight}
+              width="100%"
+            />
+          </Field>
         </div>
         <div className="dialog-actions">
-          <button type="button" className="text-btn" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="text-btn text-btn--primary">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary">
             Create
-          </button>
+          </Button>
         </div>
       </form>
     </dialog>

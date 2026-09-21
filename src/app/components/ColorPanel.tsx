@@ -7,6 +7,7 @@ import {
 } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
+import { Button, Field, Panel } from '../ui';
 
 /** input[type=color] понимает только #rrggbb. */
 const toInputColor = (hex: string): string => normalizeHex(hex).slice(0, 7);
@@ -21,21 +22,15 @@ export function ColorPanel() {
   const background = useDocumentStore((s) => s.doc.background);
 
   return (
-    <section className="panel">
-      <header className="panel-header">
-        <span>Colors</span>
-        <div className="panel-actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--small"
-            title="Swap colors (X)"
-            onClick={swapColors}
-          >
-            <ArrowLeftRight size={14} />
-          </button>
-        </div>
-      </header>
-
+    <Panel
+      id="colors"
+      title="Colors"
+      actions={
+        <Button icon size="sm" label="Swap colors" hotkey="X" onClick={swapColors}>
+          <ArrowLeftRight size={14} />
+        </Button>
+      }
+    >
       <div className="color-pair">
         <label
           className="swatch swatch--fg"
@@ -55,14 +50,15 @@ export function ColorPanel() {
             onChange={(e) => setBg(e.target.value)}
           />
         </label>
-        <button
-          type="button"
-          className={`icon-btn icon-btn--small${bg === null ? ' is-active' : ''}`}
-          title="No background"
+        <Button
+          icon
+          size="sm"
+          label="No background"
+          active={bg === null}
           onClick={() => setBg(null)}
         >
           <Ban size={14} />
-        </button>
+        </Button>
       </div>
 
       <div className="palette" role="list" aria-label="Palette">
@@ -73,7 +69,7 @@ export function ColorPanel() {
             role="listitem"
             className={`palette-swatch${color === fg ? ' is-fg' : ''}${color === bg ? ' is-bg' : ''}`}
             style={{ background: color }}
-            title={`${color}: left click sets glyph color, right click sets cell color, Shift+click removes`}
+            title={`${color}: левая кнопка — цвет символа, правая — цвет фона, Shift+щелчок удаляет`}
             onClick={(e) => (e.shiftKey ? removePaletteColorAction(color) : setFg(color))}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -84,28 +80,29 @@ export function ColorPanel() {
         <button
           type="button"
           className="palette-swatch palette-swatch--add"
-          title="Add current glyph color to palette"
+          title="Добавить текущий цвет символа в палитру"
           onClick={() => addPaletteColorAction(normalizeHex(fg))}
         >
           <Plus size={12} />
         </button>
       </div>
 
-      <label className="inline-row">
-        <span>Canvas</span>
+      <Field label="Canvas">
         <input
           type="color"
+          className="color-inline"
+          aria-label="Canvas background color"
           value={toInputColor(background ?? '#000000')}
           onChange={(e) => setBackgroundAction(e.target.value)}
         />
-        <button
-          type="button"
-          className={`text-btn text-btn--small${background === null ? ' is-active' : ''}`}
+        <Button
+          size="sm"
+          active={background === null}
           onClick={() => setBackgroundAction(background === null ? '#000000' : null)}
         >
           {background === null ? 'transparent' : 'solid'}
-        </button>
-      </label>
-    </section>
+        </Button>
+      </Field>
+    </Panel>
   );
 }

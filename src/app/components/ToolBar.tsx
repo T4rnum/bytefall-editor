@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEditorStore } from '../store/editorStore';
 import { TOOLS, type ToolId } from '../tools';
+import { Button } from '../ui';
 
 const ICONS: Record<ToolId, LucideIcon> = {
   pencil: Pencil,
@@ -39,28 +40,32 @@ export function ToolBar() {
       {TOOLS.map((t) => {
         const Icon = ICONS[t.id];
         return (
-          <button
+          <Button
             key={t.id}
-            type="button"
-            className={`tool-btn${tool === t.id ? ' is-active' : ''}`}
-            title={`${t.label} (${t.hotkey.toUpperCase()})`}
-            aria-pressed={tool === t.id}
+            icon
+            size="lg"
+            label={t.label}
+            hotkey={t.hotkey.toUpperCase()}
+            active={tool === t.id}
             onClick={() => setTool(t.id)}
           >
             <Icon size={18} />
-          </button>
+          </Button>
         );
       })}
       {showsFill && (
-        <button
-          type="button"
-          className={`tool-btn tool-btn--option${shapeFill ? ' is-active' : ''}`}
-          title={shapeFill ? 'Filled shape' : 'Outline shape'}
-          aria-pressed={shapeFill}
-          onClick={() => setShapeFill(!shapeFill)}
-        >
-          <span className="fill-icon" data-filled={shapeFill} />
-        </button>
+        <>
+          <span className="toolbar-separator" />
+          <Button
+            icon
+            size="lg"
+            label={shapeFill ? 'Filled shape' : 'Outline shape'}
+            active={shapeFill}
+            onClick={() => setShapeFill(!shapeFill)}
+          >
+            <span className="fill-icon" data-filled={shapeFill} />
+          </Button>
+        </>
       )}
     </nav>
   );
