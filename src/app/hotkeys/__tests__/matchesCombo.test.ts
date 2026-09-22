@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type KeyChord, matchesCombo } from '../registry';
+import { type KeyChord, findHotkey, matchesCombo } from '../registry';
 
 /** Событие клавиатуры по умолчанию без модификаторов. */
 const chord = (partial: Partial<KeyChord> & Pick<KeyChord, 'key' | 'code'>): KeyChord => ({
@@ -125,5 +125,71 @@ describe('цифры и именованные клавиши', () => {
     expect(matchesCombo('Escape', chord({ key: 'Escape', code: 'Escape', shiftKey: true }))).toBe(
       false,
     );
+  });
+});
+
+describe('выбор записи при нескольких совпадениях', () => {
+  it('Shift и клавиша «/» на русской раскладке открывают справку, а не листают кадры', () => {
+    // Такое нажатие печатает запятую, поэтому подходит и записи ',', и записи '?'.
+    // Победить должна физическая клавиша, иначе выбор зависел бы от порядка объявления.
+    const chord = {
+      key: ',',
+      code: 'Slash',
+      shiftKey: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    };
+    expect(matchesCombo(',', chord)).toBe(true);
+    expect(matchesCombo('?', chord)).toBe(true);
+    expect(findHotkey(chord)?.label).toBe('Справка по клавишам');
+  });
+
+  it('обычная запятая по-прежнему листает кадры', () => {
+    const chord = {
+      key: ',',
+      code: 'Comma',
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    };
+    expect(findHotkey(chord)?.label).toBe('Предыдущий кадр');
+  });
+
+  it('точка на русской раскладке листает кадры вперёд', () => {
+    const chord = {
+      key: '.',
+      code: 'Period',
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    };
+    expect(findHotkey(chord)?.label).toBe('Следующий кадр');
+  });
+
+  it('Ctrl+Z на кириллице отменяет, а не выбирает инструмент', () => {
+    const chord = {
+      key: 'я',
+      code: 'KeyZ',
+      shiftKey: false,
+      ctrlKey: true,
+      metaKey: false,
+      altKey: false,
+    };
+    expect(findHotkey(chord)?.label).toBe('Отменить');
+  });
+
+  it('неизвестное нажатие ничего не находит', () => {
+    const chord = {
+      key: 'ф',
+      code: 'KeyA',
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+    };
+    expect(findHotkey(chord)).toBeNull();
   });
 });

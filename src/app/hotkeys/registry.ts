@@ -76,44 +76,71 @@ const SHIFTED_PUNCTUATION_CODES: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Насколько уверенно сочетание совпало с событием.
+ *
+ * Уверенность важна, потому что одно нажатие способно подойти сразу двум записям. На русской
+ * раскладке Shift и клавиша «/» печатают запятую: это одновременно и «?» по физической клавише,
+ * и «,» по символу. Побеждать должна физическая клавиша, иначе выбор зависел бы от порядка
+ * объявления записей.
+ */
+export const enum MatchQuality {
+  None = 0,
+  /** Совпал напечатанный символ. Зависит от раскладки, поэтому слабее. */
+  Character = 1,
+  /** Совпала физическая клавиша. Раскладка на это не влияет. */
+  PhysicalKey = 2,
+}
+
+/**
  * Разбирает «Ctrl+Shift+S» в проверку события. Одна запись служит и поведением, и подписью,
  * поэтому справка не может разойтись с тем, что происходит на самом деле.
  *
  * Буквы и цифры сверяются по физической клавише, а не по напечатанному символу: иначе Ctrl+Z
  * не работал бы на русской раскладке, где та же клавиша печатает «я».
  *
- * Знаки препинания сверяются по символу, потому что символ уже учитывает Shift: «?» и «/» — это
- * одна клавиша, и различает их только он. Поэтому для них состояние Shift отдельно не проверяется,
- * иначе «?» было бы невозможно нажать.
+ * Знаки препинания сверяются и так, и так: по символу, потому что он уже учитывает Shift
+ * («?» и «/» — одна клавиша, различает их только он), и по физической клавише, потому что на
+ * другой раскладке нужный символ на ней может вовсе отсутствовать.
  */
-export function matchesCombo(spec: string, event: KeyChord): boolean {
+export function matchQuality(spec: string, event: KeyChord): MatchQuality {
   const parts = spec.split('+');
   // Само сочетание «+» даёт при разборе пустой хвост.
   const rawKey = parts[parts.length - 1] === '' ? '+' : parts[parts.length - 1];
   const mods = parts.slice(0, -1).filter((p) => p !== '');
 
   // Cmd на macOS работает как Ctrl.
-  if (mods.includes('Ctrl') !== (event.ctrlKey || event.metaKey)) return false;
-  if (mods.includes('Alt') !== event.altKey) return false;
+  if (mods.includes('Ctrl') !== (event.ctrlKey || event.metaKey)) return MatchQuality.None;
+  if (mods.includes('Alt') !== event.altKey) return MatchQuality.None;
 
   const wantShift = mods.includes('Shift');
   const key = rawKey.toLowerCase();
 
   if (LETTER.test(key) || DIGIT.test(key)) {
     const code = LETTER.test(key) ? `Key${key.toUpperCase()}` : `Digit${key}`;
-    return event.code === code && wantShift === event.shiftKey;
+    const ok = event.code === code && wantShift === event.shiftKey;
+    return ok ? MatchQuality.PhysicalKey : MatchQuality.None;
   }
 
   if (rawKey.length > 1) {
-    // Именованные клавиши: Enter, Escape, Delete и подобные.
-    return event.key === rawKey && wantShift === event.shiftKey;
+    // Именованные клавиши: Enter, Escape, Delete и подобные. Раскладка на них не влияет.
+    const ok = event.key === rawKey && wantShift === event.shiftKey;
+    return ok ? MatchQuality.PhysicalKey : MatchQuality.None;
   }
 
-  if (event.key === rawKey) return true;
   const plain = PUNCTUATION_CODES[rawKey];
-  if (plain !== undefined && event.code === plain && !event.shiftKey) return true;
+  if (plain !== undefined && event.code === plain && !event.shiftKey) {
+    return MatchQuality.PhysicalKey;
+  }
   const shifted = SHIFTED_PUNCTUATION_CODES[rawKey];
-  return shifted !== undefined && event.code === shifted && event.shiftKey;
+  if (shifted !== undefined && event.code === shifted && event.shiftKey) {
+    return MatchQuality.PhysicalKey;
+  }
+  return event.key === rawKey ? MatchQuality.Character : MatchQuality.None;
+}
+
+/** Совпало ли сочетание вообще, без учёта уверенности. */
+export function matchesCombo(spec: string, event: KeyChord): boolean {
+  return matchQuality(spec, event) !== MatchQuality.None;
 }
 
 const editor = () => useEditorStore.getState();
@@ -222,9 +249,22 @@ const TOOL_HOTKEYS: readonly Hotkey[] = TOOLS.map((tool) => ({
 
 export const HOTKEYS: readonly Hotkey[] = [...STATIC_HOTKEYS, ...TOOL_HOTKEYS];
 
-/** Первое подходящее сочетание. null, если ничего не подошло. */
+/**
+ * Самое уверенное совпадение. Порядок объявления решает только при равной уверенности, поэтому
+ * добавление новой записи не может втихую перехватить чужое сочетание.
+ */
 export function findHotkey(event: KeyChord): Hotkey | null {
-  return HOTKEYS.find((hotkey) => matchesCombo(hotkey.keys, event)) ?? null;
+  let best: Hotkey | null = null;
+  let bestQuality: MatchQuality = MatchQuality.None;
+  for (const hotkey of HOTKEYS) {
+    const quality = matchQuality(hotkey.keys, event);
+    if (quality > bestQuality) {
+      best = hotkey;
+      bestQuality = quality;
+      if (quality === MatchQuality.PhysicalKey) break;
+    }
+  }
+  return best;
 }
 
 export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [

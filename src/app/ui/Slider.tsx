@@ -1,5 +1,14 @@
+import { useMemo, useRef } from 'react';
 import { NumberField } from './NumberField';
-import { snapToStep } from './numeric';
+import {
+  type DragMode,
+  type NumericRange,
+  dragModeOf,
+  trackFraction,
+  valueFromNudge,
+  valueFromTrackDrag,
+  valueFromTrackPosition,
+} from './numeric';
 
 export interface SliderProps {
   readonly value: number;
@@ -21,9 +30,20 @@ export interface SliderProps {
   readonly className?: string;
 }
 
+interface TrackDrag {
+  readonly pointerId: number;
+  startX: number;
+  startValue: number;
+  mode: DragMode;
+  lastValue: number;
+}
+
 /**
- * Ползунок с точным вводом. Ползунок даёт быстрый грубый подбор, поле справа — точное значение;
+ * Ползунок с точным вводом. Дорожка даёт быстрый грубый подбор, поле справа — точное значение;
  * без второго настройки вроде непрозрачности невозможно выставить повторяемо.
+ *
+ * Дорожка своя, а не `input[type=range]`: нативная не знает про Shift и Ctrl, из-за чего
+ * модификаторы работали в поле, но не работали на самой дорожке.
  */
 export function Slider({
   value,
@@ -38,35 +58,120 @@ export function Slider({
   readout = true,
   className,
 }: SliderProps) {
-  const range = { min, max, step };
-  const end = (raw: number): void => {
-    const next = snapToStep(Number(raw), range);
-    onChange(next);
+  const range: NumericRange = useMemo(() => ({ min, max, step }), [min, max, step]);
+  const drag = useRef<TrackDrag | null>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  const emit = (next: number): void => {
+    if (next !== value) onChange(next);
+  };
+
+  const commit = (next: number): void => {
+    emit(next);
     onCommit?.(next);
   };
 
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (disabled || event.button !== 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const mode = dragModeOf(event);
+    // Нажатие сразу ставит бегунок под курсор, дальше жест идёт относительно этой точки.
+    const start = valueFromTrackPosition(event.clientX, rect.left, rect.width, range, mode);
+    event.currentTarget.focus();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* без захвата жест оборвётся на границе дорожки */
+    }
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startValue: start,
+      mode,
+      lastValue: start,
+    };
+    emit(start);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const state = drag.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    const width = trackRef.current?.getBoundingClientRect().width ?? 0;
+
+    // Модификатор можно зажать посреди жеста: отсчёт начинается заново от текущего значения.
+    const mode = dragModeOf(event);
+    if (mode !== state.mode) {
+      state.mode = mode;
+      state.startX = event.clientX;
+      state.startValue = state.lastValue;
+      return;
+    }
+
+    state.lastValue = valueFromTrackDrag(
+      state.startValue,
+      event.clientX - state.startX,
+      width,
+      range,
+      mode,
+    );
+    emit(state.lastValue);
+  };
+
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const state = drag.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    drag.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* захвата не было */
+    }
+    commit(state.lastValue);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (disabled) return;
+    const mode = dragModeOf(event);
+    const keys: Record<string, () => number> = {
+      ArrowLeft: () => valueFromNudge(value, -1, range, mode),
+      ArrowDown: () => valueFromNudge(value, -1, range, mode),
+      ArrowRight: () => valueFromNudge(value, 1, range, mode),
+      ArrowUp: () => valueFromNudge(value, 1, range, mode),
+      Home: () => min,
+      End: () => max,
+    };
+    const next = keys[event.key];
+    if (!next) return;
+    // Гасим событие: стрелки нужны и активному инструменту, и глобальным сочетаниям.
+    event.preventDefault();
+    event.stopPropagation();
+    commit(next());
+  };
+
+  const fraction = trackFraction(value, range);
+
   return (
-    <div className={`slider${className ? ` ${className}` : ''}`}>
+    <div className={`slider${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`}>
       {label !== undefined && <span className="slider-label">{label}</span>}
-      <input
-        type="range"
+      <div
+        ref={trackRef}
         className="slider-track"
-        min={min}
-        max={max}
-        // step="any" — чтобы бегунок стоял ровно там, где значение, включая дробные значения
-        // после перетаскивания с Shift. Округление к шагу делаем сами в onChange.
-        step="any"
-        value={value}
-        disabled={disabled}
+        role="slider"
+        tabIndex={disabled ? -1 : 0}
         aria-label={label}
-        onChange={(e) => onChange(snapToStep(Number(e.target.value), range))}
-        // Ползунок меняется непрерывно, а в историю должно попасть одно значение,
-        // поэтому фиксация идёт по отпусканию указателя и клавиши.
-        onPointerUp={(e) => end(Number(e.currentTarget.value))}
-        onKeyUp={(e) => end(Number(e.currentTarget.value))}
-        onBlur={(e) => end(Number(e.currentTarget.value))}
-        onKeyDown={(e) => e.stopPropagation()}
-      />
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-disabled={disabled || undefined}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
+      >
+        <div className="slider-fill" style={{ width: `${fraction * 100}%` }} />
+        <div className="slider-thumb" style={{ left: `${fraction * 100}%` }} />
+      </div>
       {readout && (
         <NumberField
           value={value}

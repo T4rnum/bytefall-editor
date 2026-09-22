@@ -8,7 +8,7 @@ import { SceneView } from '../../render/SceneView';
 import { isEditableTarget } from '../hooks/useHotkeys';
 import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
-import { clampZoom, setActiveView } from '../store/viewActions';
+import { cancelCameraTween, clampZoom, setActiveView } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
 
@@ -140,6 +140,8 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
 
     const onWheel = (event: WheelEvent): void => {
       event.preventDefault();
+      // Колесо ведёт камеру само, поэтому начатый кнопкой переход надо оборвать.
+      cancelCameraTween();
       const rect = container.getBoundingClientRect();
       const px = event.clientX - rect.left;
       const py = event.clientY - rect.top;
@@ -228,6 +230,8 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (drag.kind === 'pan') {
+      // Панорамирование ведёт камеру само: начатый кнопкой переход надо оборвать.
+      cancelCameraTween();
       const { camera, setCamera } = editor;
       setCamera({
         ...camera,
