@@ -130,9 +130,19 @@ describe('valueFromNudge', () => {
 });
 
 describe('formatNumber', () => {
-  it('показывает столько знаков, сколько подразумевает шаг', () => {
+  it('не печатает лишние нули', () => {
     expect(formatNumber(0.30000000000000004, unit)).toBe('0.3');
-    expect(formatNumber(12.7, pixels)).toBe('13');
+    expect(formatNumber(50, pixels)).toBe('50');
+  });
+
+  it('показывает мелкий шаг, набранный с Shift', () => {
+    // Шаг 1, мелкий шаг 0.1: без этого значение выглядело бы застывшим.
+    expect(formatNumber(50.1, pixels)).toBe('50.1');
+    expect(formatNumber(0.505, unit)).toBe('0.505');
+  });
+
+  it('обрезает то, что мельче достижимого шага', () => {
+    expect(formatNumber(12.74, pixels)).toBe('12.7');
   });
 });
 

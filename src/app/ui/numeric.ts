@@ -44,9 +44,14 @@ export function roundTo(value: number, precision: number): number {
   return Number(value.toFixed(clamp(precision, 0, 20)));
 }
 
+/** Самый мелкий достижимый шаг даёт на один знак больше обычного: мелкий режим делит на десять. */
+const finePrecision = (range: NumericRange): number => precisionOf(range.step) + 1;
+
 export function stepFor(range: NumericRange, mode: DragMode): number {
-  const factor = mode === 'fine' ? FINE_FACTOR : mode === 'coarse' ? COARSE_FACTOR : 1;
-  return range.step * factor;
+  if (mode === 'normal') return range.step;
+  const factor = mode === 'fine' ? FINE_FACTOR : COARSE_FACTOR;
+  // Умножение на 0.1 даёт хвост вида 0.005000000000000001, а по нему потом считается точность.
+  return roundTo(range.step * factor, finePrecision(range));
 }
 
 /**
@@ -90,8 +95,13 @@ export function valueFromNudge(
   return snapToStep(value + Math.sign(direction) * stepFor(range, mode), range, mode);
 }
 
+/**
+ * Показывает столько знаков, сколько нужно самому мелкому достижимому шагу: иначе значение,
+ * набранное с зажатым Shift, выглядело бы застывшим, хотя на деле менялось.
+ * Лишние нули не печатаются, поэтому обычные значения выглядят как раньше.
+ */
 export function formatNumber(value: number, range: NumericRange): string {
-  return String(roundTo(value, precisionOf(range.step)));
+  return String(roundTo(value, finePrecision(range)));
 }
 
 /**
