@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellsEqual, isBlankCell, makeCell } from '../cell';
+import { cellsEqual, isBlankCell, makeCell, parseAttrValue } from '../cell';
 
 describe('makeCell', () => {
   it('validates colors and drops empty attrs', () => {
@@ -31,5 +31,22 @@ describe('isBlankCell / cellsEqual', () => {
     expect(cellsEqual(withAttr(1), withAttr(2))).toBe(false);
     expect(cellsEqual(withAttr(1), withAttr(1))).toBe(true);
     expect(cellsEqual(withAttr(1), makeCell('a', '#fff'))).toBe(false);
+  });
+});
+
+describe('parseAttrValue', () => {
+  it('распознаёт логические значения и числа', () => {
+    expect(parseAttrValue('true')).toBe(true);
+    expect(parseAttrValue(' false ')).toBe(false);
+    expect(parseAttrValue('12')).toBe(12);
+    expect(parseAttrValue('-0.5')).toBe(-0.5);
+  });
+
+  it('остальное оставляет строкой как есть', () => {
+    expect(parseAttrValue('стена')).toBe('стена');
+    expect(parseAttrValue(' с пробелами ')).toBe(' с пробелами ');
+    expect(parseAttrValue('')).toBe('');
+    expect(parseAttrValue('Infinity')).toBe('Infinity');
+    expect(parseAttrValue('True')).toBe('True');
   });
 });

@@ -180,12 +180,3 @@ export function removeObjectPropAction(id: string, key: string): void {
   const { doc, commitStructural } = docState();
   commitStructural('Remove property', removeObjectProp(doc, id, key));
 }
-
-/** Текст из поля ввода в значение свойства: числа и булевы распознаются, остальное строка. */
-export function parsePropValue(text: string): PropValue {
-  const trimmed = text.trim();
-  if (trimmed === 'true') return true;
-  if (trimmed === 'false') return false;
-  if (trimmed !== '' && Number.isFinite(Number(trimmed))) return Number(trimmed);
-  return text;
-}

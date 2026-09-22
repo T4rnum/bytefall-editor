@@ -31,6 +31,19 @@ export function makeCell(
   return attrs && Object.keys(attrs).length > 0 ? { ...cell, attrs } : cell;
 }
 
+/**
+ * Текст из поля ввода в значение свойства: `true` и `false` становятся логическими, числа —
+ * числами, остальное остаётся строкой как есть, с пробелами. Общий для свойств ячеек и объектов:
+ * значения у них одного типа, и одно и то же слово не должно разбираться по-разному.
+ */
+export function parseAttrValue(text: string): CellAttrValue {
+  const trimmed = text.trim();
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if (trimmed !== '' && Number.isFinite(Number(trimmed))) return Number(trimmed);
+  return text;
+}
+
 /** Ячейка без символа и без фона визуально отсутствует и не хранится в сетке. */
 export function isBlankCell(cell: Cell | null | undefined): boolean {
   return !cell || (cell.glyph === '' && cell.bg === null);

@@ -1,23 +1,14 @@
-import { Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { parseAttrValue } from '../../core/cell';
 import { MAX_DIMENSION, canEditLayer } from '../../core/document';
 import type { SceneObject } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import {
   moveSelectedObjectToLayerAction,
-  parsePropValue,
   removeObjectPropAction,
   setObjectPropAction,
   updateObjectAction,
 } from '../store/objectActions';
-import { Button, Field, NumberField, Select, TextField, plural } from '../ui';
-
-/** Подсказка к имени свойства: какого оно типа. */
-const TYPE_NAMES: Readonly<Record<string, string>> = {
-  string: 'строка',
-  number: 'число',
-  boolean: 'да или нет',
-};
+import { Field, NumberField, PropertyEditor, Select, plural, valueTypeName } from '../ui';
 
 interface Props {
   readonly object: SceneObject;
@@ -32,18 +23,19 @@ export function ObjectInspector({ object }: Props) {
     label: layer.name,
     disabled: layer.id !== object.layerId && !canEditLayer(layer),
   }));
-  const [newKey, setNewKey] = useState('');
-  const [newValue, setNewValue] = useState('');
-
   const move = (axis: 'x' | 'y', value: number): void => {
     if (value !== object[axis]) updateObjectAction(object.id, { [axis]: value }, 'Move object');
   };
 
-  const addProp = (): void => {
-    if (!newKey.trim()) return;
-    setObjectPropAction(object.id, newKey, parsePropValue(newValue));
-    setNewKey('');
-    setNewValue('');
+  const rows = Object.entries(object.props).map(([key, value]) => ({
+    key,
+    value: String(value),
+    hint: valueTypeName(value),
+  }));
+
+  const change = (key: string, text: string): void => {
+    const next = parseAttrValue(text);
+    if (next !== object.props[key]) setObjectPropAction(object.id, key, next);
   };
 
   return (
@@ -80,66 +72,12 @@ export function ObjectInspector({ object }: Props) {
         {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
       </span>
 
-      <div className="props">
-        {Object.entries(object.props).map(([key, value]) => (
-          <div className="prop-row" key={key}>
-            <span className="prop-key" title={TYPE_NAMES[typeof value]}>
-              {key}
-            </span>
-            <TextField
-              value={String(value)}
-              size="sm"
-              ariaLabel={`Значение ${key}`}
-              onCommit={(text) => {
-                const next = parsePropValue(text);
-                if (next !== value) setObjectPropAction(object.id, key, next);
-              }}
-            />
-            <Button
-              icon
-              size="sm"
-              variant="danger"
-              label="Удалить свойство"
-              onClick={() => removeObjectPropAction(object.id, key)}
-            >
-              <X size={12} />
-            </Button>
-          </div>
-        ))}
-        <div className="prop-row">
-          <input
-            className="textfield textfield--sm prop-key-input"
-            placeholder="свойство"
-            aria-label="Имя нового свойства"
-            value={newKey}
-            onChange={(e) => setNewKey(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') addProp();
-            }}
-          />
-          <input
-            className="textfield textfield--sm"
-            placeholder="значение"
-            aria-label="Значение нового свойства"
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === 'Enter') addProp();
-            }}
-          />
-          <Button
-            icon
-            size="sm"
-            label="Добавить свойство"
-            disabled={!newKey.trim()}
-            onClick={addProp}
-          >
-            <Plus size={12} />
-          </Button>
-        </div>
-      </div>
+      <PropertyEditor
+        rows={rows}
+        onChange={change}
+        onRemove={(key) => removeObjectPropAction(object.id, key)}
+        onAdd={(key, text) => setObjectPropAction(object.id, key, parseAttrValue(text))}
+      />
     </div>
   );
 }

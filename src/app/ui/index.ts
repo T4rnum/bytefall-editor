@@ -12,6 +12,13 @@ export { Field, FieldGroup, type FieldProps } from './Field';
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { Panel, type PanelProps } from './Panel';
 export { PixelCanvas, type PixelCanvasProps, type Pixels } from './PixelCanvas';
+export {
+  PropertyEditor,
+  type PropertyEditorProps,
+  type PropertyRow,
+  type PropertyRowAction,
+  valueTypeName,
+} from './PropertyEditor';
 export { Resizer, type ResizerProps } from './Resizer';
 export { Select, optionsOf, type SelectOption, type SelectProps } from './Select';
 export { Slider, type SliderProps } from './Slider';
