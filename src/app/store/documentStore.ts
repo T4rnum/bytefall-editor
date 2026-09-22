@@ -54,8 +54,16 @@ export interface DocumentState {
   commitCells: (layerId: string, edits: CellEdits, label: string) => boolean;
   /** Структурная операция над текущим кадром: объекты, палитра, имя, фон. */
   commitStructural: (label: string, next: Document) => void;
-  /** Операция над всей анимацией: кадры и общие для всех кадров слои. Может сменить текущий кадр. */
-  commitAnimation: (label: string, next: Animation, nextFrameIndex?: number) => void;
+  /**
+   * Операция над всей анимацией: кадры и общие для всех кадров слои. Может сменить текущий кадр.
+   * `mergeKey` склеивает подряд идущие записи одной серии, см. `core/history.ts`.
+   */
+  commitAnimation: (
+    label: string,
+    next: Animation,
+    nextFrameIndex?: number,
+    mergeKey?: string,
+  ) => void;
   setFrameIndex: (index: number) => void;
   setActiveLayer: (id: string) => void;
   undo: () => void;
@@ -125,7 +133,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     get().commitAnimation(label, withFrameDocument(animation, frameIndex, next));
   },
 
-  commitAnimation: (label, next, nextFrameIndex) => {
+  commitAnimation: (label, next, nextFrameIndex, mergeKey) => {
     const { animation, frameIndex, history, activeLayerId } = get();
     if (next === animation) return;
     const derived = derive(next, nextFrameIndex ?? frameIndex, activeLayerId);
@@ -133,7 +141,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     const after: Checkpoint = { animation: next, frameIndex: derived.frameIndex };
     set({
       ...derived,
-      history: pushEntry(history, snapshotEntry(label, before, after)),
+      history: pushEntry(history, snapshotEntry(label, before, after, mergeKey)),
       dirty: true,
     });
   },

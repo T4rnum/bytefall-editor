@@ -12,6 +12,12 @@ export interface HistoryEntry<T = Document> {
   readonly label: string;
   readonly apply: (value: T) => T;
   readonly revert: (value: T) => T;
+  /**
+   * Ключ серии. Записи с одинаковым ключом, идущие подряд, схлопываются в одну: перетаскивание
+   * ползунка обновляет документ живьём, но в историю попадает единственный шаг от начала жеста
+   * до конца. Ключ должен быть новым на каждый жест, иначе склеятся два разных действия.
+   */
+  readonly mergeKey?: string;
 }
 
 export interface History<T = Document> {
@@ -33,6 +39,12 @@ export function createHistory<T = Document>(limit: number = DEFAULT_HISTORY_LIMI
 }
 
 export function pushEntry<T>(history: History<T>, entry: HistoryEntry<T>): History<T> {
+  const last = history.past[history.past.length - 1];
+  if (entry.mergeKey !== undefined && last?.mergeKey === entry.mergeKey) {
+    // Продолжение серии: новое состояние, но откат по-прежнему к тому, что было до её начала.
+    const merged: HistoryEntry<T> = { ...entry, revert: last.revert };
+    return { ...history, past: [...history.past.slice(0, -1), merged], future: [] };
+  }
   const past = [...history.past, entry];
   return {
     ...history,
@@ -87,8 +99,13 @@ export function cellEditsEntry(
 }
 
 /** Структурная операция: хранит ссылки на оба состояния. */
-export function snapshotEntry<T>(label: string, before: T, after: T): HistoryEntry<T> {
-  return { label, apply: () => after, revert: () => before };
+export function snapshotEntry<T>(
+  label: string,
+  before: T,
+  after: T,
+  mergeKey?: string,
+): HistoryEntry<T> {
+  return { label, apply: () => after, revert: () => before, mergeKey };
 }
 
 /** Поднимает запись над документом до записи над анимацией: она применяется к кадру index. */
@@ -97,5 +114,10 @@ export function liftToFrame(entry: HistoryEntry<Document>, index: number): Histo
     (step: (doc: Document) => Document) =>
     (anim: Animation): Animation =>
       anim.frames[index] ? withFrameDocument(anim, index, step(frameDocument(anim, index))) : anim;
-  return { label: entry.label, apply: onFrame(entry.apply), revert: onFrame(entry.revert) };
+  return {
+    label: entry.label,
+    apply: onFrame(entry.apply),
+    revert: onFrame(entry.revert),
+    mergeKey: entry.mergeKey,
+  };
 }

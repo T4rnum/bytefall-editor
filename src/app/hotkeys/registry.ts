@@ -31,27 +31,73 @@ export interface Hotkey {
   readonly run: () => void;
 }
 
+/** То, что нужно от события клавиатуры. KeyboardEvent подходит структурно. */
+export interface KeyChord {
+  readonly key: string;
+  readonly code: string;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly shiftKey: boolean;
+  readonly altKey: boolean;
+}
+
+const LETTER = /^[a-z]$/;
+const DIGIT = /^[0-9]$/;
+
+/**
+ * Физические коды знаков препинания в незажатом виде. Нужны для раскладок, где на этой клавише
+ * стоит другой символ: на русской, например, клавиша «`» печатает «ё».
+ */
+const PUNCTUATION_CODES: Readonly<Record<string, string>> = {
+  '`': 'Backquote',
+  '-': 'Minus',
+  '=': 'Equal',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  ';': 'Semicolon',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+};
+
 /**
  * Разбирает «Ctrl+Shift+S» в проверку события. Одна запись служит и поведением, и подписью,
  * поэтому справка не может разойтись с тем, что происходит на самом деле.
  *
- * Совпадение по модификаторам точное: Ctrl+Z и Ctrl+Shift+Z — разные сочетания, и порядок
- * объявления на них не влияет.
+ * Буквы и цифры сверяются по физической клавише, а не по напечатанному символу: иначе Ctrl+Z
+ * не работал бы на русской раскладке, где та же клавиша печатает «я».
+ *
+ * Знаки препинания сверяются по символу, потому что символ уже учитывает Shift: «?» и «/» — это
+ * одна клавиша, и различает их только он. Поэтому для них состояние Shift отдельно не проверяется,
+ * иначе «?» было бы невозможно нажать.
  */
-export function matchesCombo(spec: string, event: KeyboardEvent): boolean {
+export function matchesCombo(spec: string, event: KeyChord): boolean {
   const parts = spec.split('+');
   // Само сочетание «+» даёт при разборе пустой хвост.
   const rawKey = parts[parts.length - 1] === '' ? '+' : parts[parts.length - 1];
   const mods = parts.slice(0, -1).filter((p) => p !== '');
 
-  const pressed = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-  const wanted = rawKey.length === 1 ? rawKey.toLowerCase() : rawKey;
-  if (pressed !== wanted) return false;
   // Cmd на macOS работает как Ctrl.
   if (mods.includes('Ctrl') !== (event.ctrlKey || event.metaKey)) return false;
-  if (mods.includes('Shift') !== event.shiftKey) return false;
   if (mods.includes('Alt') !== event.altKey) return false;
-  return true;
+
+  const wantShift = mods.includes('Shift');
+  const key = rawKey.toLowerCase();
+
+  if (LETTER.test(key) || DIGIT.test(key)) {
+    const code = LETTER.test(key) ? `Key${key.toUpperCase()}` : `Digit${key}`;
+    return event.code === code && wantShift === event.shiftKey;
+  }
+
+  if (rawKey.length > 1) {
+    // Именованные клавиши: Enter, Escape, Delete и подобные.
+    return event.key === rawKey && wantShift === event.shiftKey;
+  }
+
+  if (event.key === rawKey) return true;
+  const code = PUNCTUATION_CODES[rawKey];
+  return code !== undefined && event.code === code && !event.shiftKey;
 }
 
 const editor = () => useEditorStore.getState();
@@ -161,7 +207,7 @@ const TOOL_HOTKEYS: readonly Hotkey[] = TOOLS.map((tool) => ({
 export const HOTKEYS: readonly Hotkey[] = [...STATIC_HOTKEYS, ...TOOL_HOTKEYS];
 
 /** Первое подходящее сочетание. null, если ничего не подошло. */
-export function findHotkey(event: KeyboardEvent): Hotkey | null {
+export function findHotkey(event: KeyChord): Hotkey | null {
   return HOTKEYS.find((hotkey) => matchesCombo(hotkey.keys, event)) ?? null;
 }
 

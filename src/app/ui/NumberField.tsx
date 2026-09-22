@@ -5,7 +5,6 @@ import {
   dragModeOf,
   formatNumber,
   parseNumber,
-  snapToStep,
   valueFromDrag,
   valueFromNudge,
 } from './numeric';
@@ -38,11 +37,13 @@ export interface NumberFieldProps {
 
 interface DragState {
   readonly pointerId: number;
-  readonly startX: number;
-  readonly startY: number;
-  readonly startValue: number;
-  readonly mode: DragMode;
+  startX: number;
+  startY: number;
+  startValue: number;
+  mode: DragMode;
   moved: boolean;
+  /** Последнее выданное значение: от него отсчитывается новая база при смене модификатора. */
+  lastValue: number;
 }
 
 /**
@@ -108,17 +109,31 @@ export function NumberField({
       startValue: value,
       mode: dragModeOf(event),
       moved: false,
+      lastValue: value,
     };
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
     const state = drag.current;
     if (!state || state.pointerId !== event.pointerId) return;
+
+    // Модификатор можно зажать и отпустить посреди жеста. Тогда отсчёт начинается заново от
+    // текущего значения и текущей точки, иначе значение скакнуло бы при смене шага.
+    const mode = dragModeOf(event);
+    if (mode !== state.mode) {
+      state.mode = mode;
+      state.startX = event.clientX;
+      state.startY = event.clientY;
+      state.startValue = state.lastValue;
+      return;
+    }
+
     const dx = event.clientX - state.startX;
     const dy = event.clientY - state.startY;
     if (!state.moved && Math.abs(dx) + Math.abs(dy) <= CLICK_SLOP) return;
     state.moved = true;
-    emit(valueFromDrag(state.startValue, dx, dy, range, state.mode));
+    state.lastValue = valueFromDrag(state.startValue, dx, dy, range, state.mode);
+    emit(state.lastValue);
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -132,9 +147,7 @@ export function NumberField({
     }
     // Щелчок без протаскивания — это намерение ввести значение руками.
     if (state.moved) {
-      const dx = event.clientX - state.startX;
-      const dy = event.clientY - state.startY;
-      commit(valueFromDrag(state.startValue, dx, dy, range, state.mode));
+      commit(state.lastValue);
     } else {
       startEditing();
     }
@@ -202,7 +215,7 @@ export function NumberField({
     >
       {label !== undefined && <span className="numfield-label">{label}</span>}
       <span className="numfield-value">
-        {formatNumber(snapToStep(value, range), range)}
+        {formatNumber(value, range)}
         {suffix}
       </span>
     </div>

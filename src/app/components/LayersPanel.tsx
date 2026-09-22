@@ -9,7 +9,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Layer } from '../../core/document';
 import {
   addLayerAction,
@@ -73,8 +73,8 @@ function LayerRow({
               const name = text.trim();
               if (name && name !== layer.name)
                 updateLayerAction(layer.id, { name }, 'Rename layer');
-              setEditing(false);
             }}
+            onFinish={() => setEditing(false)}
           />
         </div>
       ) : (
@@ -96,9 +96,23 @@ export function LayersPanel() {
   const activeLayerId = useDocumentStore((s) => s.activeLayerId);
   const setActiveLayer = useDocumentStore((s) => s.setActiveLayer);
   const active = doc.layers.find((l) => l.id === activeLayerId);
-  /** Пока ползунок тянут, значение живёт локально: иначе каждый кадр жеста уйдёт в историю. */
-  const [opacityDraft, setOpacityDraft] = useState<number | null>(null);
-  const opacity = opacityDraft ?? Math.round((active?.opacity ?? 1) * 100);
+  /**
+   * Непрозрачность пишется в документ на каждое движение, чтобы холст менялся живьём.
+   * Чтобы жест при этом остался одной записью истории, все правки внутри него помечаются
+   * общим ключом серии, а отпускание указателя начинает новую серию.
+   */
+  const gesture = useRef(0);
+  const opacity = Math.round((active?.opacity ?? 1) * 100);
+
+  const setOpacity = (value: number): void => {
+    if (!active || value === opacity) return;
+    updateLayerAction(
+      active.id,
+      { opacity: value / 100 },
+      'Layer opacity',
+      `layer-opacity:${active.id}:${gesture.current}`,
+    );
+  };
 
   return (
     <Panel
@@ -149,10 +163,11 @@ export function LayersPanel() {
         max={100}
         suffix="%"
         disabled={!active}
-        onChange={setOpacityDraft}
+        onChange={setOpacity}
         onCommit={(value) => {
-          setOpacityDraft(null);
-          if (active) updateLayerAction(active.id, { opacity: value / 100 }, 'Layer opacity');
+          setOpacity(value);
+          // Отпускание указателя завершает серию: следующий жест станет отдельной отменой.
+          gesture.current += 1;
         }}
       />
     </Panel>

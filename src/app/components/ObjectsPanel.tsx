@@ -78,8 +78,8 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
               if (name && name !== object.name) {
                 updateObjectAction(object.id, { name }, 'Rename object');
               }
-              setEditing(false);
             }}
+            onFinish={() => setEditing(false)}
           />
         </div>
       ) : (

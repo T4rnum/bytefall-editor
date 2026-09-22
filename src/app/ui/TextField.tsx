@@ -5,6 +5,12 @@ export interface TextFieldProps {
   readonly value: string;
   /** Вызывается на Enter и на потере фокуса, но не на каждый символ. */
   readonly onCommit: (value: string) => void;
+  /**
+   * Вызывается после окончания правки независимо от того, изменилось значение или нет:
+   * и на Enter, и на Escape, и на щелчок мимо поля. Нужен там, где поле показывается
+   * временно, например при переименовании слоя.
+   */
+  readonly onFinish?: () => void;
   readonly placeholder?: string;
   readonly size?: ControlSize;
   readonly disabled?: boolean;
@@ -24,6 +30,7 @@ export interface TextFieldProps {
 export function TextField({
   value,
   onCommit,
+  onFinish,
   placeholder,
   size = 'md',
   disabled = false,
@@ -72,9 +79,10 @@ export function TextField({
         if (cancelled.current) {
           cancelled.current = false;
           setDraft(value);
-          return;
+        } else {
+          commit(e.target.value);
         }
-        commit(e.target.value);
+        onFinish?.();
       }}
       onKeyDown={(e) => {
         // Глобальные горячие клавиши не должны срабатывать поверх ввода текста.

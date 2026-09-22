@@ -85,3 +85,67 @@ describe('undo / redo', () => {
     expect(history.past.map((e) => e.label)).toEqual(['s3', 's4']);
   });
 });
+
+describe('схлопывание серии правок', () => {
+  /** Запись, заменяющая число целиком: достаточно, чтобы проверить склейку. */
+  const step = (from: number, to: number, mergeKey?: string) =>
+    snapshotEntry(`set ${to}`, from, to, mergeKey);
+
+  it('подряд идущие записи с одним ключом становятся одной', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    history = pushEntry(history, step(10, 20, 'drag-1'));
+    history = pushEntry(history, step(20, 30, 'drag-1'));
+    expect(history.past).toHaveLength(1);
+  });
+
+  it('отмена возвращает к состоянию до начала серии, а не к предыдущему шагу', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    history = pushEntry(history, step(10, 20, 'drag-1'));
+    const result = undo(history, 20);
+    expect(result?.doc).toBe(0);
+  });
+
+  it('повтор возвращает конечное состояние серии', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    history = pushEntry(history, step(10, 20, 'drag-1'));
+    const undone = undo(history, 20);
+    const redone = redo(undone!.history, undone!.doc);
+    expect(redone?.doc).toBe(20);
+  });
+
+  it('новый ключ начинает новую запись: два жеста дают две отмены', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    history = pushEntry(history, step(10, 20, 'drag-2'));
+    expect(history.past).toHaveLength(2);
+    const once = undo(history, 20);
+    expect(once?.doc).toBe(10);
+  });
+
+  it('записи без ключа не склеиваются никогда', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10));
+    history = pushEntry(history, step(10, 20));
+    expect(history.past).toHaveLength(2);
+  });
+
+  it('чужая запись между шагами разрывает серию', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    history = pushEntry(history, step(10, 11));
+    history = pushEntry(history, step(11, 20, 'drag-1'));
+    expect(history.past).toHaveLength(3);
+  });
+
+  it('склейка стирает будущее, как и обычная запись', () => {
+    let history = createHistory<number>();
+    history = pushEntry(history, step(0, 10, 'drag-1'));
+    const undone = undo(history, 10);
+    expect(undone?.history.future).toHaveLength(1);
+    const next = pushEntry(undone!.history, step(0, 5, 'drag-1'));
+    expect(next.future).toHaveLength(0);
+  });
+});

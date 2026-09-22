@@ -53,8 +53,10 @@ export function Slider({
         className="slider-track"
         min={min}
         max={max}
-        step={step}
-        value={snapToStep(value, range)}
+        // step="any" — чтобы бегунок стоял ровно там, где значение, включая дробные значения
+        // после перетаскивания с Shift. Округление к шагу делаем сами в onChange.
+        step="any"
+        value={value}
         disabled={disabled}
         aria-label={label}
         onChange={(e) => onChange(snapToStep(Number(e.target.value), range))}

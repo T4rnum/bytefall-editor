@@ -523,8 +523,13 @@ select {
   padding: var(--space-6);
 }
 
+/** Справка по клавишам: колонок столько, сколько влезет, чтобы обойтись без прокрутки. */
+.dialog--wide {
+  max-width: calc(100vw - var(--space-7) * 2);
+}
+
 .dialog--wide .dialog-content {
-  width: 460px;
+  width: min(960px, calc(100vw - var(--space-7) * 2));
 }
 
 .dialog h2 {
@@ -640,12 +645,25 @@ select {
 }
 
 /* ── Справка по горячим клавишам ───────────────────────────────────────── */
+/**
+ * Многоколоночная раскладка, а не грид: группы перетекают между колонками и заполняют высоту,
+ * поэтому список помещается целиком. Прокрутка остаётся только как запасной вариант для
+ * совсем низких окон.
+ */
 .hotkeys {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
-  max-height: 60vh;
+  column-width: 260px;
+  column-gap: var(--space-7);
+  max-height: 70vh;
   overflow-y: auto;
+}
+
+.hotkeys-group {
+  break-inside: avoid;
+  margin-bottom: var(--space-5);
+}
+
+.hotkeys-group dl {
+  margin: 0;
 }
 
 .hotkeys-group h3 {

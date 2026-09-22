@@ -68,11 +68,15 @@ export function updateLayerAction(
   id: string,
   patch: Partial<Omit<Layer, 'id' | 'cells'>>,
   label: string,
+  /** Ключ серии: непрерывное перетаскивание ползунка должно стать одной записью истории. */
+  mergeKey?: string,
 ): void {
   const { animation, commitAnimation } = state();
   commitAnimation(
     label,
     mapFrames(animation, (d) => updateLayer(d, id, patch)),
+    undefined,
+    mergeKey,
   );
 }
 
