@@ -77,12 +77,12 @@ export interface EffectContext {
 export const MAX_EFFECTS_PER_LAYER = 8;
 
 export const EFFECT_KINDS: readonly { readonly kind: EffectKind; readonly label: string }[] = [
-  { kind: 'pulse', label: 'Pulse' },
-  { kind: 'wave', label: 'Wave' },
-  { kind: 'flicker', label: 'Flicker' },
-  { kind: 'scroll', label: 'Scroll' },
-  { kind: 'cycle', label: 'Glyph cycle' },
-  { kind: 'fire', label: 'Fire' },
+  { kind: 'pulse', label: 'Пульс' },
+  { kind: 'wave', label: 'Волна' },
+  { kind: 'flicker', label: 'Мерцание' },
+  { kind: 'scroll', label: 'Прокрутка' },
+  { kind: 'cycle', label: 'Смена символов' },
+  { kind: 'fire', label: 'Огонь' },
 ];
 
 export const FIRE_PALETTES: Record<FirePalette, readonly string[]> = {

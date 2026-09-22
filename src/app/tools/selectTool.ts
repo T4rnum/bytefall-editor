@@ -136,7 +136,7 @@ function createSelectionTool(
 
 /** Прямоугольное выделение: важны только первая и последняя ячейки пути. */
 export const createSelectTool = (): Tool =>
-  createSelectionTool('select', 'Select', 'm', 'cell', {
+  createSelectionTool('select', 'Выделение', 'm', 'cell', {
     live: rectCells,
     commit: rectCells,
     clearsOnClick: true,
@@ -154,7 +154,7 @@ function rectCells(env: ToolEnv, path: readonly Point[]): Point[] {
  * промежуточная фигура всё равно не та, которую рисует пользователь.
  */
 export const createLassoTool = (): Tool =>
-  createSelectionTool('lasso', 'Lasso', 'q', 'crosshair', {
+  createSelectionTool('lasso', 'Лассо', 'q', 'crosshair', {
     live: (_env, path) => [...path],
     commit: (env, path) => polygonCells(path, env.doc.width, env.doc.height),
     clearsOnClick: true,
@@ -162,7 +162,7 @@ export const createLassoTool = (): Tool =>
 
 /** Волшебная палочка: смежная область по умолчанию, по всему слою — если включён несмежный режим. */
 export const createWandTool = (): Tool =>
-  createSelectionTool('wand', 'Magic wand', 'w', 'crosshair', {
+  createSelectionTool('wand', 'Волшебная палочка', 'w', 'crosshair', {
     live: (env, path) => wandCells(env, path[path.length - 1]),
     commit: (env, path) => wandCells(env, path[path.length - 1]),
     clearsOnClick: false,

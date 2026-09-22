@@ -12,11 +12,11 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
  * «Сколько времени назад» для людей: точное время записи восстановления интересует меньше, чем
  * то, вчерашняя это работа или пятиминутная.
  */
-export function formatAge(ageMs: number, locale = 'en'): string {
-  if (ageMs < MINUTE) return 'just now';
+export function formatAge(ageMs: number, locale = 'ru'): string {
+  if (ageMs < MINUTE) return 'только что';
   const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   for (const [unit, size] of UNITS) {
     if (ageMs >= size) return format.format(-Math.floor(ageMs / size), unit);
   }
-  return 'just now';
+  return 'только что';
 }

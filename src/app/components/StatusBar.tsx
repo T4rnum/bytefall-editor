@@ -39,17 +39,17 @@ export function StatusBar() {
             [TIP_ATTR]: 'Инструменты меняют только выделенные ячейки. Escape снимает выделение',
           }}
         >
-          sel {selection.bounds.w}×{selection.bounds.h} · {selection.size}
+          выделено {selection.bounds.w}×{selection.bounds.h} · {selection.size}
         </span>
       )}
-      {selectedObject && <span className="status-item">obj {selectedObject.name}</span>}
+      {selectedObject && <span className="status-item">объект {selectedObject.name}</span>}
       <span className="status-item">
         {getTool(tool).label}
-        {tool === 'text' && textCursor && ' · typing'}
+        {tool === 'text' && textCursor && ' · ввод'}
       </span>
       {blocked && (
         <span className="status-item status-item--warn">
-          layer is {layer.locked ? 'locked' : 'hidden'}
+          слой {layer.locked ? 'заперт' : 'скрыт'}
         </span>
       )}
       <span className="status-spacer" />
@@ -57,18 +57,21 @@ export function StatusBar() {
       {autosaveFailed ? (
         <span
           className="status-item status-item--warn"
-          {...{ [TIP_ATTR]: 'The browser refused to store a backup. Save to a file to be safe' }}
+          {...{ [TIP_ATTR]: 'Браузер не дал сохранить резервную копию. Сохраните работу в файл' }}
         >
-          autosave off
+          автосохранение выключено
         </span>
       ) : (
         dirty &&
         autosavedAt !== null && (
           <span
             className="status-item"
-            {...{ [TIP_ATTR]: 'A backup copy survives a crash or a closed tab until you save' }}
+            {...{
+              [TIP_ATTR]:
+                'Копия переживёт сбой и закрытие вкладки, пока работа не сохранена в файл',
+            }}
           >
-            autosaved {clock(autosavedAt)}
+            автосохранено {clock(autosavedAt)}
           </span>
         )
       )}

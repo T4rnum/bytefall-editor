@@ -35,7 +35,7 @@ import { NewDocumentDialog } from './NewDocumentDialog';
 import { ResizeCanvasDialog } from './ResizeCanvasDialog';
 
 const PNG_SCALES = [8, 16, 32, 64] as const;
-const SCALE_OPTIONS = PNG_SCALES.map((s) => ({ value: String(s), label: `${s} px/cell` }));
+const SCALE_OPTIONS = PNG_SCALES.map((s) => ({ value: String(s), label: `${s} px/яч.` }));
 
 export function TopBar() {
   const doc = useDocumentStore((s) => s.doc);
@@ -60,25 +60,34 @@ export function TopBar() {
       <TextField
         value={doc.name}
         className="doc-name"
-        ariaLabel="Document name"
+        ariaLabel="Имя документа"
         onCommit={renameDocumentAction}
       />
-      {dirty && <span className="dirty-dot" title="Unsaved changes" />}
+      {dirty && <span className="dirty-dot" title="Есть несохранённые изменения" />}
 
       <div className="topbar-group">
-        <Button icon label="New document" onClick={() => setNewOpen(true)}>
+        <Button icon label="Новый документ" onClick={() => setNewOpen(true)}>
           <FilePlus size={16} />
         </Button>
-        <Button icon label="Open" hotkey="Ctrl+O" onClick={() => void openDocumentAction()}>
+        <Button icon label="Открыть" hotkey="Ctrl+O" onClick={() => void openDocumentAction()}>
           <FolderOpen size={16} />
         </Button>
-        <Button icon label="Save" hotkey="Ctrl+S" onClick={() => void saveDocumentAction(false)}>
+        <Button
+          icon
+          label="Сохранить"
+          hotkey="Ctrl+S"
+          onClick={() => void saveDocumentAction(false)}
+        >
           <Save size={16} />
         </Button>
-        <Button label="Save as" hotkey="Ctrl+Shift+S" onClick={() => void saveDocumentAction(true)}>
-          Save as
+        <Button
+          label="Сохранить как"
+          hotkey="Ctrl+Shift+S"
+          onClick={() => void saveDocumentAction(true)}
+        >
+          Сохранить как
         </Button>
-        <Button icon label="Canvas size" hotkey="Ctrl+Alt+C" onClick={() => setResizeOpen(true)}>
+        <Button icon label="Размер холста" hotkey="Ctrl+Alt+C" onClick={() => setResizeOpen(true)}>
           <Scaling size={16} />
         </Button>
       </div>
@@ -87,54 +96,56 @@ export function TopBar() {
         <Select
           value={String(pngScale)}
           options={SCALE_OPTIONS}
-          ariaLabel="Export scale, pixels per cell"
+          ariaLabel="Масштаб экспорта, пикселей на ячейку"
           onChange={(value) => setPngScale(Number(value))}
         />
-        <Button
-          icon
-          label="Export current frame as PNG"
-          onClick={() => void exportPngAction(pngScale)}
-        >
+        <Button icon label="Экспорт кадра в PNG" onClick={() => void exportPngAction(pngScale)}>
           <Image size={16} />
         </Button>
-        <Button icon label="Export animated GIF" onClick={() => void exportGifAction(pngScale)}>
+        <Button icon label="Экспорт анимации в GIF" onClick={() => void exportGifAction(pngScale)}>
           <Film size={16} />
         </Button>
         <Button
           icon
-          label="Export sprite sheet PNG"
+          label="Экспорт листа спрайтов в PNG"
           onClick={() => void exportSpriteSheetAction(pngScale)}
         >
           <LayoutGrid size={16} />
         </Button>
-        <Button icon label="Export current frame as text" onClick={() => void exportTextAction()}>
+        <Button icon label="Экспорт кадра в текст" onClick={() => void exportTextAction()}>
           <FileText size={16} />
         </Button>
       </div>
 
       <div className="topbar-group">
-        <Button icon label="Undo" hotkey="Ctrl+Z" disabled={!canUndo(history)} onClick={undo}>
+        <Button icon label="Отменить" hotkey="Ctrl+Z" disabled={!canUndo(history)} onClick={undo}>
           <Undo2 size={16} />
         </Button>
-        <Button icon label="Redo" hotkey="Ctrl+Shift+Z" disabled={!canRedo(history)} onClick={redo}>
+        <Button
+          icon
+          label="Повторить"
+          hotkey="Ctrl+Shift+Z"
+          disabled={!canRedo(history)}
+          onClick={redo}
+        >
           <Redo2 size={16} />
         </Button>
       </div>
 
       <div className="topbar-group topbar-group--right">
-        <Button icon label="Zoom out" hotkey="-" onClick={() => zoomByAction(0.8)}>
+        <Button icon label="Отдалить" hotkey="-" onClick={() => zoomByAction(0.8)}>
           <ZoomOut size={16} />
         </Button>
         <span className="zoom-label">{Math.round(zoom)} px</span>
-        <Button icon label="Zoom in" hotkey="+" onClick={() => zoomByAction(1.25)}>
+        <Button icon label="Приблизить" hotkey="+" onClick={() => zoomByAction(1.25)}>
           <ZoomIn size={16} />
         </Button>
-        <Button icon label="Fit to window" hotkey="0" onClick={fitViewAction}>
+        <Button icon label="Вписать в окно" hotkey="0" onClick={fitViewAction}>
           <Maximize size={16} />
         </Button>
         <Button
           icon
-          label="Toggle grid"
+          label="Сетка"
           hotkey="`"
           active={showGrid}
           onClick={() => setShowGrid(!showGrid)}
@@ -150,7 +161,7 @@ export function TopBar() {
         >
           <span className="checker-icon" aria-hidden="true" />
         </Button>
-        <Button icon label="Keyboard shortcuts" hotkey="?" onClick={() => setHotkeysOpen(true)}>
+        <Button icon label="Горячие клавиши" hotkey="?" onClick={() => setHotkeysOpen(true)}>
           <Keyboard size={16} />
         </Button>
       </div>

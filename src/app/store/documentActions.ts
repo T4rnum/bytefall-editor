@@ -15,13 +15,14 @@ import {
 } from '../../core/document';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
+import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
 
 const state = () => useDocumentStore.getState();
 
 const hasRoomForLayer = (count: number): boolean => {
   if (count < MAX_LAYERS) return true;
-  notify(`At most ${MAX_LAYERS} layers`, 'error');
+  notify(`Не больше ${plural(MAX_LAYERS, { one: 'слоя', few: 'слоёв', many: 'слоёв' })}`, 'error');
   return false;
 };
 
@@ -29,7 +30,7 @@ const hasRoomForLayer = (count: number): boolean => {
 export function addLayerAction(): void {
   const { doc, animation, activeLayerId, commitAnimation, setActiveLayer } = state();
   if (!hasRoomForLayer(doc.layers.length)) return;
-  const layer = createLayer(`Layer ${doc.layers.length + 1}`);
+  const layer = createLayer(`Слой ${doc.layers.length + 1}`);
   const index = layerIndex(doc, activeLayerId) + 1;
   commitAnimation(
     'Add layer',

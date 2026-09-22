@@ -23,10 +23,10 @@ export function ColorPanel() {
   return (
     <Panel
       id="colors"
-      title="Colors"
+      title="Цвета"
       badge={SLOT_LABELS[slot]}
       actions={
-        <Button icon size="sm" label="Swap colors" hotkey="X" onClick={swapColors}>
+        <Button icon size="sm" label="Поменять цвета местами" hotkey="X" onClick={swapColors}>
           <ArrowLeftRight size={14} />
         </Button>
       }
@@ -42,7 +42,7 @@ export function ColorPanel() {
         <ColorField value={bg} onChange={setBg} label="Цвет фона ячейки" allowNone />
       </div>
 
-      <div className="palette" role="list" aria-label="Palette">
+      <div className="palette" role="list" aria-label="Палитра">
         {palette.map((color) => (
           <button
             key={color}
@@ -68,7 +68,7 @@ export function ColorPanel() {
         </button>
       </div>
 
-      <Field label="Canvas">
+      <Field label="Холст">
         <ColorField
           value={background}
           onChange={setBackgroundAction}

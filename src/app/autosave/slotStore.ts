@@ -15,7 +15,7 @@ const STORE = 'recovery';
 function request<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
+    req.onerror = () => reject(req.error ?? new Error('запрос к IndexedDB не удался'));
   });
 }
 
@@ -23,8 +23,8 @@ function request<T>(req: IDBRequest<T>): Promise<T> {
 function done(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
-    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
+    tx.onerror = () => reject(tx.error ?? new Error('запись в IndexedDB не удалась'));
+    tx.onabort = () => reject(tx.error ?? new Error('запись в IndexedDB прервана'));
   });
 }
 
@@ -37,8 +37,8 @@ function openDatabase(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new Error('Cannot open IndexedDB'));
-    req.onblocked = () => reject(new Error('IndexedDB is blocked by another tab'));
+    req.onerror = () => reject(req.error ?? new Error('не удалось открыть IndexedDB'));
+    req.onblocked = () => reject(new Error('IndexedDB занята другой вкладкой'));
   });
 }
 

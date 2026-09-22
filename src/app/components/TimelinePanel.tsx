@@ -44,26 +44,26 @@ export function TimelinePanel() {
   };
 
   return (
-    <section className="timeline" aria-label="Timeline">
+    <section className="timeline" aria-label="Таймлайн">
       <div className="timeline-controls">
-        <Button icon label="Previous frame" hotkey="," onClick={() => stepFrameAction(-1)}>
+        <Button icon label="Предыдущий кадр" hotkey="," onClick={() => stepFrameAction(-1)}>
           <SkipBack size={16} />
         </Button>
         <Button
           icon
-          label="Play / pause"
+          label="Играть и пауза"
           hotkey="Enter"
           active={isPlaying}
           onClick={togglePlaybackAction}
         >
           <PlayIcon size={16} />
         </Button>
-        <Button icon label="Next frame" hotkey="." onClick={() => stepFrameAction(1)}>
+        <Button icon label="Следующий кадр" hotkey="." onClick={() => stepFrameAction(1)}>
           <SkipForward size={16} />
         </Button>
         <Button
           icon
-          label="Onion skin: show neighbouring frames"
+          label="Калька: показать соседние кадры"
           active={onionSkin}
           onClick={() => setOnionSkin(!onionSkin)}
         >
@@ -71,7 +71,7 @@ export function TimelinePanel() {
         </Button>
         <Button
           icon
-          label="Live effects: animate layer effects in the editor"
+          label="Живые эффекты: анимировать эффекты слоёв прямо в редакторе"
           active={effectsLive}
           onClick={() => setEffectsLive(!effectsLive)}
         >
@@ -85,7 +85,7 @@ export function TimelinePanel() {
             <button
               type="button"
               className={`frame-chip${i === frameIndex ? ' is-active' : ''}`}
-              title={`Frame ${i + 1}: ${f.duration} ms`}
+              title={`Кадр ${i + 1}: ${f.duration} мс`}
               onClick={() => selectFrame(i)}
             >
               {i + 1}
@@ -95,22 +95,22 @@ export function TimelinePanel() {
       </ol>
 
       <div className="timeline-controls">
-        <Button icon label="New empty frame" onClick={() => addFrameAction('empty')}>
+        <Button icon label="Новый пустой кадр" onClick={() => addFrameAction('empty')}>
           <Plus size={16} />
         </Button>
-        <Button icon label="Duplicate frame" onClick={() => addFrameAction('duplicate')}>
+        <Button icon label="Дублировать кадр" onClick={() => addFrameAction('duplicate')}>
           <Copy size={16} />
         </Button>
-        <Button icon label="Move frame left" onClick={() => moveFrameAction(-1)}>
+        <Button icon label="Сдвинуть кадр влево" onClick={() => moveFrameAction(-1)}>
           <ChevronLeft size={16} />
         </Button>
-        <Button icon label="Move frame right" onClick={() => moveFrameAction(1)}>
+        <Button icon label="Сдвинуть кадр вправо" onClick={() => moveFrameAction(1)}>
           <ChevronRight size={16} />
         </Button>
         <Button
           icon
           variant="danger"
-          label="Delete frame"
+          label="Удалить кадр"
           disabled={animation.frames.length <= 1}
           onClick={removeFrameAction}
         >
@@ -121,7 +121,7 @@ export function TimelinePanel() {
           min={MIN_FRAME_DURATION}
           max={MAX_FRAME_DURATION}
           step={10}
-          suffix=" ms"
+          suffix=" мс"
           title="Длительность кадра. Тяни, чтобы менять, щёлкни для ввода"
           onChange={(value) => {
             setPlaying(false);
@@ -129,7 +129,7 @@ export function TimelinePanel() {
           }}
         />
         <span className="dim">
-          {frameIndex + 1}/{animation.frames.length} · {animationDuration(animation)} ms
+          {frameIndex + 1}/{animation.frames.length} · {animationDuration(animation)} мс
         </span>
       </div>
     </section>

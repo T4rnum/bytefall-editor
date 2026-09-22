@@ -44,7 +44,7 @@ export function ToolBar() {
   const showsFill = tool === 'rect' || tool === 'ellipse';
 
   return (
-    <nav className="toolbar" aria-label="Tools">
+    <nav className="toolbar" aria-label="Инструменты">
       {TOOLS.map((t) => {
         const Icon = ICONS[t.id];
         return (
@@ -67,7 +67,7 @@ export function ToolBar() {
           <Button
             icon
             size="lg"
-            label={shapeFill ? 'Filled shape' : 'Outline shape'}
+            label={shapeFill ? 'Фигура с заливкой' : 'Только контур'}
             active={shapeFill}
             onClick={() => setShapeFill(!shapeFill)}
           >
@@ -81,7 +81,7 @@ export function ToolBar() {
           <Button
             icon
             size="lg"
-            label={wandContiguous ? 'Contiguous area' : 'All similar cells'}
+            label={wandContiguous ? 'Связная область' : 'Все похожие ячейки'}
             active={!wandContiguous}
             onClick={() => setWandContiguous(!wandContiguous)}
           >

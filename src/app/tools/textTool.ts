@@ -23,7 +23,7 @@ export function createTextTool(): Tool {
 
   return {
     id: 'text',
-    label: 'Text',
+    label: 'Текст',
     hotkey: 't',
     cursor: 'text',
     onPointerDown(env, info) {

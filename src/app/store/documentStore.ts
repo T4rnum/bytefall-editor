@@ -111,7 +111,7 @@ function frameEntry(entry: HistoryEntry<Animation>, frameIndex: number): History
   };
 }
 
-const initial = createAnimation(createDocument({ name: 'Untitled' }));
+const initial = createAnimation(createDocument({ name: 'Без названия' }));
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
   ...derive(initial, 0, ''),

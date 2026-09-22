@@ -46,9 +46,9 @@ export function ResizeCanvasDialog({ onClose }: Props) {
   return (
     <dialog ref={ref} className="dialog" onClose={onClose}>
       <form onSubmit={submit}>
-        <h2>Canvas size</h2>
+        <h2>Размер холста</h2>
         <div className="dialog-row">
-          <Field label="Width, cells" stacked>
+          <Field label="Ширина, ячеек" stacked>
             <NumberField
               value={width}
               min={MIN_DIMENSION}
@@ -57,7 +57,7 @@ export function ResizeCanvasDialog({ onClose }: Props) {
               width="100%"
             />
           </Field>
-          <Field label="Height, cells" stacked>
+          <Field label="Высота, ячеек" stacked>
             <NumberField
               value={height}
               min={MIN_DIMENSION}
@@ -69,8 +69,8 @@ export function ResizeCanvasDialog({ onClose }: Props) {
         </div>
 
         <div className="resize-row">
-          <Field label="Anchor" stacked>
-            <AnchorPicker value={anchor} onChange={setAnchor} ariaLabel="Anchor" />
+          <Field label="Якорь" stacked>
+            <AnchorPicker value={anchor} onChange={setAnchor} ariaLabel="Якорь" />
           </Field>
           <div className="resize-preview-wrap">
             <div
@@ -97,13 +97,13 @@ export function ResizeCanvasDialog({ onClose }: Props) {
         </div>
 
         <div className="dialog-actions">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>Отмена</Button>
           <Button
             type="submit"
             variant="primary"
             disabled={width === doc.width && height === doc.height}
           >
-            Resize
+            Изменить
           </Button>
         </div>
       </form>

@@ -24,13 +24,13 @@ const isAbort = (error: unknown): boolean =>
 export async function openDocumentFile(): Promise<OpenedFile | null> {
   try {
     const file = await fileOpen({
-      description: 'Bytefall document',
+      description: 'Документ Bytefall',
       extensions: ['.json'],
       mimeTypes: ['application/json'],
     });
     if (file.size > MAX_FILE_BYTES) {
       const mb = Math.round(file.size / (1024 * 1024));
-      throw new DocumentFormatError(`File is too large: ${mb} MB, limit is 100 MB`);
+      throw new DocumentFormatError(`Файл слишком большой: ${mb} МБ, предел — 100 МБ`);
     }
     const animation = deserialize(await file.text());
     return { animation, file: { name: file.name, handle: file.handle ?? null } };
@@ -51,7 +51,7 @@ export async function saveDocumentFile(
   try {
     const handle = await fileSave(
       blob,
-      { fileName, description: 'Bytefall document', extensions: ['.json'] },
+      { fileName, description: 'Документ Bytefall', extensions: ['.json'] },
       saveAs ? null : current.handle,
       false,
     );

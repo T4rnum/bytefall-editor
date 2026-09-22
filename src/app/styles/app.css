@@ -129,9 +129,10 @@ select {
   letter-spacing: 0.5px;
 }
 
+/** Уже 104 пикселей не сжимается: иначе «Без названия» по умолчанию обрезалось бы. */
 .doc-name {
   flex: 0 1 160px;
-  min-width: 80px;
+  min-width: 104px;
   border-color: transparent;
   background: transparent;
 }

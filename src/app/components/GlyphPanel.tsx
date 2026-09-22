@@ -16,14 +16,14 @@ export function GlyphPanel() {
   return (
     <Panel
       id="glyph"
-      title="Glyph"
+      title="Символ"
       badge={SLOT_LABELS[slot]}
       grow
       actions={
         <>
           <TextField
             value={glyph}
-            ariaLabel="Current glyph"
+            ariaLabel="Текущий символ"
             size="sm"
             pixel
             className="glyph-input"
@@ -38,7 +38,7 @@ export function GlyphPanel() {
         </>
       }
     >
-      <Tabs value={group} onChange={setGroup} items={TABS} ariaLabel="Glyph groups" />
+      <Tabs value={group} onChange={setGroup} items={TABS} ariaLabel="Наборы символов" />
       <div className="glyph-grid">
         {chars.map((ch) => (
           <button

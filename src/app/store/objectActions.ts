@@ -16,6 +16,7 @@ import {
 } from '../../core/object';
 import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
+import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
 
 const docState = () => useDocumentStore.getState();
@@ -31,7 +32,7 @@ function editableSelectedObject(): SceneObject | undefined {
   const obj = selectedObject();
   if (!obj) return undefined;
   if (obj.locked || !canEditLayer(findLayer(docState().doc, obj.layerId))) {
-    notify('Object or its layer is locked', 'error');
+    notify('Объект или его слой заперт', 'error');
     return undefined;
   }
   return obj;
@@ -39,7 +40,10 @@ function editableSelectedObject(): SceneObject | undefined {
 
 function hasRoomForObject(): boolean {
   if (docState().doc.objects.length < MAX_OBJECTS) return true;
-  notify(`At most ${MAX_OBJECTS} objects`, 'error');
+  notify(
+    `Не больше ${plural(MAX_OBJECTS, { one: 'объекта', few: 'объектов', many: 'объектов' })}`,
+    'error',
+  );
   return false;
 }
 
@@ -49,13 +53,13 @@ export function groupSelectionAction(): void {
   const state = docState();
   const layer = editableActiveLayer(state);
   if (!selection || !layer) {
-    notify('Select cells on an editable layer first', 'error');
+    notify('Сначала выделите ячейки на редактируемом слое', 'error');
     return;
   }
   if (!hasRoomForObject()) return;
   const result = groupSelection(state.doc, layer.id, selection);
   if (!result) {
-    notify('Selection has no cells', 'error');
+    notify('В выделении нет ячеек', 'error');
     return;
   }
   state.commitStructural('Group into object', result.doc);

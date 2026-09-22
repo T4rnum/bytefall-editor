@@ -17,8 +17,8 @@ import {
   NumberField,
   Panel,
   Select,
+  type SelectOption,
   TextField,
-  optionsOf,
 } from '../ui';
 
 /** Описание поля эффекта; ключ проверяется компилятором против интерфейса эффекта. */
@@ -37,7 +37,7 @@ type EffectField<K extends string = string> =
       readonly key: K;
       readonly label: string;
       readonly type: 'select';
-      readonly options: readonly string[];
+      readonly options: readonly SelectOption<string>[];
     };
 
 type FieldsByKind = {
@@ -58,32 +58,43 @@ const num = <K extends string>(
   max,
   step,
 });
-const period = num('period', 'Period ms', 10, 600000, 50);
+/** Значения палитр живут в файле, поэтому остаются английскими; подписи — для людей. */
+const FIRE_PALETTE_OPTIONS: readonly SelectOption<string>[] = [
+  { value: 'fire', label: 'Огонь' },
+  { value: 'ice', label: 'Лёд' },
+  { value: 'toxic', label: 'Яд' },
+];
+
+const period = num('period', 'Период, мс', 10, 600000, 50);
 
 /** Описание полей каждого эффекта: панель рисует их одинаково. */
 const FIELDS: FieldsByKind = {
-  pulse: [period, num('amplitude', 'Amplitude', 0, 1, 0.05), num('spread', 'Spread', -10, 10, 0.1)],
+  pulse: [
+    period,
+    num('amplitude', 'Амплитуда', 0, 1, 0.05),
+    num('spread', 'Разброс', -10, 10, 0.1),
+  ],
   wave: [
     period,
-    num('amplitude', 'Amplitude', 0, 64, 1),
-    num('wavelength', 'Wavelength', 1, 1024, 1),
+    num('amplitude', 'Амплитуда', 0, 64, 1),
+    num('wavelength', 'Длина волны', 1, 1024, 1),
   ],
-  flicker: [period, num('density', 'Density', 0, 1, 0.05)],
+  flicker: [period, num('density', 'Плотность', 0, 1, 0.05)],
   scroll: [
-    num('dx', 'dx cells/s', -1000, 1000, 1),
-    num('dy', 'dy cells/s', -1000, 1000, 1),
-    { key: 'wrap', label: 'Wrap', type: 'boolean' },
+    num('dx', 'dx, ячеек/с', -1000, 1000, 1),
+    num('dy', 'dy, ячеек/с', -1000, 1000, 1),
+    { key: 'wrap', label: 'По кругу', type: 'boolean' },
   ],
   cycle: [
-    { key: 'glyphs', label: 'Glyphs', type: 'text' },
+    { key: 'glyphs', label: 'Символы', type: 'text' },
     period,
-    num('spread', 'Spread', -10, 10, 0.1),
+    num('spread', 'Разброс', -10, 10, 0.1),
   ],
   fire: [
-    num('height', 'Height', 1, 64, 1),
+    num('height', 'Высота', 1, 64, 1),
     period,
-    { key: 'palette', label: 'Palette', type: 'select', options: ['fire', 'ice', 'toxic'] },
-    { key: 'glyphs', label: 'Glyph ramp', type: 'text' },
+    { key: 'palette', label: 'Палитра', type: 'select', options: FIRE_PALETTE_OPTIONS },
+    { key: 'glyphs', label: 'Ряд символов', type: 'text' },
   ],
 };
 
@@ -110,7 +121,7 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
       <Field label={field.label}>
         <Select
           value={String(value)}
-          options={optionsOf(field.options)}
+          options={field.options}
           size="sm"
           ariaLabel={field.label}
           onChange={commit}
@@ -157,7 +168,7 @@ export function EffectsPanel() {
   return (
     <Panel
       id="effects"
-      title="Effects"
+      title="Эффекты"
       badge={layer.name}
       actions={
         <>
@@ -165,13 +176,13 @@ export function EffectsPanel() {
             value={kind}
             options={EFFECT_KINDS.map((k) => ({ value: k.kind, label: k.label }))}
             size="sm"
-            ariaLabel="Effect to add"
+            ariaLabel="Какой эффект добавить"
             onChange={setKind}
           />
           <Button
             icon
             size="sm"
-            label="Add effect to the active layer"
+            label="Добавить эффект активному слою"
             onClick={() => addEffectAction(kind)}
           >
             <Plus size={14} />
@@ -180,7 +191,7 @@ export function EffectsPanel() {
       }
     >
       {layer.effects.length === 0 ? (
-        <p className="panel-hint">Эффекты анимируют слой, не меняя его ячейки. Попробуй Fire.</p>
+        <p className="panel-hint">Эффекты анимируют слой, не меняя его ячейки. Попробуй «Огонь».</p>
       ) : (
         <ul className="fx-list">
           {layer.effects.map((effect) => (
@@ -196,7 +207,7 @@ export function EffectsPanel() {
                   icon
                   size="sm"
                   variant="danger"
-                  label="Remove effect"
+                  label="Удалить эффект"
                   onClick={() => removeEffectAction(effect.id)}
                 >
                   <X size={12} />

@@ -42,7 +42,7 @@ function LayerRow({
       <Button
         icon
         size="sm"
-        label={layer.visible ? 'Hide layer' : 'Show layer'}
+        label={layer.visible ? 'Скрыть слой' : 'Показать слой'}
         onClick={(e) => {
           e.stopPropagation();
           updateLayerAction(layer.id, { visible: !layer.visible }, 'Toggle visibility');
@@ -54,7 +54,7 @@ function LayerRow({
         icon
         size="sm"
         active={layer.locked}
-        label={layer.locked ? 'Unlock layer' : 'Lock layer'}
+        label={layer.locked ? 'Отпереть слой' : 'Запереть слой'}
         onClick={(e) => {
           e.stopPropagation();
           updateLayerAction(layer.id, { locked: !layer.locked }, 'Toggle lock');
@@ -69,7 +69,7 @@ function LayerRow({
             size="sm"
             className="item-name-input"
             autoFocus
-            ariaLabel="Layer name"
+            ariaLabel="Имя слоя"
             onCommit={(text) => {
               const name = text.trim();
               if (name && name !== layer.name)
@@ -119,27 +119,27 @@ export function LayersPanel() {
   return (
     <Panel
       id="layers"
-      title="Layers"
+      title="Слои"
       badge={`${doc.layers.length}`}
       actions={
         <>
-          <Button icon size="sm" label="Add layer" onClick={addLayerAction}>
+          <Button icon size="sm" label="Добавить слой" onClick={addLayerAction}>
             <Plus size={14} />
           </Button>
-          <Button icon size="sm" label="Duplicate layer" onClick={duplicateActiveLayerAction}>
+          <Button icon size="sm" label="Дублировать слой" onClick={duplicateActiveLayerAction}>
             <Copy size={14} />
           </Button>
-          <Button icon size="sm" label="Move up" onClick={() => moveActiveLayerAction(1)}>
+          <Button icon size="sm" label="Поднять слой" onClick={() => moveActiveLayerAction(1)}>
             <ChevronUp size={14} />
           </Button>
-          <Button icon size="sm" label="Move down" onClick={() => moveActiveLayerAction(-1)}>
+          <Button icon size="sm" label="Опустить слой" onClick={() => moveActiveLayerAction(-1)}>
             <ChevronDown size={14} />
           </Button>
           <Button
             icon
             size="sm"
             variant="danger"
-            label="Delete layer"
+            label="Удалить слой"
             disabled={doc.layers.length <= 1}
             onClick={removeActiveLayerAction}
           >
@@ -159,7 +159,7 @@ export function LayersPanel() {
         ))}
       </ul>
       <Slider
-        label="Opacity"
+        label="Непрозрачность"
         value={opacity}
         min={0}
         max={100}

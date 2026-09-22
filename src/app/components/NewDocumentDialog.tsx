@@ -10,7 +10,7 @@ interface Props {
 
 export function NewDocumentDialog({ open, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [name, setName] = useState('Untitled');
+  const [name, setName] = useState('Без названия');
   const [width, setWidth] = useState(64);
   const [height, setHeight] = useState(32);
 
@@ -30,12 +30,12 @@ export function NewDocumentDialog({ open, onClose }: Props) {
   return (
     <dialog ref={ref} className="dialog" onClose={onClose}>
       <form onSubmit={submit}>
-        <h2>New document</h2>
-        <Field label="Name" stacked>
-          <TextField value={name} ariaLabel="Document name" onCommit={setName} />
+        <h2>Новый документ</h2>
+        <Field label="Имя" stacked>
+          <TextField value={name} ariaLabel="Имя документа" onCommit={setName} />
         </Field>
         <div className="dialog-row">
-          <Field label="Width, cells" stacked>
+          <Field label="Ширина, ячеек" stacked>
             <NumberField
               value={width}
               min={MIN_DIMENSION}
@@ -44,7 +44,7 @@ export function NewDocumentDialog({ open, onClose }: Props) {
               width="100%"
             />
           </Field>
-          <Field label="Height, cells" stacked>
+          <Field label="Высота, ячеек" stacked>
             <NumberField
               value={height}
               min={MIN_DIMENSION}
@@ -55,9 +55,9 @@ export function NewDocumentDialog({ open, onClose }: Props) {
           </Field>
         </div>
         <div className="dialog-actions">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>Отмена</Button>
           <Button type="submit" variant="primary">
-            Create
+            Создать
           </Button>
         </div>
       </form>

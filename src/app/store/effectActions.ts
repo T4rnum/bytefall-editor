@@ -7,6 +7,7 @@ import {
 } from '../../core/effects';
 import { updateLayerAction } from './documentActions';
 import { useDocumentStore } from './documentStore';
+import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
 
 export function activeLayer(): Layer | undefined {
@@ -18,7 +19,10 @@ export function addEffectAction(kind: EffectKind): void {
   const layer = activeLayer();
   if (!layer) return;
   if (layer.effects.length >= MAX_EFFECTS_PER_LAYER) {
-    notify(`At most ${MAX_EFFECTS_PER_LAYER} effects per layer`, 'error');
+    notify(
+      `Не больше ${plural(MAX_EFFECTS_PER_LAYER, { one: 'эффекта', few: 'эффектов', many: 'эффектов' })} на слой`,
+      'error',
+    );
     return;
   }
   updateLayerAction(layer.id, { effects: [...layer.effects, createEffect(kind)] }, 'Add effect');

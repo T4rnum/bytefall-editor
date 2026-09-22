@@ -38,7 +38,7 @@ describe('layer operations', () => {
     const second = createLayer('Second');
     const withTwo = addLayer(doc, second);
     expect(doc.layers).toHaveLength(1);
-    expect(withTwo.layers.map((l) => l.name)).toEqual(['Layer 1', 'Second']);
+    expect(withTwo.layers.map((l) => l.name)).toEqual(['Слой 1', 'Second']);
 
     const moved = moveLayer(withTwo, second.id, 0);
     expect(moved.layers[0].id).toBe(second.id);

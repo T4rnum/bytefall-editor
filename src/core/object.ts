@@ -206,7 +206,7 @@ export function groupSelection(
   doc: Document,
   layerId: string,
   selection: Selection,
-  name: string = `Object ${doc.objects.length + 1}`,
+  name: string = `Объект ${doc.objects.length + 1}`,
 ): { doc: Document; object: SceneObject } | null {
   const layer = findLayer(doc, layerId);
   if (!layer) return null;

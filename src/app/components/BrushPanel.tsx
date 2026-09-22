@@ -3,7 +3,7 @@ import { type Brush, type BrushSlot, useEditorStore } from '../store/editorStore
 import { Button, Panel, TIP_ATTR } from '../ui';
 
 /** Подпись слота: она же показывается в заголовках панелей символа и цвета. */
-export const SLOT_LABELS: Readonly<Record<BrushSlot, string>> = { 0: 'LMB', 1: 'RMB' };
+export const SLOT_LABELS: Readonly<Record<BrushSlot, string>> = { 0: 'ЛКМ', 1: 'ПКМ' };
 
 const SLOTS: readonly BrushSlot[] = [0, 1];
 
@@ -41,7 +41,7 @@ export function BrushPanel() {
   return (
     <Panel
       id="brush"
-      title="Brush"
+      title="Кисти"
       actions={
         <Button
           icon
@@ -54,7 +54,7 @@ export function BrushPanel() {
         </Button>
       }
     >
-      <div className="brush-slots" role="radiogroup" aria-label="Brush slots">
+      <div className="brush-slots" role="radiogroup" aria-label="Кисти кнопок мыши">
         {SLOTS.map((slot) => (
           <button
             key={slot}

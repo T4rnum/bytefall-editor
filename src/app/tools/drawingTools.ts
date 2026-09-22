@@ -122,18 +122,18 @@ function createShapeTool(
 }
 
 export const createLineTool = (): Tool =>
-  createShapeTool('line', 'Line', 'l', (a, b) => linePoints(a.x, a.y, b.x, b.y), snapLine, false);
+  createShapeTool('line', 'Линия', 'l', (a, b) => linePoints(a.x, a.y, b.x, b.y), snapLine, false);
 
 export const createRectTool = (): Tool =>
-  createShapeTool('rect', 'Rectangle', 'r', rectPoints, constrainSquare, true);
+  createShapeTool('rect', 'Прямоугольник', 'r', rectPoints, constrainSquare, true);
 
 export const createEllipseTool = (): Tool =>
-  createShapeTool('ellipse', 'Ellipse', 'o', ellipsePoints, constrainSquare, true);
+  createShapeTool('ellipse', 'Эллипс', 'o', ellipsePoints, constrainSquare, true);
 
 export function createFillTool(): Tool {
   return {
     id: 'fill',
-    label: 'Fill',
+    label: 'Заливка',
     hotkey: 'f',
     cursor: 'crosshair',
     onPointerDown(env, info) {
@@ -149,7 +149,7 @@ export function createFillTool(): Tool {
 export function createEyedropperTool(): Tool {
   return {
     id: 'eyedropper',
-    label: 'Eyedropper',
+    label: 'Пипетка',
     hotkey: 'i',
     cursor: 'copy',
     onPointerDown(env, info) {

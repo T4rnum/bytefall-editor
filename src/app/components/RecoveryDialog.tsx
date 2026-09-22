@@ -5,7 +5,7 @@ import { autosaveService } from '../autosave/service';
 import { liveSessions } from '../autosave/session';
 import { useDocumentStore } from '../store/documentStore';
 import { errorMessage, notify } from '../store/notifyStore';
-import { Button, formatAge } from '../ui';
+import { Button, formatAge, plural } from '../ui';
 
 interface Found {
   readonly slots: readonly RecoverySlot[];
@@ -34,7 +34,7 @@ function useRecoverableSlots(): Found {
 
 /**
  * Предлагает вернуть работу, которую вкладка не успела сохранить. Закрыть окно — значит
- * «потом»: записи остаются и будут предложены при следующем запуске. Стирает их только Discard.
+ * «потом»: записи остаются и будут предложены при следующем запуске. Стирает их только «Удалить».
  */
 export function RecoveryDialog() {
   const { slots, at: foundAt } = useRecoverableSlots();
@@ -55,7 +55,7 @@ export function RecoveryDialog() {
       animation = deserialize(slot.data);
     } catch (error) {
       // Запись не стираем: её могла оставить более новая версия редактора, и там она откроется.
-      notify(`Cannot restore "${slot.name}": ${errorMessage(error)}`, 'error');
+      notify(`Не удалось восстановить «${slot.name}»: ${errorMessage(error)}`, 'error');
       return;
     }
     const { store, autosave } = autosaveService();
@@ -64,7 +64,7 @@ export function RecoveryDialog() {
     // Сначала своя запись, потом стираем чужую: между ними работа не должна остаться без копии.
     await autosave.flush();
     await store.remove(slot.session).catch(() => undefined);
-    notify(`Restored "${slot.name}". Save it to keep it in a file.`);
+    notify(`«${slot.name}» восстановлен. Сохраните его в файл.`);
   };
 
   const discard = async (): Promise<void> => {
@@ -76,27 +76,28 @@ export function RecoveryDialog() {
   return (
     <dialog ref={ref} className="dialog" onClose={() => setOpen(false)}>
       <div className="dialog-content">
-        <h2>Recover unsaved work</h2>
-        <p className="recovery-lead">The editor closed before this work was saved.</p>
+        <h2>Несохранённая работа</h2>
+        <p className="recovery-lead">Редактор закрылся раньше, чем эту работу сохранили.</p>
         <ul className="recovery-list">
           {slots.map((slot) => (
             <li key={slot.session} className="recovery-item">
               <div className="recovery-meta">
                 <span className="recovery-name">{slot.name}</span>
                 <span className="recovery-details">
-                  {slot.width}×{slot.height} · {slot.frames}{' '}
-                  {slot.frames === 1 ? 'frame' : 'frames'} · {formatAge(foundAt - slot.savedAt)}
+                  {slot.width}×{slot.height} ·{' '}
+                  {plural(slot.frames, { one: 'кадр', few: 'кадра', many: 'кадров' })} ·{' '}
+                  {formatAge(foundAt - slot.savedAt)}
                 </span>
               </div>
               <Button variant="primary" onClick={() => void restore(slot)}>
-                Restore
+                Восстановить
               </Button>
             </li>
           ))}
         </ul>
         <div className="dialog-actions">
-          <Button onClick={() => void discard()}>Discard</Button>
-          <Button onClick={() => setOpen(false)}>Later</Button>
+          <Button onClick={() => void discard()}>Удалить</Button>
+          <Button onClick={() => setOpen(false)}>Позже</Button>
         </div>
       </div>
     </dialog>

@@ -7,6 +7,7 @@ import {
 } from '../../core/animation';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
+import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
 
 const state = () => useDocumentStore.getState();
@@ -22,7 +23,10 @@ export function addFrameAction(mode: 'duplicate' | 'empty'): void {
   stopPlayback();
   const { animation, frameIndex, commitAnimation } = state();
   if (animation.frames.length >= MAX_FRAMES) {
-    notify(`At most ${MAX_FRAMES} frames`, 'error');
+    notify(
+      `Не больше ${plural(MAX_FRAMES, { one: 'кадра', few: 'кадров', many: 'кадров' })}`,
+      'error',
+    );
     return;
   }
   const label = mode === 'duplicate' ? 'Duplicate frame' : 'New frame';
@@ -64,7 +68,7 @@ export function stepFrameAction(delta: number): void {
 export function togglePlaybackAction(): void {
   const editor = useEditorStore.getState();
   if (!editor.isPlaying && state().animation.frames.length < 2) {
-    notify('Add a second frame to play the animation');
+    notify('Чтобы проиграть анимацию, добавьте второй кадр');
     return;
   }
   editor.setPlaying(!editor.isPlaying);

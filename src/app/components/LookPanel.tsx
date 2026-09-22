@@ -8,9 +8,9 @@ const CONTROLS: readonly {
   readonly label: string;
   readonly max: number;
 }[] = [
-  { key: 'bloom', label: 'Glow', max: 2 },
-  { key: 'scanlines', label: 'Scanlines', max: 1 },
-  { key: 'vignette', label: 'Vignette', max: 1 },
+  { key: 'bloom', label: 'Свечение', max: 2 },
+  { key: 'scanlines', label: 'Строки развёртки', max: 1 },
+  { key: 'vignette', label: 'Виньетка', max: 1 },
 ];
 
 /** Постэффекты уровня пикселей. Настройка сессии: применяется к экрану и к экспорту. */
@@ -21,9 +21,9 @@ export function LookPanel() {
   return (
     <Panel
       id="look"
-      title="Look"
+      title="Постобработка"
       actions={
-        <Button icon size="sm" label="Reset look" onClick={() => setPost(DEFAULT_POST)}>
+        <Button icon size="sm" label="Сбросить постобработку" onClick={() => setPost(DEFAULT_POST)}>
           <RotateCcw size={13} />
         </Button>
       }

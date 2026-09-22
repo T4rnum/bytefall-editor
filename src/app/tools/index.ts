@@ -16,8 +16,8 @@ export { pickAt } from './drawingTools';
 
 /** Порядок задаёт порядок кнопок на панели инструментов. */
 export const TOOLS: readonly Tool[] = [
-  createStrokeTool('pencil', 'Pencil', 'p'),
-  createStrokeTool('eraser', 'Eraser', 'e'),
+  createStrokeTool('pencil', 'Карандаш', 'p'),
+  createStrokeTool('eraser', 'Ластик', 'e'),
   createLineTool(),
   createRectTool(),
   createEllipseTool(),

@@ -46,7 +46,7 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
       <Button
         icon
         size="sm"
-        label={object.visible ? 'Hide object' : 'Show object'}
+        label={object.visible ? 'Скрыть объект' : 'Показать объект'}
         onClick={(e) => {
           e.stopPropagation();
           updateObjectAction(object.id, { visible: !object.visible }, 'Toggle object visibility');
@@ -58,7 +58,7 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
         icon
         size="sm"
         active={object.locked}
-        label={object.locked ? 'Unlock object' : 'Lock object'}
+        label={object.locked ? 'Отпереть объект' : 'Запереть объект'}
         onClick={(e) => {
           e.stopPropagation();
           updateObjectAction(object.id, { locked: !object.locked }, 'Toggle object lock');
@@ -73,7 +73,7 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
             size="sm"
             className="item-name-input"
             autoFocus
-            ariaLabel="Object name"
+            ariaLabel="Имя объекта"
             onCommit={(text) => {
               const name = text.trim();
               if (name && name !== object.name) {
@@ -108,14 +108,14 @@ export function ObjectsPanel() {
   return (
     <Panel
       id="objects"
-      title="Objects"
+      title="Объекты"
       badge={objects.length > 0 ? `${objects.length}` : undefined}
       actions={
         <>
           <Button
             icon
             size="sm"
-            label="Group selection into object"
+            label="Собрать выделение в объект"
             hotkey="Ctrl+G"
             disabled={!hasSelection}
             onClick={groupSelectionAction}
@@ -125,7 +125,7 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Ungroup: bake into layer"
+            label="Разобрать: впечатать объект в слой"
             hotkey="Ctrl+Shift+G"
             disabled={!selected}
             onClick={ungroupSelectedObjectAction}
@@ -135,7 +135,7 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Duplicate object"
+            label="Дублировать объект"
             hotkey="Ctrl+D"
             disabled={!selected}
             onClick={duplicateSelectedObjectAction}
@@ -145,7 +145,7 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Bring forward"
+            label="Поднять объект"
             disabled={!selected}
             onClick={() => moveSelectedObjectOrderAction(1)}
           >
@@ -154,7 +154,7 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Send backward"
+            label="Опустить объект"
             disabled={!selected}
             onClick={() => moveSelectedObjectOrderAction(-1)}
           >
@@ -164,7 +164,7 @@ export function ObjectsPanel() {
             icon
             size="sm"
             variant="danger"
-            label="Delete object"
+            label="Удалить объект"
             disabled={!selected}
             onClick={deleteSelectedObjectAction}
           >

@@ -93,13 +93,13 @@ export function createDocument(options: CreateDocumentOptions = {}): Document {
   assertDimension(height, 'height');
   return {
     version: 1,
-    name: options.name ?? 'Untitled',
+    name: options.name ?? 'Без названия',
     width,
     height,
     font: DEFAULT_FONT,
     background: options.background === undefined ? '#000000' : options.background,
     palette: DEFAULT_PALETTE,
-    layers: [createLayer('Layer 1')],
+    layers: [createLayer('Слой 1')],
     objects: [],
   };
 }

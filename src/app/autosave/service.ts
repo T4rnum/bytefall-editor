@@ -30,7 +30,7 @@ export function autosaveService(): AutosaveService {
       // Одного предупреждения хватает: повторять его на каждую неудачную запись — шум.
       if (warned) return;
       warned = true;
-      notify(`Autosave is unavailable: ${errorMessage(error)}`, 'error');
+      notify(`Автосохранение недоступно: ${errorMessage(error)}`, 'error');
     },
   });
   service = { store, autosave };

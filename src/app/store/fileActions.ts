@@ -12,7 +12,7 @@ import { getActiveView } from './viewActions';
 
 function confirmDiscard(): boolean {
   if (!useDocumentStore.getState().dirty) return true;
-  return window.confirm('There are unsaved changes. Continue without saving?');
+  return window.confirm('Есть несохранённые изменения. Продолжить без сохранения?');
 }
 
 export function newDocumentAction(options: CreateDocumentOptions): void {
@@ -33,9 +33,9 @@ export async function openDocumentAction(): Promise<void> {
     // Пока был открыт диалог, документ могли изменить: спрашиваем ещё раз.
     if (useDocumentStore.getState().animation !== before && !confirmDiscard()) return;
     useDocumentStore.getState().replaceAnimation(opened.animation, opened.file);
-    notify(`Opened ${opened.file.name}`);
+    notify(`Открыт ${opened.file.name}`);
   } catch (error) {
-    notify(`Open failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось открыть: ${errorMessage(error)}`, 'error');
   }
 }
 
@@ -45,9 +45,9 @@ export async function saveDocumentAction(saveAs = false): Promise<void> {
     const saved = await saveDocumentFile(animation, file, saveAs);
     if (!saved) return;
     markSaved(saved, animation);
-    notify(`Saved ${saved.name}`);
+    notify(`Сохранено: ${saved.name}`);
   } catch (error) {
-    notify(`Save failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось сохранить: ${errorMessage(error)}`, 'error');
   }
 }
 
@@ -57,11 +57,11 @@ export async function exportPngAction(pixelsPerCell: number): Promise<void> {
   const { doc } = useDocumentStore.getState();
   try {
     const blob = await view.exportPng(pixelsPerCell);
-    if (await saveBlobFile(blob, `${safeFileName(doc.name)}.png`, '.png', 'PNG image')) {
-      notify('PNG exported');
+    if (await saveBlobFile(blob, `${safeFileName(doc.name)}.png`, '.png', 'Изображение PNG')) {
+      notify('PNG сохранён');
     }
   } catch (error) {
-    notify(`Export failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }
 }
 
@@ -71,11 +71,11 @@ export async function exportTextAction(): Promise<void> {
     const text = bufferToText(composite(doc));
     // Тип без параметров: диалог сохранения отвергает MIME с charset.
     const blob = new Blob([text], { type: 'text/plain' });
-    if (await saveBlobFile(blob, `${safeFileName(doc.name)}.txt`, '.txt', 'Plain text')) {
-      notify('Text exported');
+    if (await saveBlobFile(blob, `${safeFileName(doc.name)}.txt`, '.txt', 'Текст')) {
+      notify('Текст сохранён');
     }
   } catch (error) {
-    notify(`Export failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }
 }
 
@@ -114,7 +114,7 @@ function exportSamples(animation: Animation): ExportSample[] {
 /** Рендерит каждый кадр без служебной графики в пиксели, эффекты берутся на момент кадра. */
 function renderFrames(pixelsPerCell: number): RenderedFrame[] {
   const view = getActiveView();
-  if (!view) throw new Error('Viewport is not ready');
+  if (!view) throw new Error('холст ещё не готов');
   const { animation } = useDocumentStore.getState();
   return exportSamples(animation).map((sample) => {
     const doc = frameDocument(animation, sample.frameIndex);
@@ -128,11 +128,11 @@ export async function exportGifAction(pixelsPerCell: number): Promise<void> {
   try {
     const bytes = encodeGif(renderFrames(pixelsPerCell), animation.background === null);
     const blob = new Blob([bytes.slice()], { type: 'image/gif' });
-    if (await saveBlobFile(blob, `${safeFileName(animation.name)}.gif`, '.gif', 'GIF animation')) {
-      notify('GIF exported');
+    if (await saveBlobFile(blob, `${safeFileName(animation.name)}.gif`, '.gif', 'Анимация GIF')) {
+      notify('GIF сохранён');
     }
   } catch (error) {
-    notify(`Export failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }
 }
 
@@ -141,8 +141,9 @@ export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<vo
   try {
     const blob = await buildSpriteSheet(renderFrames(pixelsPerCell));
     const name = `${safeFileName(animation.name)}-sheet.png`;
-    if (await saveBlobFile(blob, name, '.png', 'PNG sprite sheet')) notify('Sprite sheet exported');
+    if (await saveBlobFile(blob, name, '.png', 'Лист спрайтов PNG'))
+      notify('Лист спрайтов сохранён');
   } catch (error) {
-    notify(`Export failed: ${errorMessage(error)}`, 'error');
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }
 }

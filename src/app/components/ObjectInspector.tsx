@@ -8,7 +8,14 @@ import {
   setObjectPropAction,
   updateObjectAction,
 } from '../store/objectActions';
-import { Button, Field, NumberField, TextField } from '../ui';
+import { Button, Field, NumberField, TextField, plural } from '../ui';
+
+/** Подсказка к имени свойства: какого оно типа. */
+const TYPE_NAMES: Readonly<Record<string, string>> = {
+  string: 'строка',
+  number: 'число',
+  boolean: 'да или нет',
+};
 
 interface Props {
   readonly object: SceneObject;
@@ -32,7 +39,7 @@ export function ObjectInspector({ object }: Props) {
 
   return (
     <div className="inspector">
-      <Field label="Position">
+      <Field label="Положение">
         <NumberField
           label="X"
           value={object.x}
@@ -50,18 +57,20 @@ export function ObjectInspector({ object }: Props) {
           width="var(--field-w-sm)"
         />
       </Field>
-      <span className="dim">{object.cells.size} cells</span>
+      <span className="dim">
+        {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
+      </span>
 
       <div className="props">
         {Object.entries(object.props).map(([key, value]) => (
           <div className="prop-row" key={key}>
-            <span className="prop-key" title={typeof value}>
+            <span className="prop-key" title={TYPE_NAMES[typeof value]}>
               {key}
             </span>
             <TextField
               value={String(value)}
               size="sm"
-              ariaLabel={`Value of ${key}`}
+              ariaLabel={`Значение ${key}`}
               onCommit={(text) => {
                 const next = parsePropValue(text);
                 if (next !== value) setObjectPropAction(object.id, key, next);
@@ -71,7 +80,7 @@ export function ObjectInspector({ object }: Props) {
               icon
               size="sm"
               variant="danger"
-              label="Remove property"
+              label="Удалить свойство"
               onClick={() => removeObjectPropAction(object.id, key)}
             >
               <X size={12} />
@@ -81,8 +90,8 @@ export function ObjectInspector({ object }: Props) {
         <div className="prop-row">
           <input
             className="textfield textfield--sm prop-key-input"
-            placeholder="property"
-            aria-label="New property name"
+            placeholder="свойство"
+            aria-label="Имя нового свойства"
             value={newKey}
             onChange={(e) => setNewKey(e.target.value)}
             onKeyDown={(e) => {
@@ -92,8 +101,8 @@ export function ObjectInspector({ object }: Props) {
           />
           <input
             className="textfield textfield--sm"
-            placeholder="value"
-            aria-label="New property value"
+            placeholder="значение"
+            aria-label="Значение нового свойства"
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={(e) => {
@@ -101,7 +110,13 @@ export function ObjectInspector({ object }: Props) {
               if (e.key === 'Enter') addProp();
             }}
           />
-          <Button icon size="sm" label="Add property" disabled={!newKey.trim()} onClick={addProp}>
+          <Button
+            icon
+            size="sm"
+            label="Добавить свойство"
+            disabled={!newKey.trim()}
+            onClick={addProp}
+          >
             <Plus size={12} />
           </Button>
         </div>

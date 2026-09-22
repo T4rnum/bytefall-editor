@@ -27,7 +27,7 @@ export function createObjectTool(): Tool {
 
   return {
     id: 'object',
-    label: 'Object',
+    label: 'Объект',
     hotkey: 'v',
     cursor: 'default',
     onPointerDown(env, info) {
