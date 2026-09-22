@@ -3,6 +3,7 @@ import { frameDocument } from '../../core/animation';
 import { type CellBuffer, type Ghost, composite } from '../../core/compositor';
 import { inBounds } from '../../core/geometry';
 import { findObject, objectBounds } from '../../core/object';
+import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
 import { isEditableTarget } from '../hooks/useHotkeys';
@@ -52,7 +53,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       return ghosts;
     };
 
-    const recomposite = (): void => {
+    const recomposite = (dirty?: Iterable<number>): void => {
       const { preview, effectTime } = useEditorStore.getState();
       bufferRef.current = composite(
         currentDoc(),
@@ -61,7 +62,31 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         ghostFrames(),
         effectTime,
       );
-      view.setBuffer(bufferRef.current);
+      view.setBuffer(bufferRef.current, dirty);
+    };
+
+    /**
+     * Тайлы, задетые сменой превью: и старым штрихом, и новым. Старый нужен обязательно, иначе
+     * след предыдущего положения курсора остался бы на экране.
+     *
+     * null означает «пересобрать всё»: так возвращается всё, кроме чистой смены превью.
+     */
+    const dirtyFromPreview = (state: EditorState, prev: EditorState | null): number[] | null => {
+      if (!prev) return null;
+      const onlyPreviewChanged =
+        state.draft === prev.draft &&
+        state.onionSkin === prev.onionSkin &&
+        state.isPlaying === prev.isPlaying &&
+        state.effectTime === prev.effectTime;
+      if (!onlyPreviewChanged) return null;
+      const { doc } = useDocumentStore.getState();
+      const layout = tileLayout(doc.width, doc.height);
+      const tiles = new Set<number>();
+      for (const side of [prev.preview, state.preview]) {
+        if (!side) continue;
+        for (const tile of tilesFromKeys(layout, side.edits.keys())) tiles.add(tile);
+      }
+      return [...tiles];
     };
 
     const syncObjectOutline = (): void => {
@@ -109,7 +134,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         state.isPlaying !== prev.isPlaying ||
         state.effectTime !== prev.effectTime
       ) {
-        recomposite();
+        recomposite(dirtyFromPreview(state, prev) ?? undefined);
       }
       if (!prev || state.draft !== prev.draft || state.selectedObjectId !== prev.selectedObjectId) {
         syncObjectOutline();

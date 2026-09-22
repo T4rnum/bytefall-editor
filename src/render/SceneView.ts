@@ -85,9 +85,10 @@ export class SceneView {
     return { width: this.viewWidth, height: this.viewHeight };
   }
 
-  setBuffer(buffer: CellBuffer): void {
+  /** `dirty` перечисляет изменившиеся тайлы; без него на GPU уходит весь холст. */
+  setBuffer(buffer: CellBuffer, dirty?: Iterable<number>): void {
     this.buffer = buffer;
-    this.grid.update(buffer);
+    this.grid.update(buffer, dirty);
     this.requestRender();
   }
 
