@@ -9,11 +9,13 @@ import { HotkeysDialog } from './components/HotkeysDialog';
 import { LayersPanel } from './components/LayersPanel';
 import { LookPanel } from './components/LookPanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
+import { RecoveryDialog } from './components/RecoveryDialog';
 import { StatusBar } from './components/StatusBar';
 import { TimelinePanel } from './components/TimelinePanel';
 import { ToolBar } from './components/ToolBar';
 import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
+import { useAutosave } from './hooks/useAutosave';
 import { useEffectClock } from './hooks/useEffectClock';
 import { useHotkeys } from './hooks/useHotkeys';
 import { usePlayback } from './hooks/usePlayback';
@@ -34,6 +36,7 @@ export function App() {
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   useHotkeys();
   useUnsavedChangesGuard();
+  useAutosave();
   usePlayback();
   useEffectClock();
 
@@ -79,6 +82,7 @@ export function App() {
       <TimelinePanel />
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
+      <RecoveryDialog />
       <TooltipLayer />
     </div>
   );

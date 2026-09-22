@@ -54,7 +54,11 @@ export interface DocumentState {
    */
   readonly dirtyKeys: readonly CellKey[] | null;
 
-  replaceAnimation: (animation: Animation, file?: FileRef) => void;
+  /**
+   * Заменяет анимацию целиком, с чистой историей. `dirty` нужен восстановлению после аварии:
+   * такая работа ни в каком файле не лежит и должна оставаться под защитой до сохранения.
+   */
+  replaceAnimation: (animation: Animation, file?: FileRef, dirty?: boolean) => void;
   /** Правки ячеек слоя текущего кадра одной записью истории. false, если слой нельзя редактировать. */
   commitCells: (layerId: string, edits: CellEdits, label: string) => boolean;
   /** Структурная операция над текущим кадром: объекты, палитра, имя, фон. */
@@ -117,11 +121,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   epoch: 0,
   dirtyKeys: null,
 
-  replaceAnimation: (animation, file = { name: null, handle: null }) =>
+  replaceAnimation: (animation, file = { name: null, handle: null }, dirty = false) =>
     set((state) => ({
       ...derive(animation, 0, ''),
       history: createHistory<Checkpoint>(),
-      dirty: false,
+      dirty,
       file,
       epoch: state.epoch + 1,
     })),

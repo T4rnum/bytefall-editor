@@ -10,9 +10,14 @@ interface UiState {
   readonly sidebarWidth: number;
   readonly hotkeysOpen: boolean;
   readonly resizeOpen: boolean;
+  /** Когда автосохранение последний раз легло на диск. null — ещё не писало или не может. */
+  readonly autosavedAt: number | null;
+  /** Автосохранение не смогло записать: хранилище браузера недоступно или переполнено. */
+  readonly autosaveFailed: boolean;
   setSidebarWidth: (width: number) => void;
   setHotkeysOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
+  setAutosaveStatus: (status: { at: number | null; failed: boolean }) => void;
 }
 
 /**
@@ -26,6 +31,8 @@ export const useUiStore = create<UiState>((set) => ({
   ),
   hotkeysOpen: false,
   resizeOpen: false,
+  autosavedAt: null,
+  autosaveFailed: false,
   setSidebarWidth: (width) => {
     const clamped = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, Math.round(width)));
     writeSetting('sidebarWidth', clamped);
@@ -33,6 +40,7 @@ export const useUiStore = create<UiState>((set) => ({
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),
+  setAutosaveStatus: ({ at, failed }) => set({ autosavedAt: at, autosaveFailed: failed }),
 }));
 
 export const SIDEBAR_LIMITS = { min: MIN_SIDEBAR, max: MAX_SIDEBAR } as const;

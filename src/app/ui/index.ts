@@ -3,6 +3,7 @@
  * значения и колбэки. Любой новый контрол появляется здесь, а не внутри панели, иначе через
  * месяц у каждой панели будет свой слайдер со своими отступами.
  */
+export { formatAge } from './age';
 export { AnchorPicker, type AnchorPickerProps } from './AnchorPicker';
 export { Button, tooltip, type ButtonProps, type ButtonVariant, type ControlSize } from './Button';
 export { Checkbox, type CheckboxProps } from './Checkbox';
