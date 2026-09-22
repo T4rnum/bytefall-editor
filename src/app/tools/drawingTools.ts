@@ -28,7 +28,7 @@ function snapLine(anchor: Point, cell: Point): Point {
 const inDoc = (env: ToolEnv, p: Point): boolean =>
   inBounds(p.x, p.y, env.doc.width, env.doc.height);
 
-/** Карандаш и ластик: непрерывный штрих, правая кнопка карандаша стирает. */
+/** Карандаш и ластик: непрерывный штрих, у каждой кнопки мыши своя кисть. */
 export function createStrokeTool(id: 'pencil' | 'eraser', label: string, hotkey: string): Tool {
   let last: Point | null = null;
   let edits: Map<CellKey, Cell | null> | null = null;
@@ -47,7 +47,7 @@ export function createStrokeTool(id: 'pencil' | 'eraser', label: string, hotkey:
     cursor: 'crosshair',
     onPointerDown(env, info) {
       if (!env.layer) return;
-      value = id === 'eraser' || info.button === 2 ? null : env.brush;
+      value = id === 'eraser' ? null : env.brushFor(info.button);
       edits = new Map();
       last = info.cell;
       addPoints(env, [info.cell]);
@@ -101,7 +101,7 @@ function createShapeTool(
     onPointerDown(env, info) {
       if (!env.layer) return;
       anchor = info.cell;
-      value = info.button === 2 ? null : env.brush;
+      value = env.brushFor(info.button);
       update(env, info);
     },
     onPointerMove(env, info) {
@@ -140,7 +140,7 @@ export function createFillTool(): Tool {
       if (!env.layer || !inDoc(env, info.cell)) return;
       const { width, height } = env.doc;
       const points = floodFill(env.layer.cells, width, height, info.cell.x, info.cell.y);
-      env.commit(editsFromPoints(points, info.button === 2 ? null : env.brush), 'Fill');
+      env.commit(editsFromPoints(points, env.brushFor(info.button)), 'Fill');
     },
   };
 }
@@ -153,13 +153,13 @@ export function createEyedropperTool(): Tool {
     hotkey: 'i',
     cursor: 'copy',
     onPointerDown(env, info) {
-      pickAt(env, info.cell);
+      pickAt(env, info.cell, info.button);
     },
   };
 }
 
 /** Пипетка видит и объекты, и растры: берётся верхняя видимая ячейка. */
-export function pickAt(env: ToolEnv, cell: Point): void {
+export function pickAt(env: ToolEnv, cell: Point, button = 0): void {
   const found = topCellAt(env.doc, cell.x, cell.y);
-  if (found) env.pick(found);
+  if (found) env.pick(found, button);
 }

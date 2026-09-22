@@ -6,15 +6,17 @@ import {
   setBackgroundAction,
 } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
-import { useEditorStore } from '../store/editorStore';
+import { activeBrush, useEditorStore } from '../store/editorStore';
 import { Button, ColorField, Field, Panel } from '../ui';
+import { SLOT_LABELS } from './BrushPanel';
 
 export function ColorPanel() {
-  const fg = useEditorStore((s) => s.fg);
-  const bg = useEditorStore((s) => s.bg);
+  const fg = useEditorStore((s) => activeBrush(s).fg);
+  const bg = useEditorStore((s) => activeBrush(s).bg);
   const setFg = useEditorStore((s) => s.setFg);
   const setBg = useEditorStore((s) => s.setBg);
   const swapColors = useEditorStore((s) => s.swapColors);
+  const slot = useEditorStore((s) => s.activeBrush);
   const palette = useDocumentStore((s) => s.doc.palette);
   const background = useDocumentStore((s) => s.doc.background);
 
@@ -22,6 +24,7 @@ export function ColorPanel() {
     <Panel
       id="colors"
       title="Colors"
+      badge={SLOT_LABELS[slot]}
       actions={
         <Button icon size="sm" label="Swap colors" hotkey="X" onClick={swapColors}>
           <ArrowLeftRight size={14} />

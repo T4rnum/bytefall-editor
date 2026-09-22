@@ -268,7 +268,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const info = pointerInfo(event);
     if (!info) return;
     if (event.altKey) {
-      pickAt(buildToolEnv(), info.cell);
+      pickAt(buildToolEnv(), info.cell, event.button);
       return;
     }
     dragRef.current = { kind: 'tool', pointerId: event.pointerId };

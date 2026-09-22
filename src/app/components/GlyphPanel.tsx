@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { CHARSET_GROUPS } from '../../render/font/pressStart2P';
-import { useEditorStore } from '../store/editorStore';
+import { activeBrush, useEditorStore } from '../store/editorStore';
 import { Panel, type TabItem, Tabs, TextField } from '../ui';
+import { SLOT_LABELS } from './BrushPanel';
 
 const TABS: TabItem<string>[] = CHARSET_GROUPS.map((g) => ({ id: g.title, label: g.title }));
 
 export function GlyphPanel() {
-  const glyph = useEditorStore((s) => s.glyph);
+  const glyph = useEditorStore((s) => activeBrush(s).glyph);
   const setGlyph = useEditorStore((s) => s.setGlyph);
+  const slot = useEditorStore((s) => s.activeBrush);
   const [group, setGroup] = useState(CHARSET_GROUPS[0].title);
   const chars = [...(CHARSET_GROUPS.find((g) => g.title === group) ?? CHARSET_GROUPS[0]).chars];
 
@@ -15,6 +17,7 @@ export function GlyphPanel() {
     <Panel
       id="glyph"
       title="Glyph"
+      badge={SLOT_LABELS[slot]}
       grow
       actions={
         <>

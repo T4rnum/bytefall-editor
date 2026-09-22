@@ -20,8 +20,13 @@ export interface ToolEnv {
   readonly doc: Document;
   /** Активный слой, если его можно редактировать, иначе null. */
   readonly layer: Layer | null;
-  /** Текущая кисть: символ и цвета. */
+  /** Активная кисть: та, что показана в панелях символа и цвета. */
   readonly brush: Cell;
+  /**
+   * Кисть под кнопку мыши: левая берёт первую, правая — вторую. `null` значит «стирать»:
+   * кисть без символа и без фона ничего не рисует, поэтому она же и ластик.
+   */
+  readonly brushFor: (button: number) => Cell | null;
   readonly shapeFill: boolean;
   readonly selection: Rect | null;
   readonly textCursor: Point | null;
@@ -29,8 +34,8 @@ export interface ToolEnv {
   setPreview: (edits: CellEdits | null) => void;
   commit: (edits: CellEdits, label: string) => void;
   setSelection: (rect: Rect | null) => void;
-  /** Результат пипетки. */
-  pick: (cell: Cell) => void;
+  /** Результат пипетки. Кнопка выбирает кисть, как и при рисовании. */
+  pick: (cell: Cell, button?: number) => void;
   setTextCursor: (cell: Point | null) => void;
   setSelectedObject: (id: string | null) => void;
   /** Черновик документа для превью структурных операций, например переноса объекта. */

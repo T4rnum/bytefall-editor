@@ -8,11 +8,21 @@ import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import type { CameraState } from '../../render/SceneView';
 import type { ToolId } from '../tools/types';
 
-export interface EditorState {
-  readonly tool: ToolId;
+/** Кисть одной кнопки мыши: символ и два цвета. */
+export interface Brush {
   readonly glyph: string;
   readonly fg: string;
   readonly bg: string | null;
+}
+
+/** 0 — левая кнопка мыши, 1 — правая. */
+export type BrushSlot = 0 | 1;
+
+export interface EditorState {
+  readonly tool: ToolId;
+  /** Две кисти: по одной на кнопку мыши. Панели символа и цвета правят активную. */
+  readonly brushes: readonly [Brush, Brush];
+  readonly activeBrush: BrushSlot;
   /** Заливать ли фигуры (прямоугольник, эллипс). */
   readonly shapeFill: boolean;
   readonly camera: CameraState;
@@ -37,6 +47,9 @@ export interface EditorState {
   readonly post: PostSettings;
 
   setTool: (tool: ToolId) => void;
+  setActiveBrush: (slot: BrushSlot) => void;
+  /** Меняет кисти местами: то, чем рисовала левая кнопка, переезжает на правую. */
+  swapBrushes: () => void;
   setGlyph: (glyph: string) => void;
   setFg: (fg: string) => void;
   setBg: (bg: string | null) => void;
@@ -61,11 +74,28 @@ export interface EditorState {
 const samePoint = (a: Point | null, b: Point | null): boolean =>
   a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
 
+/** Кисть, которую правят панели и которой рисует левая кнопка, если активна она. */
+export const activeBrush = (s: EditorState): Brush => s.brushes[s.activeBrush];
+
+/**
+ * Кисть под кнопку мыши. Правая кнопка по умолчанию стирает: пустой символ без фона —
+ * это и есть ластик, см. `isBlankCell`.
+ */
+export const brushOf = (s: EditorState, button: number): Brush => s.brushes[button === 2 ? 1 : 0];
+
+/** Точечная правка активной кисти: остальные поля и вторая кисть остаются теми же. */
+function patchActive(s: EditorState, patch: Partial<Brush>): Pick<EditorState, 'brushes'> {
+  const next: Brush = { ...s.brushes[s.activeBrush], ...patch };
+  return { brushes: s.activeBrush === 0 ? [next, s.brushes[1]] : [s.brushes[0], next] };
+}
+
 export const useEditorStore = create<EditorState>((set) => ({
   tool: 'pencil',
-  glyph: '#',
-  fg: DEFAULT_FG,
-  bg: null,
+  brushes: [
+    { glyph: '#', fg: DEFAULT_FG, bg: null },
+    { glyph: '', fg: DEFAULT_FG, bg: null },
+  ],
+  activeBrush: 0,
   shapeFill: false,
   camera: { centerX: 0, centerY: 0, zoom: 16 },
   showGrid: true,
@@ -84,10 +114,16 @@ export const useEditorStore = create<EditorState>((set) => ({
   post: DEFAULT_POST,
 
   setTool: (tool) => set({ tool, preview: null, textCursor: null, draft: null }),
-  setGlyph: (glyph) => set({ glyph }),
-  setFg: (fg) => set({ fg }),
-  setBg: (bg) => set({ bg }),
-  swapColors: () => set((s) => ({ fg: s.bg ?? s.fg, bg: s.bg === null ? null : s.fg })),
+  setActiveBrush: (activeBrush) => set({ activeBrush }),
+  swapBrushes: () => set((s) => ({ brushes: [s.brushes[1], s.brushes[0]] })),
+  setGlyph: (glyph) => set((s) => patchActive(s, { glyph })),
+  setFg: (fg) => set((s) => patchActive(s, { fg })),
+  setBg: (bg) => set((s) => patchActive(s, { bg })),
+  swapColors: () =>
+    set((s) => {
+      const b = activeBrush(s);
+      return patchActive(s, { fg: b.bg ?? b.fg, bg: b.bg === null ? null : b.fg });
+    }),
   setShapeFill: (shapeFill) => set({ shapeFill }),
   setCamera: (camera) => set({ camera }),
   setShowGrid: (showGrid) => set({ showGrid }),

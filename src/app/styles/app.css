@@ -424,6 +424,61 @@ select {
   color: var(--text-dim);
 }
 
+/* ── Кисти ─────────────────────────────────────────────────────────────── */
+.brush-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.brush-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.brush-slot:hover {
+  border-color: var(--border-strong);
+}
+
+.brush-slot.is-active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/** Образец показывает кисть так, как она ляжет на холст: символ своим цветом на своём фоне. */
+.brush-preview {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.brush-slot-name {
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.brush-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
 /* ── Глифы ─────────────────────────────────────────────────────────────── */
 .glyph-input {
   width: 44px;

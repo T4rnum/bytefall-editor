@@ -237,6 +237,18 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     keys: 'X',
     run: () => editor().swapColors(),
   },
+  {
+    group: 'Инструменты',
+    label: 'Поменять кисти местами',
+    keys: 'Shift+X',
+    run: () => editor().swapBrushes(),
+  },
+  {
+    group: 'Инструменты',
+    label: 'Кисть левой или правой кнопки',
+    keys: 'B',
+    run: () => editor().setActiveBrush(editor().activeBrush === 0 ? 1 : 0),
+  },
 ];
 
 /** Сочетания инструментов берутся из самого списка инструментов, чтобы не разойтись с ним. */
