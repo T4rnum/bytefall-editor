@@ -13,7 +13,7 @@ import {
   createDocument,
   findLayer,
 } from '../../core/document';
-import type { CellEdits } from '../../core/grid';
+import type { CellEdits, CellKey } from '../../core/grid';
 import {
   type History,
   type HistoryEntry,
@@ -48,6 +48,11 @@ export interface DocumentState {
   readonly file: FileRef;
   /** Растёт при каждой замене анимации: вьюпорт по нему переустанавливает камеру. */
   readonly epoch: number;
+  /**
+   * Ячейки, изменённые последним коммитом. null означает, что изменилось неизвестно что и кадр
+   * надо пересобрать целиком. Не часть документа: в файл не сохраняется и в историю не попадает.
+   */
+  readonly dirtyKeys: readonly CellKey[] | null;
 
   replaceAnimation: (animation: Animation, file?: FileRef) => void;
   /** Правки ячеек слоя текущего кадра одной записью истории. false, если слой нельзя редактировать. */
@@ -74,7 +79,13 @@ export interface DocumentState {
 
 const topLayerId = (doc: Document): string => doc.layers[doc.layers.length - 1].id;
 
-/** Согласованный срез состояния после смены анимации или кадра. */
+/**
+ * Согласованный срез состояния после смены анимации или кадра.
+ *
+ * `dirtyKeys` по умолчанию null, то есть «изменилось неизвестно что». Только коммит ячеек знает
+ * точный список и выставляет его сам; всё остальное — смена кадра, структурная правка, отмена —
+ * честно требует полной пересборки.
+ */
 function derive(animation: Animation, frameIndex: number, activeLayerId: string) {
   const index = clampFrameIndex(animation, frameIndex);
   const doc = frameDocument(animation, index);
@@ -83,6 +94,7 @@ function derive(animation: Animation, frameIndex: number, activeLayerId: string)
     frameIndex: index,
     doc,
     activeLayerId: findLayer(doc, activeLayerId) ? activeLayerId : topLayerId(doc),
+    dirtyKeys: null,
   };
 }
 
@@ -103,6 +115,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   dirty: false,
   file: { name: null, handle: null },
   epoch: 0,
+  dirtyKeys: null,
 
   replaceAnimation: (animation, file = { name: null, handle: null }) =>
     set((state) => ({
@@ -121,6 +134,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     const lifted = liftToFrame(entry, frameIndex);
     set({
       ...derive(lifted.apply(animation), frameIndex, activeLayerId),
+      // Коммит знает, какие ячейки тронул: кадр пересоберётся только в их тайлах.
+      dirtyKeys: [...edits.keys()],
       history: pushEntry(history, frameEntry(lifted, frameIndex)),
       dirty: true,
     });

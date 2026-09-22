@@ -13,6 +13,7 @@ import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
 import { isEditableTarget } from '../hooks/useHotkeys';
+import { notify } from '../store/notifyStore';
 import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
 import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
@@ -40,6 +41,11 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const view = new SceneView(container, atlas);
     viewRef.current = view;
     setActiveView(view);
+    // Потеря контекста GPU выглядит как внезапно почерневший холст: без объяснения это пугает.
+    view.setContextListener((lost) => {
+      if (lost) notify('Контекст GPU потерян, восстанавливаем картинку', 'error');
+      else notify('Картинка восстановлена');
+    });
 
     /** Черновик (перетаскивание объекта) имеет приоритет над закоммиченным документом. */
     const currentDoc = () => useEditorStore.getState().draft ?? useDocumentStore.getState().doc;
@@ -113,7 +119,11 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const syncDocument = (state: DocumentState, prev: DocumentState | null): void => {
       if (!prev || state.doc !== prev.doc) {
         view.setDocument(state.doc.width, state.doc.height, state.doc.background);
-        recomposite();
+        // Коммит ячеек знает, что он тронул, и кадр пересобирается только в этих тайлах.
+        // Всё остальное — смена кадра, структурная правка, отмена — требует полной пересборки.
+        const layout = tileLayout(state.doc.width, state.doc.height);
+        const committed = prev && state.dirtyKeys ? tilesFromKeys(layout, state.dirtyKeys) : null;
+        recomposite(committed ?? undefined);
         const editor = useEditorStore.getState();
         // После undo, redo или удаления слоя выбранный объект мог исчезнуть.
         if (editor.selectedObjectId && !findObject(state.doc, editor.selectedObjectId)) {

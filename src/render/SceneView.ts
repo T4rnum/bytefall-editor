@@ -42,13 +42,15 @@ export class SceneView {
   private viewWidth = 1;
   private viewHeight = 1;
   private disposed = false;
+  private contextLost = false;
+  private onContextChange: ((lost: boolean) => void) | undefined;
   private readonly composer: EffectComposer;
   private readonly passes: PostPasses;
   private post: PostSettings = DEFAULT_POST;
 
   constructor(
     private readonly container: HTMLElement,
-    atlas: GlyphAtlas,
+    private readonly atlas: GlyphAtlas,
   ) {
     THREE.ColorManagement.enabled = false;
     this.renderer = new THREE.WebGLRenderer({
@@ -150,7 +152,7 @@ export class SceneView {
   }
 
   requestRender(): void {
-    if (this.frame !== null || this.disposed) return;
+    if (this.frame !== null || this.disposed || this.contextLost) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = null;
       this.render();
@@ -246,14 +248,39 @@ export class SceneView {
     this.renderer.domElement.remove();
   }
 
+  /**
+   * Потеря контекста GPU: драйвер перезапустился, вкладка ушла в фон надолго, сменилась
+   * видеокарта. Без preventDefault браузер не станет его восстанавливать, и холст останется
+   * чёрным до перезагрузки страницы.
+   */
   private readonly onContextLost = (event: Event): void => {
     event.preventDefault();
+    this.contextLost = true;
+    if (this.frame !== null) {
+      cancelAnimationFrame(this.frame);
+      this.frame = null;
+    }
+    this.onContextChange?.(true);
   };
 
+  /**
+   * После восстановления все GPU-ресурсы созданы заново и пусты. Атлас глифов надо залить
+   * повторно, а кадр — перезалить целиком: частичная заливка опирается на то, что в буфере
+   * уже лежит прошлый кадр, а его больше нет.
+   */
   private readonly onContextRestored = (): void => {
+    this.contextLost = false;
+    this.atlas.texture.needsUpdate = true;
+    this.resize();
     if (this.buffer) this.grid.update(this.buffer);
     this.requestRender();
+    this.onContextChange?.(false);
   };
+
+  /** Уведомление наружу: приложению стоит сказать пользователю, что картинка восстанавливается. */
+  setContextListener(listener: ((lost: boolean) => void) | null): void {
+    this.onContextChange = listener ?? undefined;
+  }
 
   private resize(): void {
     const width = Math.max(1, this.container.clientWidth);
@@ -287,7 +314,8 @@ export class SceneView {
   }
 
   private render(): void {
-    if (this.disposed) return;
+    // Рисовать в потерянный контекст бессмысленно: вызовы молча игнорируются драйвером.
+    if (this.disposed || this.contextLost) return;
     if (this.buffer && this.grid.needsRefresh()) this.grid.update(this.buffer);
     if (hasPost(this.post)) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
