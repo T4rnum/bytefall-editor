@@ -1,6 +1,6 @@
 import {
-  copySelectionAction,
-  cutSelectionAction,
+  copyAction,
+  cutAction,
   deleteSelectionAction,
   pasteAction,
   selectAllAction,
@@ -12,6 +12,7 @@ import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import {
   duplicateSelectedObjectAction,
   groupSelectionAction,
+  stepSelectedObjectLayerAction,
   ungroupSelectedObjectAction,
 } from '../store/objectActions';
 import { useUiStore } from '../store/uiStore';
@@ -186,8 +187,8 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     hidden: true,
     run: () => useDocumentStore.getState().redo(),
   },
-  { group: 'Правка', label: 'Вырезать', keys: 'Ctrl+X', run: cutSelectionAction },
-  { group: 'Правка', label: 'Копировать', keys: 'Ctrl+C', run: copySelectionAction },
+  { group: 'Правка', label: 'Вырезать', keys: 'Ctrl+X', run: cutAction },
+  { group: 'Правка', label: 'Копировать', keys: 'Ctrl+C', run: copyAction },
   { group: 'Правка', label: 'Вставить', keys: 'Ctrl+V', run: pasteAction },
   { group: 'Правка', label: 'Выделить всё', keys: 'Ctrl+A', run: selectAllAction },
   { group: 'Правка', label: 'Удалить выделенное', keys: 'Delete', run: deleteSelectionAction },
@@ -208,6 +209,18 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: ungroupSelectedObjectAction,
   },
   { group: 'Объекты', label: 'Дублировать', keys: 'Ctrl+D', run: duplicateSelectedObjectAction },
+  {
+    group: 'Объекты',
+    label: 'Перенести на слой выше',
+    keys: 'Alt+]',
+    run: () => stepSelectedObjectLayerAction(1),
+  },
+  {
+    group: 'Объекты',
+    label: 'Перенести на слой ниже',
+    keys: 'Alt+[',
+    run: () => stepSelectedObjectLayerAction(-1),
+  },
 
   { group: 'Кадры', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },
   { group: 'Кадры', label: 'Предыдущий кадр', keys: ',', run: () => stepFrameAction(-1) },

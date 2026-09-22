@@ -1,6 +1,8 @@
 import {
   ChevronDown,
   ChevronUp,
+  ClipboardCopy,
+  ClipboardPaste,
   Copy,
   Eye,
   EyeOff,
@@ -15,7 +17,9 @@ import { findLayer } from '../../core/document';
 import { type SceneObject, findObject, objectsInVisualOrder } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
+import { pasteAction } from '../store/clipboardActions';
 import {
+  copySelectedObjectAction,
   deleteSelectedObjectAction,
   duplicateSelectedObjectAction,
   groupSelectionAction,
@@ -102,6 +106,7 @@ export function ObjectsPanel() {
   const selectedId = useEditorStore((s) => s.selectedObjectId);
   const setSelectedObject = useEditorStore((s) => s.setSelectedObject);
   const hasSelection = useEditorStore((s) => s.selection !== null);
+  const objectInClipboard = useEditorStore((s) => s.clipboard?.kind === 'object');
   const objects = objectsInVisualOrder(doc).reverse();
   const selected = selectedId ? findObject(doc, selectedId) : undefined;
 
@@ -141,6 +146,26 @@ export function ObjectsPanel() {
             onClick={duplicateSelectedObjectAction}
           >
             <Copy size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Копировать объект"
+            hotkey="Ctrl+C"
+            disabled={!selected}
+            onClick={copySelectedObjectAction}
+          >
+            <ClipboardCopy size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Вставить объект на активный слой"
+            hotkey="Ctrl+V"
+            disabled={!objectInClipboard}
+            onClick={pasteAction}
+          >
+            <ClipboardPaste size={14} />
           </Button>
           <Button
             icon

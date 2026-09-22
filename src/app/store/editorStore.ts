@@ -3,6 +3,7 @@ import { DEFAULT_FG } from '../../core/cell';
 import type { Preview } from '../../core/compositor';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
+import type { SceneObject } from '../../core/object';
 import type { Clip, Selection } from '../../core/selection';
 import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import type { CameraState } from '../../render/SceneView';
@@ -17,6 +18,14 @@ export interface Brush {
 
 /** 0 — левая кнопка мыши, 1 — правая. */
 export type BrushSlot = 0 | 1;
+
+/**
+ * Буфер обмена один на ячейки и объекты: вставляется то, что скопировали последним, как везде.
+ * Объект хранится целиком, с id: вставленный в другой кадр, он остаётся тем же объектом.
+ */
+export type Clipboard =
+  | { readonly kind: 'cells'; readonly clip: Clip }
+  | { readonly kind: 'object'; readonly object: SceneObject };
 
 export interface EditorState {
   readonly tool: ToolId;
@@ -34,7 +43,7 @@ export interface EditorState {
   readonly workspaceColor: string;
   readonly cursorCell: Point | null;
   readonly selection: Selection | null;
-  readonly clipboard: Clip | null;
+  readonly clipboard: Clipboard | null;
   readonly preview: Preview | null;
   readonly textCursor: Point | null;
   readonly selectedObjectId: string | null;
@@ -65,7 +74,7 @@ export interface EditorState {
   setShowChecker: (show: boolean) => void;
   setCursorCell: (cell: Point | null) => void;
   setSelection: (selection: Selection | null) => void;
-  setClipboard: (clip: Clip | null) => void;
+  setClipboard: (clipboard: Clipboard | null) => void;
   setPreview: (preview: Preview | null) => void;
   setTextCursor: (cell: Point | null) => void;
   setSelectedObject: (id: string | null) => void;

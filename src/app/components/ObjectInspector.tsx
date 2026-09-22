@@ -1,14 +1,16 @@
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
-import { MAX_DIMENSION } from '../../core/document';
+import { MAX_DIMENSION, canEditLayer } from '../../core/document';
 import type { SceneObject } from '../../core/object';
+import { useDocumentStore } from '../store/documentStore';
 import {
+  moveSelectedObjectToLayerAction,
   parsePropValue,
   removeObjectPropAction,
   setObjectPropAction,
   updateObjectAction,
 } from '../store/objectActions';
-import { Button, Field, NumberField, TextField, plural } from '../ui';
+import { Button, Field, NumberField, Select, TextField, plural } from '../ui';
 
 /** Подсказка к имени свойства: какого оно типа. */
 const TYPE_NAMES: Readonly<Record<string, string>> = {
@@ -23,6 +25,13 @@ interface Props {
 
 /** Позиция и произвольные свойства выбранного объекта. */
 export function ObjectInspector({ object }: Props) {
+  const layers = useDocumentStore((s) => s.doc.layers);
+  // Сверху вниз, как в панели слоёв. Запертый или скрытый слой объект не примет.
+  const layerOptions = [...layers].reverse().map((layer) => ({
+    value: layer.id,
+    label: layer.name,
+    disabled: layer.id !== object.layerId && !canEditLayer(layer),
+  }));
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
@@ -39,6 +48,16 @@ export function ObjectInspector({ object }: Props) {
 
   return (
     <div className="inspector">
+      <Field label="Слой">
+        <Select
+          value={object.layerId}
+          options={layerOptions}
+          size="sm"
+          ariaLabel="Слой объекта"
+          title="Перенести объект на другой слой (Alt+] выше, Alt+[ ниже)"
+          onChange={moveSelectedObjectToLayerAction}
+        />
+      </Field>
       <Field label="Положение">
         <NumberField
           label="X"

@@ -152,6 +152,42 @@ export function duplicateObject(doc: Document, id: string, dx = 1, dy = 1): Docu
   return addObject(doc, copy, index + 1);
 }
 
+/**
+ * Копия объекта для вставки. Место то же: объект, перенесённый в соседний кадр, должен встать
+ * ровно туда, где был, иначе анимация дёрнется. Слой — тот, на который вставляют.
+ *
+ * Идентификатор сохраняется, если в кадре такого ещё нет: так один и тот же объект в разных
+ * кадрах остаётся одним объектом, как и при дублировании кадра. Иначе объект получает новый.
+ * Скрытость и запрет правки не переносятся: только что вставленный объект должен быть виден
+ * и сразу двигаться.
+ */
+export function pasteObject(
+  doc: Document,
+  source: SceneObject,
+  layerId: string,
+): { doc: Document; object: SceneObject } {
+  const object: SceneObject = {
+    ...source,
+    id: findObject(doc, source.id) ? newId('object') : source.id,
+    layerId,
+    visible: true,
+    locked: false,
+  };
+  return { doc: addObject(doc, object), object };
+}
+
+/**
+ * Переносит объект на другой слой и кладёт поверх объектов этого слоя: перенос — это жест
+ * «положить сюда», и объект не должен теряться под теми, что на слое уже лежат.
+ */
+export function moveObjectToLayer(doc: Document, id: string, layerId: string): Document {
+  const index = objectIndex(doc, id);
+  if (index === -1 || doc.objects[index].layerId === layerId) return doc;
+  if (!findLayer(doc, layerId)) throw new Error(`Unknown layer: ${layerId}`);
+  const moved = { ...doc.objects[index], layerId };
+  return { ...doc, objects: [...doc.objects.filter((_, i) => i !== index), moved] };
+}
+
 /** Ограничивающий прямоугольник в координатах документа. Пустой объект занимает одну ячейку. */
 export function objectBounds(obj: SceneObject): Rect {
   const bounds = gridBounds(obj.cells);

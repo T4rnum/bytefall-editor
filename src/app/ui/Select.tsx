@@ -3,6 +3,8 @@ import type { ControlSize } from './Button';
 export interface SelectOption<T extends string> {
   readonly value: T;
   readonly label: string;
+  /** Вариант виден, но выбрать его нельзя: так понятнее, чем если бы он пропал из списка. */
+  readonly disabled?: boolean;
 }
 
 export interface SelectProps<T extends string> {
@@ -42,7 +44,7 @@ export function Select<T extends string>({
       onChange={(e) => onChange(e.target.value as T)}
     >
       {options.map((option) => (
-        <option key={option.value} value={option.value}>
+        <option key={option.value} value={option.value} disabled={option.disabled}>
           {option.label}
         </option>
       ))}

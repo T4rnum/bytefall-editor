@@ -20,9 +20,11 @@ import {
   duplicateObject,
   findObject,
   groupSelection,
+  moveObjectToLayer,
   objectAt,
   objectBounds,
   objectsInVisualOrder,
+  pasteObject,
   removeObject,
   removeObjectProp,
   setObjectProp,
@@ -220,5 +222,76 @@ describe('layers and objects', () => {
 
     const removed = removeLayer(next, second.id);
     expect(removed.objects.map((o) => o.name)).toEqual(['on first']);
+  });
+});
+
+describe('pasteObject', () => {
+  const base = () => {
+    const doc = createDocument({ width: 8, height: 8 });
+    const top = createLayer('top');
+    const withTop = addLayer(doc, top);
+    const cells = applyEdits(emptyGrid(), new Map([[keyOf(0, 0), makeCell('@')]]));
+    const source = {
+      ...createObject({ name: 'hero', layerId: doc.layers[0].id, x: 3, y: 2, cells }),
+      locked: true,
+      visible: false,
+    };
+    return { doc: withTop, top, source };
+  };
+
+  it('в кадр без такого объекта вставляет его с тем же id и на том же месте', () => {
+    const { doc, top, source } = base();
+    const { doc: next, object } = pasteObject(doc, source, top.id);
+    expect(object.id).toBe(source.id);
+    expect(object).toMatchObject({ x: 3, y: 2, name: 'hero', layerId: top.id });
+    expect(findObject(next, source.id)?.cells.size).toBe(1);
+  });
+
+  it('если id уже занят, даёт новый, а оригинал не трогает', () => {
+    const { doc, top, source } = base();
+    const withOriginal = addObject(doc, source);
+    const { doc: next, object } = pasteObject(withOriginal, source, top.id);
+    expect(object.id).not.toBe(source.id);
+    expect(next.objects).toHaveLength(2);
+    expect(findObject(next, source.id)?.layerId).toBe(source.layerId);
+  });
+
+  it('вставленный объект виден и не заперт', () => {
+    const { doc, top, source } = base();
+    const { object } = pasteObject(doc, source, top.id);
+    expect(object.visible).toBe(true);
+    expect(object.locked).toBe(false);
+  });
+});
+
+describe('moveObjectToLayer', () => {
+  const setupTwoLayers = () => {
+    const doc = createDocument({ width: 8, height: 8 });
+    const top = createLayer('top');
+    let next = addLayer(doc, top);
+    const bottomId = doc.layers[0].id;
+    const a = createObject({ name: 'a', layerId: bottomId, x: 0, y: 0 });
+    const b = createObject({ name: 'b', layerId: top.id, x: 0, y: 0 });
+    const c = createObject({ name: 'c', layerId: top.id, x: 0, y: 0 });
+    next = addObject(addObject(addObject(next, a), b), c);
+    return { doc: next, bottomId, topId: top.id, a, b, c };
+  };
+
+  it('переносит объект и кладёт его поверх объектов нового слоя', () => {
+    const { doc, topId, a } = setupTwoLayers();
+    const moved = moveObjectToLayer(doc, a.id, topId);
+    expect(findObject(moved, a.id)?.layerId).toBe(topId);
+    expect(objectsInVisualOrder(moved).map((o) => o.name)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('тот же слой и неизвестный объект документ не меняют', () => {
+    const { doc, bottomId, a } = setupTwoLayers();
+    expect(moveObjectToLayer(doc, a.id, bottomId)).toBe(doc);
+    expect(moveObjectToLayer(doc, 'missing', bottomId)).toBe(doc);
+  });
+
+  it('несуществующий слой — ошибка, а не молча потерянный объект', () => {
+    const { doc, a } = setupTwoLayers();
+    expect(() => moveObjectToLayer(doc, a.id, 'nope')).toThrow(/Unknown layer/);
   });
 });
