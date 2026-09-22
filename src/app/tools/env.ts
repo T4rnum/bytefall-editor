@@ -1,6 +1,9 @@
 import { type Cell, isBlankCell, makeCell } from '../../core/cell';
+import type { CellEdits } from '../../core/grid';
+import { clipEditsToSelection } from '../../core/selection';
 import { editableActiveLayer, useDocumentStore } from '../store/documentStore';
 import { type Brush, activeBrush, brushOf, useEditorStore } from '../store/editorStore';
+import { getTool } from './index';
 import type { ToolEnv } from './types';
 
 /** Кисть без символа и без фона — это ластик, инструментам он приходит как `null`. */
@@ -15,6 +18,10 @@ export function buildToolEnv(): ToolEnv {
   const editor = useEditorStore.getState();
   const layer = editableActiveLayer(docState);
   const active = activeBrush(editor);
+  // Пока выделение есть, кисть работает только внутри него. Сами инструменты выделения из
+  // этого правила выведены: перенос ячеек обязан выходить за прежнюю маску.
+  const mask = getTool(editor.tool).ignoresSelection ? null : editor.selection;
+  const clip = (edits: CellEdits): CellEdits => (mask ? clipEditsToSelection(edits, mask) : edits);
   return {
     doc: docState.doc,
     layer,
@@ -25,9 +32,10 @@ export function buildToolEnv(): ToolEnv {
     selection: editor.selection,
     textCursor: editor.textCursor,
     selectedObjectId: editor.selectedObjectId,
-    setPreview: (edits) => editor.setPreview(edits && layer ? { layerId: layer.id, edits } : null),
+    setPreview: (edits) =>
+      editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null),
     commit: (edits, label) => {
-      if (layer) docState.commitCells(layer.id, edits, label);
+      if (layer) docState.commitCells(layer.id, clip(edits), label);
     },
     setSelection: editor.setSelection,
     pick: (cell, button = 0) => {

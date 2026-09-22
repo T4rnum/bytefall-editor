@@ -67,6 +67,11 @@ export interface Tool {
    * У выделений Alt вычитает из набора, и это важнее, чем запасной способ взять цвет.
    */
   readonly ownsAlt?: boolean;
+  /**
+   * Правки инструмента не обрезаются выделением. Так помечены сами инструменты выделения:
+   * они не рисуют, а переносят ячейки, и перенос как раз уводит их за пределы прежней маски.
+   */
+  readonly ignoresSelection?: boolean;
   onPointerDown?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerMove?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerUp?: (env: ToolEnv, info: PointerInfo) => void;

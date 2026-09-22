@@ -61,6 +61,7 @@ function createSelectionTool(
     hotkey,
     cursor,
     ownsAlt: true,
+    ignoresSelection: true,
     onPointerDown(env, info) {
       moved = false;
       anchor = info.cell;

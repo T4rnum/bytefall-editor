@@ -5,6 +5,7 @@ import { applyEdits, editsFromPoints, emptyGrid, keyOf } from '../grid';
 import {
   type Selection,
   clearSelectionEdits,
+  clipEditsToSelection,
   combineSelection,
   copySelection,
   moveSelectionEdits,
@@ -137,5 +138,38 @@ describe('pasteEdits / moveSelectionEdits', () => {
     const sel = rectSel({ x: 0, y: 0, w: 2, h: 1 });
     expect(translateSelection(sel, 7, 0, 8, 8)!.size).toBe(1);
     expect(translateSelection(sel, 20, 0, 8, 8)).toBeNull();
+  });
+});
+
+describe('clipEditsToSelection', () => {
+  const edits = editsFromPoints(
+    [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+      { x: 7, y: 7 },
+    ],
+    makeCell('#'),
+  );
+
+  it('оставляет только правки внутри выделения', () => {
+    const kept = clipEditsToSelection(edits, rectSel({ x: 0, y: 0, w: 2, h: 2 }));
+    expect([...kept.keys()]).toEqual([keyOf(0, 0), keyOf(1, 1)]);
+  });
+
+  it('за пределами выделения не остаётся ничего', () => {
+    const kept = clipEditsToSelection(edits, rectSel({ x: 4, y: 4, w: 2, h: 2 }));
+    expect(kept.size).toBe(0);
+  });
+
+  it('стирание обрезается так же, как рисование', () => {
+    const erase = editsFromPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 7, y: 7 },
+      ],
+      null,
+    );
+    const kept = clipEditsToSelection(erase, rectSel({ x: 0, y: 0, w: 1, h: 1 }));
+    expect([...kept.entries()]).toEqual([[keyOf(0, 0), null]]);
   });
 });

@@ -197,6 +197,19 @@ export function clearSelectionEdits(grid: CellGrid, selection: Selection): CellE
   return edits;
 }
 
+/**
+ * Правки, попавшие в выделение. Пока выделение есть, инструменты меняют только его ячейки:
+ * это и есть смысл выделения в растровом редакторе. Пустой результат не доходит до истории —
+ * коммит без изменений её не трогает.
+ */
+export function clipEditsToSelection(edits: CellEdits, selection: Selection): CellEdits {
+  const clipped = new Map<CellKey, Cell | null>();
+  for (const [key, cell] of edits) {
+    if (selectionContains(selection, xOf(key), yOf(key))) clipped.set(key, cell);
+  }
+  return clipped;
+}
+
 /** Правки вставки буфера с левым верхним углом в (x, y), обрезанные по холсту. */
 export function pasteEdits(
   clip: Clip,

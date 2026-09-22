@@ -3,6 +3,7 @@ import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { getTool } from '../tools';
+import { TIP_ATTR } from '../ui';
 
 export function StatusBar() {
   const doc = useDocumentStore((s) => s.doc);
@@ -25,7 +26,12 @@ export function StatusBar() {
       </span>
       <span className="status-item">{cursor ? `${cursor.x}, ${cursor.y}` : '—'}</span>
       {selection && (
-        <span className="status-item">
+        <span
+          className="status-item"
+          {...{
+            [TIP_ATTR]: 'Инструменты меняют только выделенные ячейки. Escape снимает выделение',
+          }}
+        >
           sel {selection.bounds.w}×{selection.bounds.h} · {selection.size}
         </span>
       )}
