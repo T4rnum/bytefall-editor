@@ -8,7 +8,7 @@ import { SceneView } from '../../render/SceneView';
 import { isEditableTarget } from '../hooks/useHotkeys';
 import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
-import { cancelCameraTween, clampZoom, setActiveView } from '../store/viewActions';
+import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
 
@@ -140,20 +140,12 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
 
     const onWheel = (event: WheelEvent): void => {
       event.preventDefault();
-      // Колесо ведёт камеру само, поэтому начатый кнопкой переход надо оборвать.
-      cancelCameraTween();
       const rect = container.getBoundingClientRect();
-      const px = event.clientX - rect.left;
-      const py = event.clientY - rect.top;
-      const { camera, setCamera } = useEditorStore.getState();
-      const zoom = clampZoom(camera.zoom * Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED));
-      const anchor = view.screenToWorld(px, py);
-      const { width, height } = view.size;
-      setCamera({
-        centerX: anchor.x - (px - width / 2) / zoom,
-        centerY: anchor.y + (py - height / 2) / zoom,
-        zoom,
-      });
+      zoomWheelAction(
+        event.clientX - rect.left,
+        event.clientY - rect.top,
+        Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED),
+      );
     };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== ' ' || isEditableTarget(event.target)) return;

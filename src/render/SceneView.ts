@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import type { CellBuffer } from '../core/compositor';
 import type { Point, Rect } from '../core/geometry';
+import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
 import { GridMesh } from './GridMesh';
 import { Overlay } from './Overlay';
@@ -15,16 +16,7 @@ import {
   hasPost,
 } from './post';
 
-export interface CameraState {
-  /** Мировая точка в центре вьюпорта. */
-  readonly centerX: number;
-  readonly centerY: number;
-  /** Пикселей на ячейку. */
-  readonly zoom: number;
-}
-
-export const MIN_ZOOM = 2;
-export const MAX_ZOOM = 128;
+export { MAX_ZOOM, MIN_ZOOM, type CameraState } from './camera';
 
 export interface RenderedPixels {
   readonly width: number;
@@ -143,18 +135,11 @@ export class SceneView {
 
   /** Камера, при которой документ целиком виден с полями. */
   fitCamera(width: number, height: number, padding = 24): CameraState {
-    const zoomX = (this.viewWidth - padding * 2) / width;
-    const zoomY = (this.viewHeight - padding * 2) / height;
-    const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.floor(Math.min(zoomX, zoomY))));
-    return { centerX: width / 2, centerY: -height / 2, zoom };
+    return fitCamera(this.size, width, height, padding);
   }
 
   screenToWorld(px: number, py: number): Point {
-    const { centerX, centerY, zoom } = this.cameraState;
-    return {
-      x: centerX + (px - this.viewWidth / 2) / zoom,
-      y: centerY - (py - this.viewHeight / 2) / zoom,
-    };
+    return screenToWorld(this.cameraState, this.size, px, py);
   }
 
   /** Координаты ячейки под пикселем вьюпорта. Может выходить за пределы документа. */
