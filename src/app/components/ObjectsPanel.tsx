@@ -72,6 +72,7 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
             value={object.name}
             size="sm"
             className="item-name-input"
+            autoFocus
             ariaLabel="Object name"
             onCommit={(text) => {
               const name = text.trim();

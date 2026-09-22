@@ -68,6 +68,7 @@ function LayerRow({
             value={layer.name}
             size="sm"
             className="item-name-input"
+            autoFocus
             ariaLabel="Layer name"
             onCommit={(text) => {
               const name = text.trim();
@@ -102,7 +103,8 @@ export function LayersPanel() {
    * общим ключом серии, а отпускание указателя начинает новую серию.
    */
   const gesture = useRef(0);
-  const opacity = Math.round((active?.opacity ?? 1) * 100);
+  // Без округления: округление здесь съедало бы мелкий шаг, которым тянут с зажатым Shift.
+  const opacity = (active?.opacity ?? 1) * 100;
 
   const setOpacity = (value: number): void => {
     if (!active || value === opacity) return;

@@ -278,7 +278,14 @@ export class SceneView {
     this.composer.setSize(width, height);
     applyPostSettings(this.passes, this.post, height * this.renderer.getPixelRatio());
     this.updateCamera();
-    this.requestRender();
+    // Рисуем сразу, а не через requestAnimationFrame. ResizeObserver срабатывает после раскладки,
+    // но до отрисовки, поэтому отложенный кадр показал бы старый буфер, растянутый по CSS:
+    // при перетаскивании границы панели холст заметно отставал и мылился.
+    if (this.frame !== null) {
+      cancelAnimationFrame(this.frame);
+      this.frame = null;
+    }
+    this.render();
   }
 
   private updateCamera(): void {

@@ -18,6 +18,8 @@ export interface TextFieldProps {
   readonly ariaLabel?: string;
   /** Моноширинный пиксельный шрифт: для полей с глифами. */
   readonly pixel?: boolean;
+  /** Забрать фокус и выделить текст при появлении: для полей, открывающихся по двойному щелчку. */
+  readonly autoFocus?: boolean;
   readonly maxLength?: number;
   readonly className?: string;
 }
@@ -37,9 +39,11 @@ export function TextField({
   title,
   ariaLabel,
   pixel = false,
+  autoFocus = false,
   maxLength,
   className,
 }: TextFieldProps) {
+  const ref = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(value);
   const focused = useRef(false);
   /** Escape снимает фокус, а blur пишет значение. Флаг говорит blur, что запись отменена. */
@@ -49,6 +53,15 @@ export function TextField({
   useEffect(() => {
     if (!focused.current) setDraft(value);
   }, [value]);
+
+  // Поле, открытое двойным щелчком, должно быть готово к вводу сразу, без второго щелчка.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const input = ref.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [autoFocus]);
 
   const commit = (text: string): void => {
     if (text !== value) onCommit(text);
@@ -65,6 +78,7 @@ export function TextField({
 
   return (
     <input
+      ref={ref}
       className={classes}
       value={draft}
       placeholder={placeholder}

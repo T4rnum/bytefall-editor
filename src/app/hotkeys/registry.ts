@@ -62,6 +62,20 @@ const PUNCTUATION_CODES: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Те же клавиши в нажатом с Shift виде. Нужны, когда на другой раскладке эта клавиша печатает
+ * что-то своё: на русской Shift и «/» дают запятую, а не вопросительный знак.
+ */
+const SHIFTED_PUNCTUATION_CODES: Readonly<Record<string, string>> = {
+  '?': 'Slash',
+  '+': 'Equal',
+  '~': 'Backquote',
+  _: 'Minus',
+  '<': 'Comma',
+  '>': 'Period',
+  ':': 'Semicolon',
+};
+
+/**
  * Разбирает «Ctrl+Shift+S» в проверку события. Одна запись служит и поведением, и подписью,
  * поэтому справка не может разойтись с тем, что происходит на самом деле.
  *
@@ -96,8 +110,10 @@ export function matchesCombo(spec: string, event: KeyChord): boolean {
   }
 
   if (event.key === rawKey) return true;
-  const code = PUNCTUATION_CODES[rawKey];
-  return code !== undefined && event.code === code && !event.shiftKey;
+  const plain = PUNCTUATION_CODES[rawKey];
+  if (plain !== undefined && event.code === plain && !event.shiftKey) return true;
+  const shifted = SHIFTED_PUNCTUATION_CODES[rawKey];
+  return shifted !== undefined && event.code === shifted && event.shiftKey;
 }
 
 const editor = () => useEditorStore.getState();

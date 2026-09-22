@@ -72,6 +72,19 @@ describe('знаки препинания', () => {
     expect(matchesCombo('?', chord({ key: '?', code: 'Digit7', shiftKey: true }))).toBe(true);
   });
 
+  it('«?» ловится по физической клавише, даже если она печатает другое', () => {
+    // Русская раскладка: Shift и клавиша «/» дают запятую, а не вопросительный знак.
+    expect(matchesCombo('?', chord({ key: ',', code: 'Slash', shiftKey: true }))).toBe(true);
+  });
+
+  it('та же клавиша без Shift вопросительным знаком не считается', () => {
+    expect(matchesCombo('?', chord({ key: '.', code: 'Slash' }))).toBe(false);
+  });
+
+  it('«+» ловится по физической клавише на любой раскладке', () => {
+    expect(matchesCombo('+', chord({ key: ';', code: 'Equal', shiftKey: true }))).toBe(true);
+  });
+
   it('«/» без Shift не считается вопросительным знаком', () => {
     expect(matchesCombo('?', chord({ key: '/', code: 'Slash' }))).toBe(false);
   });
