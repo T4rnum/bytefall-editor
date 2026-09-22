@@ -2,6 +2,7 @@ import { describe, it } from 'vitest';
 import { type CellBuffer, composite, createCellBuffer } from '../compositor';
 import { updateLayer } from '../document';
 import { createEffect } from '../effects';
+import { tileLayout, tilesFromKeys } from '../tiles';
 import { BENCH_SIZES, benchDocument, benchStroke } from './fixtures';
 
 /**
@@ -18,11 +19,20 @@ for (const size of BENCH_SIZES) {
   const preview = { layerId: doc.layers[2].id, edits: benchStroke(size, 64) };
   const withFire = updateLayer(doc, doc.layers[0].id, { effects: [createEffect('fire', 'fx')] });
 
+  // Тайлы, задетые мазком: ровно то, что пересобирается во время рисования.
+  const layout = tileLayout(size.width, size.height);
+  const strokeTiles = [...tilesFromKeys(layout, preview.edits.keys())];
+  // Прогреваем индекс и буфер, чтобы замер не включал разовое построение.
+  composite(doc, preview, target);
+
   describe(`composite ${size.label}`, () => {
     it('сборка кадра', async ({ bench }) => {
       await bench.compare(
         bench('кадр целиком', () => {
           composite(doc, null, target);
+        }),
+        bench('только задетые мазком тайлы', () => {
+          composite(doc, preview, target, [], 0, strokeTiles);
         }),
         bench('кадр с превью мазка в 64 ячейки', () => {
           composite(doc, preview, target);

@@ -3,6 +3,7 @@ import { type Rgba, TRANSPARENT, over, parseHex, toHex, withAlpha } from './colo
 import type { Document, Layer } from './document';
 import { applyEffects, hasActiveEffects } from './effects';
 import { type CellEdits, type CellGrid, type CellKey, keyOf, xOf, yOf } from './grid';
+import { type TileLayout, tileIndexOf, tileLayout, tileOf, tileRect } from './tiles';
 import { type SceneObject, groupObjectsByLayer } from './object';
 
 /**
@@ -132,6 +133,9 @@ function layerContent(
 /**
  * Рисует документ в буфер. Слой без эффектов смешивается напрямую: растр, превью, объекты.
  * Слой с эффектами сначала собирается в одну сетку, к ней применяются эффекты, потом смешивание.
+ *
+ * `tiles` ограничивает работу перечисленными тайлами. Внутри них результат обязан совпадать с
+ * полной пересборкой: всё, что рисуется, проверяется на попадание в грязный тайл.
  */
 function drawDocument(
   buf: CellBuffer,
@@ -139,9 +143,14 @@ function drawDocument(
   preview: Preview | null,
   alpha: number,
   time: number,
+  layout: TileLayout,
+  tiles: ReadonlySet<number> | null,
 ): void {
   const objectsByLayer = groupObjectsByLayer(doc);
   const ctx = { time, width: doc.width, height: doc.height };
+  const wanted = (key: CellKey): boolean =>
+    tiles === null || tiles.has(tileOf(layout, xOf(key), yOf(key)));
+
   for (const layer of doc.layers) {
     if (!layer.visible || layer.opacity <= 0) continue;
     const opacity = layer.opacity * alpha;
@@ -153,20 +162,71 @@ function drawDocument(
       for (const [key, cell] of cells) blendCell(buf, key, cell, opacity);
       continue;
     }
-    for (const [key, cell] of layer.cells) {
-      if (edits?.has(key)) continue;
-      blendCell(buf, key, cell, opacity);
+
+    if (tiles === null) {
+      for (const [key, cell] of layer.cells) {
+        if (edits?.has(key)) continue;
+        blendCell(buf, key, cell, opacity);
+      }
+    } else {
+      // Индекс даёт ключи ровно нужных тайлов, не трогая остальной слой.
+      const index = tileIndexOf(layer.cells, layout);
+      for (const tile of tiles) {
+        const keys = index[tile];
+        if (!keys) continue;
+        for (const key of keys) {
+          if (edits?.has(key)) continue;
+          const cell = layer.cells.get(key);
+          if (cell) blendCell(buf, key, cell, opacity);
+        }
+      }
     }
+
     if (edits) {
       for (const [key, cell] of edits) {
-        if (cell && !isBlankCell(cell)) blendCell(buf, key, cell, opacity);
+        if (cell && !isBlankCell(cell) && wanted(key)) blendCell(buf, key, cell, opacity);
       }
     }
     for (const obj of objects) {
       if (!obj.visible) continue;
       for (const [key, cell] of obj.cells) {
-        blendAt(buf, obj.x + xOf(key), obj.y + yOf(key), cell, opacity);
+        const x = obj.x + xOf(key);
+        const y = obj.y + yOf(key);
+        if (tiles !== null && !tiles.has(tileOf(layout, x, y))) continue;
+        blendAt(buf, x, y, cell, opacity);
       }
+    }
+  }
+}
+
+/**
+ * Частичная пересборка возможна, только если ни у одного видимого слоя нет активных эффектов:
+ * эффект зависит от времени и от всего содержимого слоя, поэтому его нельзя пересчитать по
+ * кусочку. Предикат вынесен наружу, чтобы вызывающий код решал так же, как композитор, и не
+ * залил на GPU меньше, чем было перерисовано.
+ */
+export function canRebuildTiles(doc: Document, ghosts: readonly Ghost[] = []): boolean {
+  const plain = (d: Document): boolean =>
+    d.layers.every((l) => !l.visible || l.opacity <= 0 || !hasActiveEffects(l.effects));
+  return plain(doc) && ghosts.every((g) => plain(g.doc));
+}
+
+/** Очищает либо весь буфер, либо только перечисленные тайлы. */
+function clearBuffer(buf: CellBuffer, layout: TileLayout, tiles: ReadonlySet<number> | null): void {
+  if (tiles === null) {
+    buf.glyphs.fill('');
+    buf.fg.fill(0);
+    buf.bg.fill(0);
+    return;
+  }
+  for (const tile of tiles) {
+    const rect = tileRect(layout, tile);
+    for (let y = rect.y; y < rect.y + rect.h; y++) {
+      const from = y * buf.width + rect.x;
+      const to = from + rect.w;
+      buf.glyphs.fill('', from, to);
+      buf.fg.fill(0, from * 4, to * 4);
+      buf.bg.fill(0, from * 4, to * 4);
     }
   }
 }
@@ -182,15 +242,22 @@ export function composite(
   target?: CellBuffer,
   ghosts: readonly Ghost[] = [],
   time = 0,
+  /**
+   * Тайлы, которые достаточно пересобрать. Требует, чтобы `target` был предыдущим кадром того же
+   * документа: остальная его часть остаётся как есть. Игнорируется, если частичная пересборка
+   * невозможна, см. `canRebuildTiles`.
+   */
+  dirty?: Iterable<number> | null,
 ): CellBuffer {
-  const buf =
-    target && target.width === doc.width && target.height === doc.height
-      ? target
-      : createCellBuffer(doc.width, doc.height);
-  buf.glyphs.fill('');
-  buf.fg.fill(0);
-  buf.bg.fill(0);
-  for (const ghost of ghosts) drawDocument(buf, ghost.doc, null, ghost.opacity, time);
-  drawDocument(buf, doc, preview, 1, time);
+  const reusable = target && target.width === doc.width && target.height === doc.height;
+  const buf = reusable ? target : createCellBuffer(doc.width, doc.height);
+  const layout = tileLayout(doc.width, doc.height);
+  const tiles = dirty && reusable && canRebuildTiles(doc, ghosts) ? new Set(dirty) : null;
+
+  clearBuffer(buf, layout, tiles);
+  for (const ghost of ghosts) {
+    drawDocument(buf, ghost.doc, null, ghost.opacity, time, layout, tiles);
+  }
+  drawDocument(buf, doc, preview, 1, time, layout, tiles);
   return buf;
 }

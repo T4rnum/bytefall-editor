@@ -1,6 +1,6 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { frameDocument } from '../../core/animation';
-import { type CellBuffer, type Ghost, composite } from '../../core/compositor';
+import { type CellBuffer, type Ghost, canRebuildTiles, composite } from '../../core/compositor';
 import { inBounds } from '../../core/geometry';
 import { findObject, objectBounds } from '../../core/object';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
@@ -55,14 +55,17 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
 
     const recomposite = (dirty?: Iterable<number>): void => {
       const { preview, effectTime } = useEditorStore.getState();
-      bufferRef.current = composite(
-        currentDoc(),
-        preview,
-        bufferRef.current ?? undefined,
-        ghostFrames(),
-        effectTime,
-      );
-      view.setBuffer(bufferRef.current, dirty);
+      const doc = currentDoc();
+      const ghosts = ghostFrames();
+      const previous = bufferRef.current;
+      /**
+       * Композитор и заливка на GPU обязаны сойтись в том, что считается изменившимся: если
+       * пересобрать больше, а залить меньше, на экране останется старое. Поэтому решение
+       * принимается один раз и отдаётся обоим.
+       */
+      const tiles = dirty && previous && canRebuildTiles(doc, ghosts) ? [...dirty] : undefined;
+      bufferRef.current = composite(doc, preview, previous ?? undefined, ghosts, effectTime, tiles);
+      view.setBuffer(bufferRef.current, tiles);
     };
 
     /**

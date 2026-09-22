@@ -1,5 +1,5 @@
 import type { Rect } from './geometry';
-import { type CellKey, xOf, yOf } from './grid';
+import { type CellGrid, type CellKey, xOf, yOf } from './grid';
 
 /**
  * Разбиение холста на тайлы. Нужно, чтобы правка одной ячейки не заставляла пересобирать и
@@ -34,7 +34,25 @@ export function tileHeight(layout: TileLayout, ty: number): number {
   return Math.min(TILE_SIZE, layout.height - ty * TILE_SIZE);
 }
 
+/**
+ * Раскладка зависит только от размера холста, а спрашивают её на каждый кадр и композитор, и меш.
+ * Для холста 1024×1024 это тысяча витков цикла и лишняя аллокация впустую, поэтому результат
+ * запоминается. Записей мало: размеров холста в работе одновременно единицы.
+ */
+const layouts = new Map<string, TileLayout>();
+const MAX_LAYOUTS = 8;
+
 export function tileLayout(width: number, height: number): TileLayout {
+  const key = `${width}x${height}`;
+  const known = layouts.get(key);
+  if (known) return known;
+  const made = computeLayout(width, height);
+  if (layouts.size >= MAX_LAYOUTS) layouts.clear();
+  layouts.set(key, made);
+  return made;
+}
+
+function computeLayout(width: number, height: number): TileLayout {
   const cols = Math.max(1, Math.ceil(width / TILE_SIZE));
   const rows = Math.max(1, Math.ceil(height / TILE_SIZE));
   const count = cols * rows;
@@ -135,3 +153,37 @@ export function mergeTileRanges(
 /** Совпадают ли раскладки: при смене размера холста все слоты пересчитываются заново. */
 export const sameLayout = (a: TileLayout, b: TileLayout): boolean =>
   a.width === b.width && a.height === b.height;
+
+/** Ключи непустых ячеек, разложенные по тайлам. Пустой тайл представлен undefined. */
+export type TileIndex = readonly (ReadonlySet<CellKey> | undefined)[];
+
+interface CachedIndex {
+  readonly layout: TileLayout;
+  readonly index: TileIndex;
+}
+
+/**
+ * Сетки неизменяемы, поэтому индекс можно посчитать один раз и держать при самой сетке.
+ * WeakMap, а не поле: сетка это обычный Map, и ядро не должно обрастать служебными полями,
+ * которые придётся тащить через сериализацию и историю.
+ */
+const cache = new WeakMap<object, CachedIndex>();
+
+/**
+ * Раскладывает ключи сетки по тайлам. Построение стоит обхода всех непустых ячеек, но во время
+ * штриха сетка слоя не меняется — меняется только превью поверх неё, — поэтому индекс строится
+ * один раз на штрих, а не на каждое движение указателя.
+ */
+export function tileIndexOf(grid: CellGrid, layout: TileLayout): TileIndex {
+  const cached = cache.get(grid);
+  if (cached && sameLayout(cached.layout, layout)) return cached.index;
+
+  const index: (Set<CellKey> | undefined)[] = new Array<Set<CellKey> | undefined>(layout.count);
+  for (const key of grid.keys()) {
+    const tile = tileOf(layout, xOf(key), yOf(key));
+    if (tile === -1) continue;
+    (index[tile] ??= new Set<CellKey>()).add(key);
+  }
+  cache.set(grid, { layout, index });
+  return index;
+}
