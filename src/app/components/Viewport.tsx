@@ -182,6 +182,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       if (!prev || state.camera !== prev.camera) view.setCamera(state.camera);
       if (!prev || state.post !== prev.post) view.setPost(state.post);
       if (!prev || state.showGrid !== prev.showGrid) view.setShowGrid(state.showGrid);
+      if (!prev || state.showChecker !== prev.showChecker) view.setShowChecker(state.showChecker);
       if (!prev || state.workspaceColor !== prev.workspaceColor) {
         view.setWorkspaceColor(state.workspaceColor);
       }

@@ -224,6 +224,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: () => editor().setShowGrid(!editor().showGrid),
   },
   {
+    group: 'Вид',
+    label: 'Шахматка под прозрачным холстом',
+    keys: '~',
+    run: () => editor().setShowChecker(!editor().showChecker),
+  },
+  {
     group: 'Файл',
     label: 'Размер холста',
     keys: 'Ctrl+Alt+C',

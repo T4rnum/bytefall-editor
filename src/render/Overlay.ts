@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Point, Rect } from '../core/geometry';
+import { type Checker, createChecker } from './checker';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
 
 export const ACCENT_COLOR = '#ffb347';
@@ -42,10 +43,11 @@ function disposeObject(obj: Plane | Outline | Lines): void {
   obj.material.dispose();
 }
 
-/** Служебная графика поверх сетки: фон холста, линии сетки, курсор, выделение. */
+/** Служебная графика поверх сетки: фон холста, подложка, линии сетки, курсор, выделение. */
 export class Overlay {
   readonly group = new THREE.Group();
   private readonly background: Plane;
+  private readonly checker: Checker;
   private readonly cursor: Outline;
   private readonly selection: SelectionLayer;
   private readonly objectOutline: Outline;
@@ -53,6 +55,9 @@ export class Overlay {
   private width = 0;
   private height = 0;
   private showGrid = true;
+  private showChecker = true;
+  /** У холста нет фона: под ячейками либо шахматка, либо цвет рабочей области. */
+  private transparent = false;
   private chromeVisible = true;
   private cursorCell: Point | null = null;
   private hasSelection = false;
@@ -61,12 +66,19 @@ export class Overlay {
   constructor() {
     this.background = new THREE.Mesh(unitPlane(), planeMaterial('#000000', 1));
     this.background.renderOrder = 0;
+    this.checker = createChecker();
     this.selection = createSelectionLayer(ACCENT_COLOR);
     this.objectOutline = new THREE.LineLoop(unitOutline(), lineMaterial(OBJECT_COLOR, 1));
     this.objectOutline.renderOrder = 3;
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = 4;
-    this.group.add(this.background, this.selection.mesh, this.objectOutline, this.cursor);
+    this.group.add(
+      this.background,
+      this.checker.mesh,
+      this.selection.mesh,
+      this.objectOutline,
+      this.cursor,
+    );
     this.setSelection(null);
     this.setCursor(null);
   }
@@ -76,11 +88,19 @@ export class Overlay {
       this.width = width;
       this.height = height;
       this.background.scale.set(width, height, 1);
+      this.checker.setSize(width, height);
       this.selection.setSize(width, height);
       this.rebuildGrid();
     }
     this.background.visible = background !== null;
     if (background !== null) this.background.material.color.set(background);
+    this.transparent = background === null;
+    this.applyVisibility();
+  }
+
+  setShowChecker(show: boolean): void {
+    this.showChecker = show;
+    this.applyVisibility();
   }
 
   setShowGrid(show: boolean): void {
@@ -99,9 +119,10 @@ export class Overlay {
     this.applyVisibility();
   }
 
-  /** Толщина обводки выделения задаётся в пикселях экрана, поэтому зависит от зума. */
+  /** Обводка выделения и рябь шахматки считаются в пикселях экрана, поэтому зависят от зума. */
   setZoom(zoom: number): void {
     this.selection.setZoom(zoom);
+    this.checker.setZoom(zoom);
   }
 
   /** Рамка выбранного объекта в координатах документа. */
@@ -123,6 +144,8 @@ export class Overlay {
 
   private applyVisibility(): void {
     const chrome = this.chromeVisible;
+    // Шахматка — служебная графика: в экспорт прозрачный холст уходит прозрачным.
+    this.checker.mesh.visible = chrome && this.showChecker && this.transparent;
     if (this.gridLines) this.gridLines.visible = chrome && this.showGrid;
     this.cursor.visible = chrome && this.cursorCell !== null;
     this.selection.mesh.visible = chrome && this.hasSelection;
@@ -151,6 +174,7 @@ export class Overlay {
       disposeObject(obj);
     }
     this.selection.dispose();
+    this.checker.dispose();
     if (this.gridLines) disposeObject(this.gridLines);
   }
 }

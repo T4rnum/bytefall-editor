@@ -110,6 +110,11 @@ export class SceneView {
     this.requestRender();
   }
 
+  setShowChecker(show: boolean): void {
+    this.overlay.setShowChecker(show);
+    this.requestRender();
+  }
+
   setCursor(cell: Point | null): void {
     this.overlay.setCursor(cell);
     this.requestRender();

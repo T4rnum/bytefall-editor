@@ -46,6 +46,8 @@ export function TopBar() {
   const zoom = useEditorStore((s) => s.camera.zoom);
   const showGrid = useEditorStore((s) => s.showGrid);
   const setShowGrid = useEditorStore((s) => s.setShowGrid);
+  const showChecker = useEditorStore((s) => s.showChecker);
+  const setShowChecker = useEditorStore((s) => s.setShowChecker);
   const [newOpen, setNewOpen] = useState(false);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   const resizeOpen = useUiStore((s) => s.resizeOpen);
@@ -138,6 +140,15 @@ export function TopBar() {
           onClick={() => setShowGrid(!showGrid)}
         >
           <Grid3x3 size={16} />
+        </Button>
+        <Button
+          icon
+          label="Шахматка под прозрачным холстом"
+          hotkey="~"
+          active={showChecker}
+          onClick={() => setShowChecker(!showChecker)}
+        >
+          <span className="checker-icon" aria-hidden="true" />
         </Button>
         <Button icon label="Keyboard shortcuts" hotkey="?" onClick={() => setHotkeysOpen(true)}>
           <Keyboard size={16} />

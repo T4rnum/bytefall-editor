@@ -197,6 +197,20 @@ select {
   background: var(--border);
 }
 
+/** Шахматка два на два: в наборе иконок её нет, а метафора вроде «контраста» читается хуже. */
+.checker-icon {
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentcolor;
+  border-radius: 2px;
+  background: conic-gradient(
+    currentcolor 0 25%,
+    transparent 0 50%,
+    currentcolor 0 75%,
+    transparent 0
+  );
+}
+
 .fill-icon {
   width: 14px;
   height: 14px;

@@ -29,6 +29,8 @@ export interface EditorState {
   readonly wandContiguous: boolean;
   readonly camera: CameraState;
   readonly showGrid: boolean;
+  /** Шахматка под прозрачным холстом. Выключают, чтобы посмотреть рисунок на цвете рабочей области. */
+  readonly showChecker: boolean;
   readonly workspaceColor: string;
   readonly cursorCell: Point | null;
   readonly selection: Selection | null;
@@ -60,6 +62,7 @@ export interface EditorState {
   setWandContiguous: (contiguous: boolean) => void;
   setCamera: (camera: CameraState) => void;
   setShowGrid: (show: boolean) => void;
+  setShowChecker: (show: boolean) => void;
   setCursorCell: (cell: Point | null) => void;
   setSelection: (selection: Selection | null) => void;
   setClipboard: (clip: Clip | null) => void;
@@ -103,6 +106,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   wandContiguous: true,
   camera: { centerX: 0, centerY: 0, zoom: 16 },
   showGrid: true,
+  showChecker: true,
   workspaceColor: '#111114',
   cursorCell: null,
   selection: null,
@@ -132,6 +136,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setWandContiguous: (wandContiguous) => set({ wandContiguous }),
   setCamera: (camera) => set({ camera }),
   setShowGrid: (showGrid) => set({ showGrid }),
+  setShowChecker: (showChecker) => set({ showChecker }),
   setCursorCell: (cell) => set((s) => (samePoint(s.cursorCell, cell) ? s : { cursorCell: cell })),
   setSelection: (selection) => set({ selection }),
   setClipboard: (clipboard) => set({ clipboard }),

@@ -112,5 +112,20 @@ export function runChecks(view: SceneView): CheckResult[] {
     `rgb ${untouched[0]},${untouched[1]},${untouched[2]}`,
   );
 
+  // Шахматка — служебная графика: на экране она под прозрачным холстом, а в экспорт
+  // прозрачный холст обязан уйти прозрачным. Иначе PNG для движка получил бы серые клетки.
+  const transparent = { ...doc, background: null };
+  view.setDocument(transparent.width, transparent.height, transparent.background);
+  view.setShowChecker(true);
+  const exported = view.renderPixels(composite(transparent), scale);
+  const hole = cellColor(exported, scale, 10, 10);
+  add('Экспорт прозрачного холста без шахматки', hole[3] === 0, `alpha ${hole[3]}`);
+  const drawn = cellColor(exported, scale, 0, 0);
+  add(
+    'Экспорт прозрачного холста: символ на месте',
+    drawn[3] > 0 && drawn[0] > 120,
+    `rgba ${drawn[0]},${drawn[1]},${drawn[2]},${drawn[3]}`,
+  );
+
   return results;
 }
