@@ -1,5 +1,5 @@
 import { type Cell, isBlankCell } from './cell';
-import type { Point, Rect } from './geometry';
+import { type Point, type Rect, inBounds } from './geometry';
 
 /** Ключ ячейки: y * 65536 + x. Координаты неотрицательные и меньше 65536. */
 export type CellKey = number;
@@ -63,6 +63,24 @@ export function gridBounds(grid: CellGrid): Rect | null {
 }
 
 /** Отбрасывает ячейки за пределами width×height. Нужно при изменении размера холста. */
+/** Сдвигает сетку на (dx, dy) и отбрасывает всё, что вышло за холст. */
+export function shiftGrid(
+  grid: CellGrid,
+  dx: number,
+  dy: number,
+  width: number,
+  height: number,
+): CellGrid {
+  if (dx === 0 && dy === 0) return cropGrid(grid, width, height);
+  const next = new Map<CellKey, Cell>();
+  for (const [key, cell] of grid) {
+    const x = xOf(key) + dx;
+    const y = yOf(key) + dy;
+    if (inBounds(x, y, width, height)) next.set(keyOf(x, y), cell);
+  }
+  return next;
+}
+
 export function cropGrid(grid: CellGrid, width: number, height: number): CellGrid {
   let next: Map<CellKey, Cell> | null = null;
   for (const key of grid.keys()) {

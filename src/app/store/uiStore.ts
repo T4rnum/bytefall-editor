@@ -9,8 +9,10 @@ interface UiState {
   /** Ширина правого сайдбара в пикселях. */
   readonly sidebarWidth: number;
   readonly hotkeysOpen: boolean;
+  readonly resizeOpen: boolean;
   setSidebarWidth: (width: number) => void;
   setHotkeysOpen: (open: boolean) => void;
+  setResizeOpen: (open: boolean) => void;
 }
 
 /**
@@ -23,12 +25,14 @@ export const useUiStore = create<UiState>((set) => ({
     Math.max(MIN_SIDEBAR, readSetting('sidebarWidth', DEFAULT_SIDEBAR)),
   ),
   hotkeysOpen: false,
+  resizeOpen: false,
   setSidebarWidth: (width) => {
     const clamped = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, Math.round(width)));
     writeSetting('sidebarWidth', clamped);
     set({ sidebarWidth: clamped });
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
+  setResizeOpen: (resizeOpen) => set({ resizeOpen }),
 }));
 
 export const SIDEBAR_LIMITS = { min: MIN_SIDEBAR, max: MAX_SIDEBAR } as const;

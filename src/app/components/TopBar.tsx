@@ -10,6 +10,7 @@ import {
   Maximize,
   Redo2,
   Save,
+  Scaling,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -31,6 +32,7 @@ import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { Button, Select, TextField } from '../ui';
 import { NewDocumentDialog } from './NewDocumentDialog';
+import { ResizeCanvasDialog } from './ResizeCanvasDialog';
 
 const PNG_SCALES = [8, 16, 32, 64] as const;
 const SCALE_OPTIONS = PNG_SCALES.map((s) => ({ value: String(s), label: `${s} px/cell` }));
@@ -46,6 +48,8 @@ export function TopBar() {
   const setShowGrid = useEditorStore((s) => s.setShowGrid);
   const [newOpen, setNewOpen] = useState(false);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
+  const resizeOpen = useUiStore((s) => s.resizeOpen);
+  const setResizeOpen = useUiStore((s) => s.setResizeOpen);
   const [pngScale, setPngScale] = useState(16);
 
   return (
@@ -71,6 +75,9 @@ export function TopBar() {
         </Button>
         <Button label="Save as" hotkey="Ctrl+Shift+S" onClick={() => void saveDocumentAction(true)}>
           Save as
+        </Button>
+        <Button icon label="Canvas size" hotkey="Ctrl+Alt+C" onClick={() => setResizeOpen(true)}>
+          <Scaling size={16} />
         </Button>
       </div>
 
@@ -138,6 +145,7 @@ export function TopBar() {
       </div>
 
       <NewDocumentDialog open={newOpen} onClose={() => setNewOpen(false)} />
+      {resizeOpen && <ResizeCanvasDialog onClose={() => setResizeOpen(false)} />}
     </header>
   );
 }

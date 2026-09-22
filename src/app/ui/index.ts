@@ -3,6 +3,7 @@
  * значения и колбэки. Любой новый контрол появляется здесь, а не внутри панели, иначе через
  * месяц у каждой панели будет свой слайдер со своими отступами.
  */
+export { AnchorPicker, type AnchorPickerProps } from './AnchorPicker';
 export { Button, tooltip, type ButtonProps, type ButtonVariant, type ControlSize } from './Button';
 export { Checkbox, type CheckboxProps } from './Checkbox';
 export { ColorField, type ColorFieldProps } from './ColorField';
@@ -16,6 +17,7 @@ export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { TextField, type TextFieldProps } from './TextField';
 export { TIP_ATTR, TooltipLayer } from './Tooltip';
 export { readSetting, writeSetting } from './persist';
+export { resizePreview, type PreviewBox, type ResizePreview } from './resizePreview';
 export {
   clamp,
   formatNumber,

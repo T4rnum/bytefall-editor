@@ -610,6 +610,76 @@ select {
   gap: var(--space-3);
 }
 
+/** Размер холста: якорь слева, предпросмотр справа — вопрос «что срежется» виден сразу. */
+.resize-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.anchor-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  gap: var(--space-1);
+}
+
+.anchor-cell {
+  aspect-ratio: 1;
+  padding: 0;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.anchor-cell:hover {
+  border-color: var(--border-strong);
+}
+
+.anchor-cell.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.resize-preview-wrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.resize-preview {
+  position: relative;
+  width: 100%;
+  max-width: 120px;
+  max-height: 96px;
+}
+
+/** Прежнее содержимое: то, что вылезло за новый холст, и есть обрезаемая часть. */
+.resize-preview-content {
+  position: absolute;
+  background: var(--border-strong);
+}
+
+/** Новый холст поверх: его рамка показывает, где пройдёт нож. */
+.resize-preview-canvas {
+  position: absolute;
+  border: 1px solid var(--accent);
+}
+
+.resize-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.resize-note--warn {
+  color: var(--accent);
+}
+
 /* ── Таймлайн ──────────────────────────────────────────────────────────── */
 .timeline {
   display: flex;

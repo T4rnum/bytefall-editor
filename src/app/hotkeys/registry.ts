@@ -224,6 +224,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: () => editor().setShowGrid(!editor().showGrid),
   },
   {
+    group: 'Файл',
+    label: 'Размер холста',
+    keys: 'Ctrl+Alt+C',
+    run: () => useUiStore.getState().setResizeOpen(true),
+  },
+  {
     group: 'Вид',
     label: 'Справка по клавишам',
     keys: '?',

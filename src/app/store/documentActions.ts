@@ -2,6 +2,7 @@ import { mapFrames } from '../../core/animation';
 import {
   type Layer,
   MAX_LAYERS,
+  type ResizeAnchor,
   addLayer,
   createLayer,
   duplicateLayer,
@@ -9,9 +10,11 @@ import {
   moveLayer,
   newId,
   removeLayer,
+  resizeDocument,
   updateLayer,
 } from '../../core/document';
 import { useDocumentStore } from './documentStore';
+import { useEditorStore } from './editorStore';
 import { notify } from './notifyStore';
 
 const state = () => useDocumentStore.getState();
@@ -106,4 +109,19 @@ export function removePaletteColorAction(hex: string): void {
     ...doc,
     palette: doc.palette.filter((c) => c !== hex),
   });
+}
+
+/**
+ * Размер холста общий для всей анимации, поэтому меняется во всех кадрах сразу: иначе кадры
+ * разъедутся. Выделение при этом снимается — оно хранит маску прежнего холста и после смены
+ * размера указывало бы не на те ячейки.
+ */
+export function resizeCanvasAction(width: number, height: number, anchor: ResizeAnchor): void {
+  const { doc, animation, commitAnimation } = state();
+  if (width === doc.width && height === doc.height) return;
+  commitAnimation(
+    'Resize canvas',
+    mapFrames(animation, (d) => resizeDocument(d, width, height, anchor)),
+  );
+  useEditorStore.getState().setSelection(null);
 }

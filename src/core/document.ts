@@ -1,5 +1,6 @@
 import type { LayerEffect } from './effects';
-import { type CellGrid, cropGrid, emptyGrid } from './grid';
+import type { Point } from './geometry';
+import { type CellGrid, emptyGrid, shiftGrid } from './grid';
 import type { SceneObject } from './object';
 
 export interface Layer {
@@ -177,15 +178,67 @@ export function duplicateLayer(
     : { ...withLayer, objects: [...withLayer.objects, ...copies] };
 }
 
-/** Меняет размер холста, отбрасывая ячейки за новыми границами. Объекты остаются на месте. */
-export function resizeDocument(doc: Document, width: number, height: number): Document {
+/** Куда прижимается прежнее содержимое, когда холст меняет размер. */
+export type ResizeAnchor =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right';
+
+/** Доля прироста, которая уходит влево и вверх. Остальное достаётся правому и нижнему краю. */
+const ANCHOR_FACTORS: Readonly<Record<ResizeAnchor, readonly [number, number]>> = {
+  'top-left': [0, 0],
+  top: [0.5, 0],
+  'top-right': [1, 0],
+  left: [0, 0.5],
+  center: [0.5, 0.5],
+  right: [1, 0.5],
+  'bottom-left': [0, 1],
+  bottom: [0.5, 1],
+  'bottom-right': [1, 1],
+};
+
+/** Сдвиг прежнего содержимого в новых координатах. Документ целиком тут не нужен: только размер. */
+export function resizeOffset(
+  from: { readonly width: number; readonly height: number },
+  width: number,
+  height: number,
+  anchor: ResizeAnchor,
+): Point {
+  const [fx, fy] = ANCHOR_FACTORS[anchor];
+  return {
+    x: Math.round((width - from.width) * fx),
+    y: Math.round((height - from.height) * fy),
+  };
+}
+
+/**
+ * Меняет размер холста. Содержимое прижимается к якорю, ячейки за новыми границами
+ * отбрасываются. Объекты едут вместе с растром: иначе при якоре не в левом верхнем углу
+ * рисунок разъехался бы сам с собой.
+ */
+export function resizeDocument(
+  doc: Document,
+  width: number,
+  height: number,
+  anchor: ResizeAnchor = 'top-left',
+): Document {
   assertDimension(width, 'width');
   assertDimension(height, 'height');
   if (width === doc.width && height === doc.height) return doc;
+  const { x: dx, y: dy } = resizeOffset(doc, width, height, anchor);
   return {
     ...doc,
     width,
     height,
-    layers: doc.layers.map((l) => ({ ...l, cells: cropGrid(l.cells, width, height) })),
+    layers: doc.layers.map((l) => ({ ...l, cells: shiftGrid(l.cells, dx, dy, width, height) })),
+    objects: doc.objects.map((o) =>
+      dx === 0 && dy === 0 ? o : { ...o, x: o.x + dx, y: o.y + dy },
+    ),
   };
 }
