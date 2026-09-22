@@ -79,7 +79,7 @@ export function App() {
           <GlyphPanel />
         </aside>
       </div>
-      <TimelinePanel />
+      <TimelinePanel atlas={atlas} />
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
       <RecoveryDialog />

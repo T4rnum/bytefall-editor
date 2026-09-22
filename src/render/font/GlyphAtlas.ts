@@ -47,6 +47,9 @@ export class GlyphAtlas {
   private baseline = 0;
   private fallbackIndex = 0;
   private exhausted = false;
+  /** Отдельный холст для замера глифов: из рабочего холста атласа пиксели обратно не читаются. */
+  private scratch: CanvasRenderingContext2D | null = null;
+  private readonly coverages = new Map<string, number>();
 
   constructor(options: GlyphAtlasOptions) {
     this.fontFamily = options.fontFamily;
@@ -138,13 +141,49 @@ export class GlyphAtlas {
     ctx.rect(x, y, this.cellSize, this.cellSize);
     ctx.clip();
     ctx.clearRect(x, y, this.cellSize, this.cellSize);
+    this.paint(ctx, glyph, x, y);
+    ctx.restore();
+    this.texture.needsUpdate = true;
+  }
+
+  /** Глиф в ячейке с левым верхним углом (x, y): одинаково и для атласа, и для замера. */
+  private paint(ctx: CanvasRenderingContext2D, glyph: string, x: number, y: number): void {
     ctx.font = `${this.fontSize}px "${this.fontFamily}"`;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(glyph, x + this.cellSize / 2, y + this.baseline);
-    ctx.restore();
-    this.texture.needsUpdate = true;
+  }
+
+  /**
+   * Доля ячейки, которую закрашивает глиф: 0 у пробела, около 1 у «█». Нужна миниатюрам кадров:
+   * они передают не форму символа, а его плотность. Считается один раз на глиф.
+   */
+  coverage(glyph: string): number {
+    if (glyph === '') return 0;
+    const known = this.coverages.get(glyph);
+    if (known !== undefined) return known;
+    const size = this.cellSize;
+    const ctx = this.scratchContext();
+    if (!ctx) return 0.5;
+    ctx.clearRect(0, 0, size, size);
+    this.paint(ctx, glyph, 0, 0);
+    const pixels = ctx.getImageData(0, 0, size, size).data;
+    let ink = 0;
+    for (let i = 3; i < pixels.length; i += 4) ink += pixels[i];
+    const value = ink / (255 * size * size);
+    this.coverages.set(glyph, value);
+    return value;
+  }
+
+  /** Холст для замеров читается часто, поэтому браузеру сразу сказано держать его в памяти. */
+  private scratchContext(): CanvasRenderingContext2D | null {
+    if (this.scratch) return this.scratch;
+    const canvas = document.createElement('canvas');
+    canvas.width = this.cellSize;
+    canvas.height = this.cellSize;
+    this.scratch = canvas.getContext('2d', { willReadFrequently: true });
+    return this.scratch;
   }
 
   /** Удваивает число строк до потолка, сохраняя нарисованные глифы на тех же индексах. */
