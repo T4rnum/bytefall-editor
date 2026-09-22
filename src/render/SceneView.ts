@@ -151,6 +151,20 @@ export class SceneView {
     return { x: Math.floor(world.x), y: Math.floor(-world.y) };
   }
 
+  /**
+   * Немедленная отрисовка, без ожидания кадра браузера. Нужна замерам: в фоновой вкладке кадры
+   * не выдаются вовсе, и меряться было бы нечему. `flush` дополнительно дожидается GPU, иначе
+   * измерится только время постановки команд в очередь, а не сама отрисовка.
+   */
+  renderNow(flush = false): void {
+    if (this.frame !== null) {
+      cancelAnimationFrame(this.frame);
+      this.frame = null;
+    }
+    this.render();
+    if (flush) this.renderer.getContext().finish();
+  }
+
   requestRender(): void {
     if (this.frame !== null || this.disposed || this.contextLost) return;
     this.frame = requestAnimationFrame(() => {

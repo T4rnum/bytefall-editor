@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: { host: '127.0.0.1', port: 5173 },
+  build: {
+    // Страница замеров собирается вместе с приложением: мерить надо на том же коде,
+    // который увидит пользователь, а не на дев-сборке.
+    rollupOptions: { input: { app: 'index.html', bench: 'bench.html' } },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],

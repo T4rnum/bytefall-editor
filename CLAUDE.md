@@ -25,6 +25,7 @@ npm run dev        # dev-сервер на 127.0.0.1:5173
 npm test           # юнит-тесты ядра
 npm run coverage   # покрытие src/core, цель 80%+
 npm run bench      # бенчмарки ядра, база в docs/BENCHMARKS.md
+npm run bench:browser  # после build: /bench.html меряет GPU и проверяет картинку
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run check      # всё разом, то же, что проверяет CI
