@@ -517,15 +517,8 @@
   color: var(--text);
   font-size: var(--text-sm);
   line-height: var(--line-tight);
-  white-space: nowrap;
   pointer-events: none;
-  /* Позиция задаётся точкой по центру элемента, поэтому подсказку сдвигаем на половину себя. */
-  transform: translateX(-50%);
   animation: tooltip-in var(--motion) var(--ease);
-}
-
-.tooltip--above {
-  transform: translate(-50%, -100%);
 }
 
 @keyframes tooltip-in {
