@@ -10,7 +10,9 @@ import {
   setLayerCells,
   updateLayer,
 } from '../document';
+import type { Rect } from '../geometry';
 import { applyEdits, editsFromPoints, emptyGrid, getCell, keyOf } from '../grid';
+import { type Selection, selectionFromRect } from '../selection';
 import {
   MAX_OBJECTS,
   addObject,
@@ -37,6 +39,9 @@ const points = [
 ];
 
 /** Документ 8×8 с тремя ячейками на первом слое. */
+/** Прямоугольное выделение на холсте 8×8: у объектов свой предмет теста, не форма выделения. */
+const rectSel = (rect: Rect): Selection => selectionFromRect(rect, 8, 8)!;
+
 const setup = () => {
   const doc = createDocument({ width: 8, height: 8 });
   const layerId = doc.layers[0].id;
@@ -47,7 +52,7 @@ const setup = () => {
 describe('groupSelection / ungroupObject', () => {
   it('moves cells from the raster into a new object and back', () => {
     const { doc, layerId } = setup();
-    const grouped = groupSelection(doc, layerId, { x: 2, y: 2, w: 2, h: 2 });
+    const grouped = groupSelection(doc, layerId, rectSel({ x: 2, y: 2, w: 2, h: 2 }));
     expect(grouped).not.toBeNull();
     const { doc: next, object } = grouped!;
     expect(findLayer(next, layerId)!.cells.size).toBe(0);
@@ -66,9 +71,13 @@ describe('groupSelection / ungroupObject', () => {
 
   it('returns null for an empty selection or missing layer and drops off-canvas cells on bake', () => {
     const { doc, layerId } = setup();
-    expect(groupSelection(doc, layerId, { x: 6, y: 6, w: 2, h: 2 })).toBeNull();
-    expect(groupSelection(doc, 'missing', { x: 2, y: 2, w: 2, h: 2 })).toBeNull();
-    const { doc: next, object } = groupSelection(doc, layerId, { x: 2, y: 2, w: 2, h: 2 })!;
+    expect(groupSelection(doc, layerId, rectSel({ x: 6, y: 6, w: 2, h: 2 }))).toBeNull();
+    expect(groupSelection(doc, 'missing', rectSel({ x: 2, y: 2, w: 2, h: 2 }))).toBeNull();
+    const { doc: next, object } = groupSelection(
+      doc,
+      layerId,
+      rectSel({ x: 2, y: 2, w: 2, h: 2 }),
+    )!;
     const outside = updateObject(next, object.id, { x: 7, y: 7 });
     const baked = ungroupObject(outside, object.id);
     expect(findLayer(baked, layerId)!.cells.size).toBe(1);
@@ -137,12 +146,11 @@ describe('hit testing', () => {
     const { doc, layerId } = setup();
     const top = createLayer('top');
     let next = addLayer(doc, top);
-    const { doc: grouped, object: lower } = groupSelection(next, layerId, {
-      x: 2,
-      y: 2,
-      w: 2,
-      h: 2,
-    })!;
+    const { doc: grouped, object: lower } = groupSelection(
+      next,
+      layerId,
+      rectSel({ x: 2, y: 2, w: 2, h: 2 }),
+    )!;
     next = grouped;
     const upper = createObject({
       name: 'upper',
@@ -172,7 +180,7 @@ describe('hit testing', () => {
 
   it('topCellAt looks through objects and rasters from the top', () => {
     const { doc, layerId } = setup();
-    const { doc: grouped } = groupSelection(doc, layerId, { x: 2, y: 2, w: 1, h: 1 })!;
+    const { doc: grouped } = groupSelection(doc, layerId, rectSel({ x: 2, y: 2, w: 1, h: 1 }))!;
     expect(topCellAt(grouped, 2, 2)?.glyph).toBe('#');
     expect(topCellAt(grouped, 3, 2)?.glyph).toBe('#');
     expect(topCellAt(grouped, 0, 0)).toBeUndefined();

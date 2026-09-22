@@ -1,15 +1,19 @@
 import {
   Circle,
   Eraser,
+  Grid2x2,
+  Lasso,
   type LucideIcon,
   Minus,
   Move,
   PaintBucket,
   Pencil,
   Pipette,
+  Scan,
   Square,
   SquareDashed,
   Type,
+  Wand,
 } from 'lucide-react';
 import { useEditorStore } from '../store/editorStore';
 import { TOOLS, type ToolId } from '../tools';
@@ -24,6 +28,8 @@ const ICONS: Record<ToolId, LucideIcon> = {
   fill: PaintBucket,
   eyedropper: Pipette,
   select: SquareDashed,
+  lasso: Lasso,
+  wand: Wand,
   text: Type,
   object: Move,
 };
@@ -33,6 +39,8 @@ export function ToolBar() {
   const setTool = useEditorStore((s) => s.setTool);
   const shapeFill = useEditorStore((s) => s.shapeFill);
   const setShapeFill = useEditorStore((s) => s.setShapeFill);
+  const wandContiguous = useEditorStore((s) => s.wandContiguous);
+  const setWandContiguous = useEditorStore((s) => s.setWandContiguous);
   const showsFill = tool === 'rect' || tool === 'ellipse';
 
   return (
@@ -64,6 +72,20 @@ export function ToolBar() {
             onClick={() => setShapeFill(!shapeFill)}
           >
             <span className="fill-icon" data-filled={shapeFill} />
+          </Button>
+        </>
+      )}
+      {tool === 'wand' && (
+        <>
+          <span className="toolbar-separator" />
+          <Button
+            icon
+            size="lg"
+            label={wandContiguous ? 'Contiguous area' : 'All similar cells'}
+            active={!wandContiguous}
+            onClick={() => setWandContiguous(!wandContiguous)}
+          >
+            {wandContiguous ? <Scan size={18} /> : <Grid2x2 size={18} />}
           </Button>
         </>
       )}

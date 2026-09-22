@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
-import { floodFill } from '../fill';
+import { floodFill, similarCells } from '../fill';
 import { applyEdits, editsFromPoints, emptyGrid } from '../grid';
 import { linePoints } from '../shapes';
 
@@ -24,5 +24,37 @@ describe('floodFill', () => {
 
   it('returns nothing for out-of-bounds start', () => {
     expect(floodFill(emptyGrid(), 3, 3, 3, 0)).toEqual([]);
+  });
+});
+
+describe('similarCells', () => {
+  it('берёт все похожие ячейки, даже разорванные стеной', () => {
+    const wall = applyEdits(emptyGrid(), editsFromPoints(linePoints(2, 0, 2, 4), makeCell('|')));
+    // Связной заливке стена мешает, несмежной — нет.
+    expect(floodFill(wall, 5, 5, 0, 0)).toHaveLength(10);
+    expect(similarCells(wall, 5, 5, 0, 0)).toHaveLength(20);
+  });
+
+  it('различает ячейки по виду, а не по месту', () => {
+    const red = applyEdits(
+      emptyGrid(),
+      editsFromPoints(
+        [
+          { x: 0, y: 0 },
+          { x: 4, y: 4 },
+        ],
+        makeCell('#', '#ff0000'),
+      ),
+    );
+    const grid = applyEdits(red, editsFromPoints([{ x: 2, y: 2 }], makeCell('#', '#00ff00')));
+    expect(similarCells(grid, 5, 5, 0, 0)).toEqual([
+      { x: 0, y: 0 },
+      { x: 4, y: 4 },
+    ]);
+    expect(similarCells(grid, 5, 5, 2, 2)).toEqual([{ x: 2, y: 2 }]);
+  });
+
+  it('за пределами холста не выделяет ничего', () => {
+    expect(similarCells(emptyGrid(), 3, 3, 3, 0)).toEqual([]);
   });
 });

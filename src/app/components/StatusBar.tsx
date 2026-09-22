@@ -26,7 +26,7 @@ export function StatusBar() {
       <span className="status-item">{cursor ? `${cursor.x}, ${cursor.y}` : '—'}</span>
       {selection && (
         <span className="status-item">
-          sel {selection.w}×{selection.h}
+          sel {selection.bounds.w}×{selection.bounds.h} · {selection.size}
         </span>
       )}
       {selectedObject && <span className="status-item">obj {selectedObject.name}</span>}

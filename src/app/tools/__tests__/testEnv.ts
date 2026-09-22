@@ -1,7 +1,8 @@
 import { type Cell, makeCell } from '../../../core/cell';
 import type { Document, Layer } from '../../../core/document';
-import type { Point, Rect } from '../../../core/geometry';
+import type { Point } from '../../../core/geometry';
 import type { CellEdits } from '../../../core/grid';
+import type { Selection } from '../../../core/selection';
 import type { ToolEnv } from '../types';
 
 /** Всё, что инструмент сделал через окружение. Проверять поведение удобнее, чем стор. */
@@ -10,7 +11,7 @@ export interface ToolCalls {
   readonly commits: { label: string; edits: CellEdits }[];
   readonly docCommits: { label: string; doc: Document }[];
   readonly picks: { cell: Cell; button: number }[];
-  readonly selections: (Rect | null)[];
+  readonly selections: (Selection | null)[];
   readonly selected: (string | null)[];
   readonly textCursors: (Point | null)[];
   draft: Document | null;
@@ -22,7 +23,8 @@ export interface TestEnvOptions {
   /** Кисти левой и правой кнопки; `null` — ластик, как и в приложении. */
   readonly brushes?: readonly [Cell | null, Cell | null];
   readonly shapeFill?: boolean;
-  readonly selection?: Rect | null;
+  readonly wandContiguous?: boolean;
+  readonly selection?: Selection | null;
   readonly textCursor?: Point | null;
   readonly selectedObjectId?: string | null;
 }
@@ -41,6 +43,7 @@ export function makeToolEnv(
     layer = doc.layers[0],
     brushes = DEFAULT_BRUSHES,
     shapeFill = false,
+    wandContiguous = true,
     selection = null,
     textCursor = null,
     selectedObjectId = null,
@@ -63,6 +66,7 @@ export function makeToolEnv(
     brush: brushes[0] ?? makeCell(''),
     brushFor: (button) => brushes[button === 2 ? 1 : 0],
     shapeFill,
+    wandContiguous,
     selection,
     textCursor,
     selectedObjectId,
@@ -85,9 +89,10 @@ export function makeToolEnv(
 export const lastPreview = (calls: ToolCalls): CellEdits | null =>
   calls.previews.length > 0 ? calls.previews[calls.previews.length - 1] : null;
 
-/** Указатель без модификаторов. */
-export const at = (x: number, y: number, button = 0, shift = false) => ({
+/** Указатель. По умолчанию — левая кнопка без модификаторов. */
+export const at = (x: number, y: number, button = 0, shift = false, alt = false) => ({
   cell: { x, y },
   button,
   shift,
+  alt,
 });

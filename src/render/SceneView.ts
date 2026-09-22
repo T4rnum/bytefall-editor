@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import type { CellBuffer } from '../core/compositor';
 import type { Point, Rect } from '../core/geometry';
+import type { Selection } from '../core/selection';
 import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
 import { GridMesh } from './GridMesh';
@@ -114,8 +115,8 @@ export class SceneView {
     this.requestRender();
   }
 
-  setSelection(rect: Rect | null): void {
-    this.overlay.setSelection(rect);
+  setSelection(selection: Selection | null): void {
+    this.overlay.setSelection(selection);
     this.requestRender();
   }
 
@@ -126,6 +127,7 @@ export class SceneView {
 
   setCamera(state: CameraState): void {
     this.cameraState = state;
+    this.overlay.setZoom(state.zoom);
     this.updateCamera();
     this.requestRender();
   }

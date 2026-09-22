@@ -6,6 +6,7 @@ import { addLayer, createDocument, createLayer, setLayerCells, updateLayer } fro
 import { createEffect } from '../effects';
 import { applyEdits, emptyGrid, keyOf } from '../grid';
 import { groupSelection } from '../object';
+import { selectionFromRect } from '../selection';
 import { deserialize } from '../serialization';
 import { bufferToText } from '../text';
 import v1 from './fixtures/v1-single-frame.bp.json?raw';
@@ -91,7 +92,12 @@ describe('золотые снимки композитора', () => {
         ]),
       ),
     );
-    const grouped = groupSelection(doc, layerId, { x: 1, y: 0, w: 2, h: 1 }, 'Grouped');
+    const grouped = groupSelection(
+      doc,
+      layerId,
+      selectionFromRect({ x: 1, y: 0, w: 2, h: 1 }, doc.width, doc.height)!,
+      'Grouped',
+    );
     if (!grouped) throw new Error('groupSelection вернул null, фикстура теста сломана');
     await expect(dumpFrame(composite(grouped.doc))).toMatchFileSnapshot(
       snapshot('object-over-raster'),

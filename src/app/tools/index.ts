@@ -7,7 +7,7 @@ import {
   createStrokeTool,
 } from './drawingTools';
 import { createObjectTool } from './objectTool';
-import { createSelectTool } from './selectTool';
+import { createLassoTool, createSelectTool, createWandTool } from './selectTool';
 import { createTextTool } from './textTool';
 import type { Tool, ToolId } from './types';
 
@@ -24,6 +24,8 @@ export const TOOLS: readonly Tool[] = [
   createFillTool(),
   createEyedropperTool(),
   createSelectTool(),
+  createLassoTool(),
+  createWandTool(),
   createTextTool(),
   createObjectTool(),
 ];

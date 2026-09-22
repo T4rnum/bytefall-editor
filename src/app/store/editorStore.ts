@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { DEFAULT_FG } from '../../core/cell';
 import type { Preview } from '../../core/compositor';
 import type { Document } from '../../core/document';
-import type { Point, Rect } from '../../core/geometry';
-import type { Clip } from '../../core/selection';
+import type { Point } from '../../core/geometry';
+import type { Clip, Selection } from '../../core/selection';
 import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import type { CameraState } from '../../render/SceneView';
 import type { ToolId } from '../tools/types';
@@ -25,11 +25,13 @@ export interface EditorState {
   readonly activeBrush: BrushSlot;
   /** Заливать ли фигуры (прямоугольник, эллипс). */
   readonly shapeFill: boolean;
+  /** Волшебная палочка берёт только связную область, а не все похожие ячейки слоя. */
+  readonly wandContiguous: boolean;
   readonly camera: CameraState;
   readonly showGrid: boolean;
   readonly workspaceColor: string;
   readonly cursorCell: Point | null;
-  readonly selection: Rect | null;
+  readonly selection: Selection | null;
   readonly clipboard: Clip | null;
   readonly preview: Preview | null;
   readonly textCursor: Point | null;
@@ -55,10 +57,11 @@ export interface EditorState {
   setBg: (bg: string | null) => void;
   swapColors: () => void;
   setShapeFill: (fill: boolean) => void;
+  setWandContiguous: (contiguous: boolean) => void;
   setCamera: (camera: CameraState) => void;
   setShowGrid: (show: boolean) => void;
   setCursorCell: (cell: Point | null) => void;
-  setSelection: (rect: Rect | null) => void;
+  setSelection: (selection: Selection | null) => void;
   setClipboard: (clip: Clip | null) => void;
   setPreview: (preview: Preview | null) => void;
   setTextCursor: (cell: Point | null) => void;
@@ -97,6 +100,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   ],
   activeBrush: 0,
   shapeFill: false,
+  wandContiguous: true,
   camera: { centerX: 0, centerY: 0, zoom: 16 },
   showGrid: true,
   workspaceColor: '#111114',
@@ -125,6 +129,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       return patchActive(s, { fg: b.bg ?? b.fg, bg: b.bg === null ? null : b.fg });
     }),
   setShapeFill: (shapeFill) => set({ shapeFill }),
+  setWandContiguous: (wandContiguous) => set({ wandContiguous }),
   setCamera: (camera) => set({ camera }),
   setShowGrid: (showGrid) => set({ showGrid }),
   setCursorCell: (cell) => set((s) => (samePoint(s.cursorCell, cell) ? s : { cursorCell: cell })),

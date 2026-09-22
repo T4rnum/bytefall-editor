@@ -1,6 +1,10 @@
 import { findLayer } from '../../core/document';
-import { clampRect } from '../../core/geometry';
-import { clearRectEdits, copyRect, pasteEdits } from '../../core/selection';
+import {
+  clearSelectionEdits,
+  copySelection,
+  pasteEdits,
+  selectionFromRect,
+} from '../../core/selection';
 import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 
@@ -9,7 +13,7 @@ export function copySelectionAction(): void {
   const { doc, activeLayerId } = useDocumentStore.getState();
   const layer = findLayer(doc, activeLayerId);
   if (!selection || !layer) return;
-  setClipboard(copyRect(layer.cells, selection));
+  setClipboard(copySelection(layer.cells, selection));
 }
 
 export function deleteSelectionAction(): void {
@@ -17,7 +21,7 @@ export function deleteSelectionAction(): void {
   const docState = useDocumentStore.getState();
   const layer = editableActiveLayer(docState);
   if (!selection || !layer) return;
-  docState.commitCells(layer.id, clearRectEdits(layer.cells, selection), 'Delete');
+  docState.commitCells(layer.id, clearSelectionEdits(layer.cells, selection), 'Delete');
 }
 
 export function cutSelectionAction(): void {
@@ -33,14 +37,15 @@ export function pasteAction(): void {
   const clip = editor.clipboard;
   if (!clip || !layer) return;
   const { width, height } = docState.doc;
-  const origin = editor.selection ?? editor.cursorCell ?? { x: 0, y: 0 };
+  const origin = editor.selection?.bounds ?? editor.cursorCell ?? { x: 0, y: 0 };
   const x = Math.max(0, Math.min(width - 1, origin.x));
   const y = Math.max(0, Math.min(height - 1, origin.y));
   docState.commitCells(layer.id, pasteEdits(clip, x, y, width, height), 'Paste');
-  editor.setSelection(clampRect({ x, y, w: clip.width, h: clip.height }, width, height));
+  editor.setSelection(selectionFromRect({ x, y, w: clip.width, h: clip.height }, width, height));
 }
 
 export function selectAllAction(): void {
   const { doc } = useDocumentStore.getState();
-  useEditorStore.getState().setSelection({ x: 0, y: 0, w: doc.width, h: doc.height });
+  const all = selectionFromRect({ x: 0, y: 0, w: doc.width, h: doc.height }, doc.width, doc.height);
+  useEditorStore.getState().setSelection(all);
 }

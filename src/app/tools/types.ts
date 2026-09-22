@@ -1,7 +1,8 @@
 import type { Cell } from '../../core/cell';
 import type { Document, Layer } from '../../core/document';
-import type { Point, Rect } from '../../core/geometry';
+import type { Point } from '../../core/geometry';
 import type { CellEdits } from '../../core/grid';
+import type { Selection } from '../../core/selection';
 
 export type ToolId =
   | 'pencil'
@@ -12,6 +13,8 @@ export type ToolId =
   | 'fill'
   | 'eyedropper'
   | 'select'
+  | 'lasso'
+  | 'wand'
   | 'text'
   | 'object';
 
@@ -28,12 +31,14 @@ export interface ToolEnv {
    */
   readonly brushFor: (button: number) => Cell | null;
   readonly shapeFill: boolean;
-  readonly selection: Rect | null;
+  /** Смежный режим волшебной палочки: только связная область, а не все похожие ячейки слоя. */
+  readonly wandContiguous: boolean;
+  readonly selection: Selection | null;
   readonly textCursor: Point | null;
   readonly selectedObjectId: string | null;
   setPreview: (edits: CellEdits | null) => void;
   commit: (edits: CellEdits, label: string) => void;
-  setSelection: (rect: Rect | null) => void;
+  setSelection: (selection: Selection | null) => void;
   /** Результат пипетки. Кнопка выбирает кисть, как и при рисовании. */
   pick: (cell: Cell, button?: number) => void;
   setTextCursor: (cell: Point | null) => void;
@@ -49,6 +54,7 @@ export interface PointerInfo {
   /** 0 левая, 1 средняя, 2 правая. */
   readonly button: number;
   readonly shift: boolean;
+  readonly alt: boolean;
 }
 
 export interface Tool {
@@ -56,6 +62,11 @@ export interface Tool {
   readonly label: string;
   readonly hotkey: string;
   readonly cursor: string;
+  /**
+   * Инструмент сам распоряжается Alt, поэтому быстрая пипетка по Alt на него не действует.
+   * У выделений Alt вычитает из набора, и это важнее, чем запасной способ взять цвет.
+   */
+  readonly ownsAlt?: boolean;
   onPointerDown?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerMove?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerUp?: (env: ToolEnv, info: PointerInfo) => void;

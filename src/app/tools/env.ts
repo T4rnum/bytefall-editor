@@ -21,6 +21,7 @@ export function buildToolEnv(): ToolEnv {
     brush: makeCell(active.glyph, active.fg, active.bg),
     brushFor: (button) => toCell(brushOf(editor, button)),
     shapeFill: editor.shapeFill,
+    wandContiguous: editor.wandContiguous,
     selection: editor.selection,
     textCursor: editor.textCursor,
     selectedObjectId: editor.selectedObjectId,

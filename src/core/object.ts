@@ -11,7 +11,7 @@ import {
   xOf,
   yOf,
 } from './grid';
-import { clearRectEdits, copyRect } from './selection';
+import { type Selection, clearSelectionEdits, copySelection } from './selection';
 
 export type PropValue = CellAttrValue;
 /** Произвольные свойства объекта: задел под логику, связи и анимацию. */
@@ -201,19 +201,20 @@ export function topCellAt(doc: Document, x: number, y: number): Cell | undefined
   return undefined;
 }
 
-/** Вырезает ячейки прямоугольника из растра слоя в новый объект. null, если в области пусто. */
+/** Вырезает выделенные ячейки из растра слоя в новый объект. null, если в выделении пусто. */
 export function groupSelection(
   doc: Document,
   layerId: string,
-  rect: Rect,
+  selection: Selection,
   name: string = `Object ${doc.objects.length + 1}`,
 ): { doc: Document; object: SceneObject } | null {
   const layer = findLayer(doc, layerId);
   if (!layer) return null;
-  const clip = copyRect(layer.cells, rect);
+  const clip = copySelection(layer.cells, selection);
   if (clip.cells.size === 0) return null;
-  const object = createObject({ name, layerId, x: rect.x, y: rect.y, cells: clip.cells });
-  const raster = applyEdits(layer.cells, clearRectEdits(layer.cells, rect));
+  const { x, y } = selection.bounds;
+  const object = createObject({ name, layerId, x, y, cells: clip.cells });
+  const raster = applyEdits(layer.cells, clearSelectionEdits(layer.cells, selection));
   return { doc: addObject(setLayerCells(doc, layerId, raster), object), object };
 }
 

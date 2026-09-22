@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Point, Rect } from '../core/geometry';
+import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
 
 export const ACCENT_COLOR = '#ffb347';
 export const OBJECT_COLOR = '#4fd1ff';
@@ -46,8 +47,7 @@ export class Overlay {
   readonly group = new THREE.Group();
   private readonly background: Plane;
   private readonly cursor: Outline;
-  private readonly selectionFill: Plane;
-  private readonly selectionOutline: Outline;
+  private readonly selection: SelectionLayer;
   private readonly objectOutline: Outline;
   private gridLines: Lines | null = null;
   private width = 0;
@@ -55,27 +55,18 @@ export class Overlay {
   private showGrid = true;
   private chromeVisible = true;
   private cursorCell: Point | null = null;
-  private selectionRect: Rect | null = null;
+  private hasSelection = false;
   private objectRect: Rect | null = null;
 
   constructor() {
     this.background = new THREE.Mesh(unitPlane(), planeMaterial('#000000', 1));
     this.background.renderOrder = 0;
-    this.selectionFill = new THREE.Mesh(unitPlane(), planeMaterial(ACCENT_COLOR, 0.18));
-    this.selectionFill.renderOrder = 3;
-    this.selectionOutline = new THREE.LineLoop(unitOutline(), lineMaterial(ACCENT_COLOR, 1));
-    this.selectionOutline.renderOrder = 3;
+    this.selection = createSelectionLayer(ACCENT_COLOR);
     this.objectOutline = new THREE.LineLoop(unitOutline(), lineMaterial(OBJECT_COLOR, 1));
     this.objectOutline.renderOrder = 3;
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = 4;
-    this.group.add(
-      this.background,
-      this.selectionFill,
-      this.selectionOutline,
-      this.objectOutline,
-      this.cursor,
-    );
+    this.group.add(this.background, this.selection.mesh, this.objectOutline, this.cursor);
     this.setSelection(null);
     this.setCursor(null);
   }
@@ -85,6 +76,7 @@ export class Overlay {
       this.width = width;
       this.height = height;
       this.background.scale.set(width, height, 1);
+      this.selection.setSize(width, height);
       this.rebuildGrid();
     }
     this.background.visible = background !== null;
@@ -102,16 +94,14 @@ export class Overlay {
     this.applyVisibility();
   }
 
-  setSelection(rect: Rect | null): void {
-    this.selectionRect = rect && rect.w > 0 && rect.h > 0 ? rect : null;
-    if (this.selectionRect) {
-      const { x, y, w, h } = this.selectionRect;
-      this.selectionFill.position.set(x, -y, 0);
-      this.selectionFill.scale.set(w, h, 1);
-      this.selectionOutline.position.set(x, -y, 0);
-      this.selectionOutline.scale.set(w, h, 1);
-    }
+  setSelection(selection: Selection | null): void {
+    this.hasSelection = this.selection.update(selection);
     this.applyVisibility();
+  }
+
+  /** Толщина обводки выделения задаётся в пикселях экрана, поэтому зависит от зума. */
+  setZoom(zoom: number): void {
+    this.selection.setZoom(zoom);
   }
 
   /** Рамка выбранного объекта в координатах документа. */
@@ -135,9 +125,7 @@ export class Overlay {
     const chrome = this.chromeVisible;
     if (this.gridLines) this.gridLines.visible = chrome && this.showGrid;
     this.cursor.visible = chrome && this.cursorCell !== null;
-    const selection = chrome && this.selectionRect !== null;
-    this.selectionFill.visible = selection;
-    this.selectionOutline.visible = selection;
+    this.selection.mesh.visible = chrome && this.hasSelection;
     this.objectOutline.visible = chrome && this.objectRect !== null;
   }
 
@@ -159,16 +147,10 @@ export class Overlay {
   }
 
   dispose(): void {
-    const owned = [
-      this.background,
-      this.selectionFill,
-      this.selectionOutline,
-      this.objectOutline,
-      this.cursor,
-    ];
-    for (const obj of owned) {
+    for (const obj of [this.background, this.objectOutline, this.cursor]) {
       disposeObject(obj);
     }
+    this.selection.dispose();
     if (this.gridLines) disposeObject(this.gridLines);
   }
 }

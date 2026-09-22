@@ -243,7 +243,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     if (!view || !container) return null;
     const rect = container.getBoundingClientRect();
     const cell = view.screenToCell(event.clientX - rect.left, event.clientY - rect.top);
-    return { cell, button: event.button, shift: event.shiftKey };
+    return { cell, button: event.button, shift: event.shiftKey, alt: event.altKey };
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -267,12 +267,13 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     if (event.button !== 0 && event.button !== 2) return;
     const info = pointerInfo(event);
     if (!info) return;
-    if (event.altKey) {
+    const tool = getTool(useEditorStore.getState().tool);
+    if (event.altKey && !tool.ownsAlt) {
       pickAt(buildToolEnv(), info.cell, event.button);
       return;
     }
     dragRef.current = { kind: 'tool', pointerId: event.pointerId };
-    getTool(useEditorStore.getState().tool).onPointerDown?.(buildToolEnv(), info);
+    tool.onPointerDown?.(buildToolEnv(), info);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {

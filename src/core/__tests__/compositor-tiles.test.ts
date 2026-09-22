@@ -12,6 +12,7 @@ import {
 import { createEffect } from '../effects';
 import { type CellKey, applyEdits, emptyGrid, keyOf } from '../grid';
 import { groupSelection } from '../object';
+import { selectionFromRect } from '../selection';
 import { tileLayout, tilesFromKeys } from '../tiles';
 
 interface CompositeArgs {
@@ -119,7 +120,12 @@ describe('частичная пересборка кадра', () => {
 
   it('объект поверх растра совпадает', () => {
     const { doc, layerId } = sampleDoc();
-    const grouped = groupSelection(doc, layerId, { x: 5, y: 5, w: 10, h: 6 }, 'Obj');
+    const grouped = groupSelection(
+      doc,
+      layerId,
+      selectionFromRect({ x: 5, y: 5, w: 10, h: 6 }, doc.width, doc.height)!,
+      'Obj',
+    );
     if (!grouped) throw new Error('groupSelection вернул null');
     const previous = composite(grouped.doc);
     const moved = {
