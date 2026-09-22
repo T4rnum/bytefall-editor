@@ -24,6 +24,7 @@ for (const size of BENCH_SIZES) {
   const strokeTiles = [...tilesFromKeys(layout, preview.edits.keys())];
   // Прогреваем индекс и буфер, чтобы замер не включал разовое построение.
   composite(doc, preview, target);
+  let fireTime = 0;
 
   describe(`composite ${size.label}`, () => {
     it('сборка кадра', async ({ bench }) => {
@@ -37,7 +38,13 @@ for (const size of BENCH_SIZES) {
         bench('кадр с превью мазка в 64 ячейки', () => {
           composite(doc, preview, target);
         }),
-        bench('кадр с эффектом огня', () => {
+        // Время идёт как при проигрывании, 30 тиков в секунду: кэш эффекта попадает не всегда.
+        bench('кадр с огнём, время идёт', () => {
+          fireTime += 33;
+          composite(withFire, null, target, [], fireTime);
+        }),
+        // Тик эффекта не сменился: ровно то, что экономит кэш.
+        bench('кадр с огнём, тик тот же', () => {
           composite(withFire, null, target, [], 500);
         }),
         bench('кадр без переиспользования буфера', () => {

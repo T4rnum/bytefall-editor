@@ -1,7 +1,7 @@
 import { type Cell, isBlankCell } from './cell';
 import { type Rgba, TRANSPARENT, over, parseHex, toHex, withAlpha } from './color';
 import type { Document, Layer } from './document';
-import { applyEffects, hasActiveEffects } from './effects';
+import { applyEffects, effectSignature, hasActiveEffects } from './effects';
 import { type CellEdits, type CellGrid, type CellKey, keyOf, xOf, yOf } from './grid';
 import { type TileLayout, tileIndexOf, tileLayout, tileOf, tileRect } from './tiles';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -209,6 +209,31 @@ export function canRebuildTiles(doc: Document, ghosts: readonly Ghost[] = []): b
   const plain = (d: Document): boolean =>
     d.layers.every((l) => !l.visible || l.opacity <= 0 || !hasActiveEffects(l.effects));
   return plain(doc) && ghosts.every((g) => plain(g.doc));
+}
+
+/**
+ * Подпись всех активных эффектов документа и его призраков. Пока она не меняется, кадр эффектов
+ * будет тем же, и пересобирать его незачем: часы идут 30 раз в секунду, а огонь с периодом 90 мс
+ * меняется примерно 11, то есть две трети тиков не несут никакой новой картинки.
+ */
+export function effectsSignature(
+  doc: Document,
+  time: number,
+  ghosts: readonly Ghost[] = [],
+): string {
+  const parts: string[] = [];
+  const collect = (d: Document): void => {
+    const ctx = { time, width: d.width, height: d.height };
+    for (const layer of d.layers) {
+      if (!layer.visible || layer.opacity <= 0) continue;
+      for (const effect of layer.effects) {
+        if (effect.enabled) parts.push(`${effect.id}@${effectSignature(effect, ctx)}`);
+      }
+    }
+  };
+  collect(doc);
+  for (const ghost of ghosts) collect(ghost.doc);
+  return parts.join('|');
 }
 
 /** Очищает либо весь буфер, либо только перечисленные тайлы. */

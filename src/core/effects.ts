@@ -253,7 +253,57 @@ function applyFire(cells: CellGrid, fx: FireEffect, ctx: EffectContext): CellGri
   return out;
 }
 
+/**
+ * Момент времени, от которого зависит результат эффекта. Пока подпись не изменилась, эффект даст
+ * тот же кадр, и его можно не считать заново.
+ *
+ * Мерцание, перебор символов и огонь работают по целым тикам своего периода, прокрутка — по целому
+ * сдвигу в ячейках: для них подпись точная. Пульс и волна идут непрерывно, и для них подписью
+ * служит само время: приблизить его значило бы разойтись между экраном и экспортом.
+ */
+export function effectSignature(effect: LayerEffect, ctx: EffectContext): string {
+  const size = `${ctx.width}x${ctx.height}`;
+  switch (effect.kind) {
+    case 'flicker':
+    case 'cycle':
+    case 'fire':
+      return `${Math.floor(ctx.time / Math.max(1, effect.period))}:${size}`;
+    case 'scroll': {
+      const ox = Math.round((effect.dx * ctx.time) / 1000);
+      const oy = Math.round((effect.dy * ctx.time) / 1000);
+      return `${ox},${oy}:${size}`;
+    }
+    default:
+      return `${ctx.time}:${size}`;
+  }
+}
+
+interface EffectCacheEntry {
+  readonly cells: CellGrid;
+  readonly signature: string;
+  readonly out: CellGrid;
+}
+
+/**
+ * Последний результат каждого эффекта. Ключ — сам объект эффекта: он неизменяем, поэтому правка
+ * любого параметра создаёт новый объект и старая запись перестаёт использоваться сама собой.
+ *
+ * Помогает там, где эффект есть, а меняется не он: при рисовании на другом слое и между тиками
+ * часов внутри одного кадра эффекта. Часы идут 30 раз в секунду, а огонь с периодом 90 мс меняется
+ * примерно 11 раз, и разницу теперь не считает никто.
+ */
+const effectCache = new WeakMap<LayerEffect, EffectCacheEntry>();
+
 export function applyEffect(cells: CellGrid, effect: LayerEffect, ctx: EffectContext): CellGrid {
+  const signature = effectSignature(effect, ctx);
+  const cached = effectCache.get(effect);
+  if (cached && cached.cells === cells && cached.signature === signature) return cached.out;
+  const out = computeEffect(cells, effect, ctx);
+  effectCache.set(effect, { cells, signature, out });
+  return out;
+}
+
+function computeEffect(cells: CellGrid, effect: LayerEffect, ctx: EffectContext): CellGrid {
   switch (effect.kind) {
     case 'pulse':
       return applyPulse(cells, effect, ctx);

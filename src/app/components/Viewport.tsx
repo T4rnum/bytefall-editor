@@ -1,6 +1,12 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { frameDocument } from '../../core/animation';
-import { type CellBuffer, type Ghost, canRebuildTiles, composite } from '../../core/compositor';
+import {
+  type CellBuffer,
+  type Ghost,
+  canRebuildTiles,
+  composite,
+  effectsSignature,
+} from '../../core/compositor';
 import { inBounds } from '../../core/geometry';
 import { findObject, objectBounds } from '../../core/object';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
@@ -65,6 +71,9 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
        */
       const tiles = dirty && previous && canRebuildTiles(doc, ghosts) ? [...dirty] : undefined;
       bufferRef.current = composite(doc, preview, previous ?? undefined, ghosts, effectTime, tiles);
+      // Запоминаем при каждой пересборке, а не только на тиках: так проверка ниже не зависит
+      // от того, в каком порядке пришли события.
+      lastEffects = effectsSignature(doc, effectTime, ghosts);
       view.setBuffer(bufferRef.current, tiles);
     };
 
@@ -99,6 +108,8 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     };
 
     let lastEpoch = -1;
+    /** Подпись эффектов на последнем собранном кадре, см. проверку в syncEditor. */
+    let lastEffects = '';
     const syncDocument = (state: DocumentState, prev: DocumentState | null): void => {
       if (!prev || state.doc !== prev.doc) {
         view.setDocument(state.doc.width, state.doc.height, state.doc.background);
@@ -129,6 +140,14 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     };
 
     const syncEditor = (state: EditorState, prev: EditorState | null): void => {
+      const onlyClockTicked =
+        prev !== null &&
+        state.effectTime !== prev.effectTime &&
+        state.preview === prev.preview &&
+        state.draft === prev.draft &&
+        state.onionSkin === prev.onionSkin &&
+        state.isPlaying === prev.isPlaying;
+
       if (
         !prev ||
         state.preview !== prev.preview ||
@@ -137,6 +156,14 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         state.isPlaying !== prev.isPlaying ||
         state.effectTime !== prev.effectTime
       ) {
+        // Часы идут чаще, чем меняется картинка эффектов: тик, который ничего не меняет,
+        // не стоит превращать в полную пересборку кадра.
+        if (
+          onlyClockTicked &&
+          effectsSignature(currentDoc(), state.effectTime, ghostFrames()) === lastEffects
+        ) {
+          return;
+        }
         recomposite(dirtyFromPreview(state, prev) ?? undefined);
       }
       if (!prev || state.draft !== prev.draft || state.selectedObjectId !== prev.selectedObjectId) {
