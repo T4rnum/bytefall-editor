@@ -205,7 +205,7 @@ export function NumberField({
       aria-valuemin={Number.isFinite(min) ? min : undefined}
       aria-valuemax={Number.isFinite(max) ? max : undefined}
       aria-disabled={disabled || undefined}
-      title={title ?? 'Тяни, чтобы менять. Щелчок — ввод. Shift точнее, Ctrl крупнее'}
+      data-tip={title ?? 'Тяни, чтобы менять. Щелчок — ввод. Shift точнее, Ctrl крупнее'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

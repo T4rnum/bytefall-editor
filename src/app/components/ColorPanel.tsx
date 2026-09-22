@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Ban, Plus } from 'lucide-react';
+import { ArrowLeftRight, Plus } from 'lucide-react';
 import { normalizeHex } from '../../core/color';
 import {
   addPaletteColorAction,
@@ -7,10 +7,7 @@ import {
 } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
-import { Button, Field, Panel } from '../ui';
-
-/** input[type=color] понимает только #rrggbb. */
-const toInputColor = (hex: string): string => normalizeHex(hex).slice(0, 7);
+import { Button, ColorField, Field, Panel } from '../ui';
 
 export function ColorPanel() {
   const fg = useEditorStore((s) => s.fg);
@@ -32,33 +29,14 @@ export function ColorPanel() {
       }
     >
       <div className="color-pair">
-        <label
-          className="swatch swatch--fg"
-          title="Foreground: glyph color"
-          style={{ background: fg }}
-        >
-          <input type="color" value={toInputColor(fg)} onChange={(e) => setFg(e.target.value)} />
-        </label>
-        <label
-          className={`swatch swatch--bg${bg === null ? ' swatch--none' : ''}`}
-          title="Background: cell color"
-          style={bg === null ? undefined : { background: bg }}
-        >
-          <input
-            type="color"
-            value={toInputColor(bg ?? '#000000')}
-            onChange={(e) => setBg(e.target.value)}
-          />
-        </label>
-        <Button
-          icon
-          size="sm"
-          label="No background"
-          active={bg === null}
-          onClick={() => setBg(null)}
-        >
-          <Ban size={14} />
-        </Button>
+        <ColorField
+          value={fg}
+          onChange={(next) => setFg(next ?? fg)}
+          label="Цвет символа"
+          eyedropper
+          className="colorfield--fg"
+        />
+        <ColorField value={bg} onChange={setBg} label="Цвет фона ячейки" allowNone />
       </div>
 
       <div className="palette" role="list" aria-label="Palette">
@@ -88,20 +66,13 @@ export function ColorPanel() {
       </div>
 
       <Field label="Canvas">
-        <input
-          type="color"
-          className="color-inline"
-          aria-label="Canvas background color"
-          value={toInputColor(background ?? '#000000')}
-          onChange={(e) => setBackgroundAction(e.target.value)}
-        />
-        <Button
+        <ColorField
+          value={background}
+          onChange={setBackgroundAction}
+          label="Цвет холста"
+          allowNone
           size="sm"
-          active={background === null}
-          onClick={() => setBackgroundAction(background === null ? '#000000' : null)}
-        >
-          {background === null ? 'transparent' : 'solid'}
-        </Button>
+        />
       </Field>
     </Panel>
   );

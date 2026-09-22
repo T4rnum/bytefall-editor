@@ -5,6 +5,7 @@
  */
 export { Button, tooltip, type ButtonProps, type ButtonVariant, type ControlSize } from './Button';
 export { Checkbox, type CheckboxProps } from './Checkbox';
+export { ColorField, type ColorFieldProps } from './ColorField';
 export { Field, FieldGroup, type FieldProps } from './Field';
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { Panel, type PanelProps } from './Panel';
@@ -13,6 +14,7 @@ export { Select, optionsOf, type SelectOption, type SelectProps } from './Select
 export { Slider, type SliderProps } from './Slider';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { TextField, type TextFieldProps } from './TextField';
+export { TIP_ATTR, TooltipLayer } from './Tooltip';
 export { readSetting, writeSetting } from './persist';
 export {
   clamp,

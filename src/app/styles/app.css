@@ -335,6 +335,12 @@ select {
   gap: var(--space-4);
 }
 
+.colorfield {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .swatch {
   position: relative;
   width: 36px;
@@ -345,6 +351,17 @@ select {
   cursor: pointer;
 }
 
+.swatch--sm {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border-width: 1px;
+}
+
+/** Цвет символа — основной, поэтому его образец выделен рамкой цвета текста. */
+.colorfield--fg .swatch {
+  border-color: var(--text);
+}
+
 .swatch input[type='color'] {
   position: absolute;
   inset: 0;
@@ -352,10 +369,6 @@ select {
   height: 100%;
   opacity: 0;
   cursor: pointer;
-}
-
-.swatch--fg {
-  border-color: var(--text);
 }
 
 /** Шахматка «нет цвета». Оба квадрата берут цвет из токенов поверхностей. */
@@ -409,16 +422,6 @@ select {
   background: transparent;
   border-style: dashed;
   color: var(--text-dim);
-}
-
-.color-inline {
-  width: 28px;
-  height: var(--control-h-sm);
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
 }
 
 /* ── Глифы ─────────────────────────────────────────────────────────────── */

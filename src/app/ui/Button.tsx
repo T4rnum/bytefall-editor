@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { TIP_ATTR } from './Tooltip';
 
 export type ButtonVariant = 'ghost' | 'primary' | 'danger';
 export type ControlSize = 'sm' | 'md' | 'lg';
@@ -52,7 +53,7 @@ export function Button({
     <button
       type={type}
       className={classes}
-      title={label ? tooltip(label, hotkey) : undefined}
+      {...(label ? { [TIP_ATTR]: tooltip(label, hotkey) } : {})}
       aria-label={icon ? label : undefined}
       aria-pressed={active || undefined}
       {...rest}

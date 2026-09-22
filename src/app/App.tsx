@@ -19,6 +19,7 @@ import { usePlayback } from './hooks/usePlayback';
 import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
 import { useUiStore } from './store/uiStore';
 import { Resizer } from './ui/Resizer';
+import { TooltipLayer } from './ui/Tooltip';
 
 /** Пикселей на ячейку атласа: кратно 8, чтобы пиксели шрифта ложились ровно. 32 даёт 4 текселя на пиксель шрифта. */
 const ATLAS_CELL_SIZE = 32;
@@ -76,6 +77,7 @@ export function App() {
       <TimelinePanel />
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
+      <TooltipLayer />
     </div>
   );
 }
