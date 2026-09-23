@@ -334,14 +334,16 @@
 }
 
 /* ── Вкладки ───────────────────────────────────────────────────────────── */
+/** Вкладки переносятся на новую строку, а не распирают узкую панель вбок. */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
 }
 
 .tab {
-  flex: 1;
-  padding: var(--space-1) 0;
+  flex: 1 1 auto;
+  padding: var(--space-1) var(--space-2);
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -483,10 +485,14 @@
   white-space: nowrap;
 }
 
+/** Кнопки панели переносятся под заголовок, если их больше, чем влезает в узкий сайдбар. */
 .panel-actions {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-1);
+  min-width: 0;
   margin-left: auto;
 }
 
