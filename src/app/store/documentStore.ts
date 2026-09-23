@@ -61,8 +61,11 @@ export interface DocumentState {
   replaceAnimation: (animation: Animation, file?: FileRef, dirty?: boolean) => void;
   /** Правки ячеек слоя текущего кадра одной записью истории. false, если слой нельзя редактировать. */
   commitCells: (layerId: string, edits: CellEdits, label: string) => boolean;
-  /** Структурная операция над текущим кадром: объекты, палитра, имя, фон. */
-  commitStructural: (label: string, next: Document) => void;
+  /**
+   * Структурная операция над текущим кадром: объекты, палитра, имя, фон. `mergeKey` склеивает
+   * подряд идущие записи одного жеста, как у `commitAnimation`.
+   */
+  commitStructural: (label: string, next: Document, mergeKey?: string) => void;
   /**
    * Операция над всей анимацией: кадры и общие для всех кадров слои. Может сменить текущий кадр.
    * `mergeKey` склеивает подряд идущие записи одной серии, см. `core/history.ts`.
@@ -146,10 +149,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     return true;
   },
 
-  commitStructural: (label, next) => {
+  commitStructural: (label, next, mergeKey) => {
     const { doc, animation, frameIndex } = get();
     if (next === doc) return;
-    get().commitAnimation(label, withFrameDocument(animation, frameIndex, next));
+    get().commitAnimation(
+      label,
+      withFrameDocument(animation, frameIndex, next),
+      undefined,
+      mergeKey,
+    );
   },
 
   commitAnimation: (label, next, nextFrameIndex, mergeKey) => {

@@ -84,10 +84,11 @@ export function updateLayerAction(
   );
 }
 
-export function setBackgroundAction(background: string | null): void {
+/** `mergeKey` склеивает правки одного жеста по палитре в одну запись истории. */
+export function setBackgroundAction(background: string | null, mergeKey?: string): void {
   const { doc, commitStructural } = state();
   if (background === doc.background) return;
-  commitStructural('Canvas background', { ...doc, background });
+  commitStructural('Canvas background', { ...doc, background }, mergeKey);
 }
 
 export function renameDocumentAction(name: string): void {

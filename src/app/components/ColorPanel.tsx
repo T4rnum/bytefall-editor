@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ArrowLeftRight, Plus } from 'lucide-react';
 import { normalizeHex } from '../../core/color';
 import {
@@ -11,6 +12,11 @@ import { Button, ColorField, Field, Panel } from '../ui';
 import { SLOT_LABELS } from './BrushPanel';
 
 export function ColorPanel() {
+  /**
+   * Цвет холста — правка документа, и палитра шлёт её на каждое движение. Правки одного жеста
+   * склеиваются общим ключом серии в одну запись истории, как у ползунка непрозрачности слоя.
+   */
+  const gesture = useRef(0);
   const fg = useEditorStore((s) => activeBrush(s).fg);
   const bg = useEditorStore((s) => activeBrush(s).bg);
   const setFg = useEditorStore((s) => s.setFg);
@@ -71,7 +77,12 @@ export function ColorPanel() {
       <Field label="Холст">
         <ColorField
           value={background}
-          onChange={setBackgroundAction}
+          onChange={(next) => setBackgroundAction(next, `canvas-background:${gesture.current}`)}
+          onCommit={(next) => {
+            setBackgroundAction(next, `canvas-background:${gesture.current}`);
+            // Конец жеста: следующий выбор цвета станет отдельной отменой.
+            gesture.current += 1;
+          }}
           label="Цвет холста"
           allowNone
           size="sm"
