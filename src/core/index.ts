@@ -5,6 +5,8 @@ export * from './cell';
 export * from './cellBuffer';
 export * from './color';
 export * from './compositor';
+export * from './deformObject';
+export * from './deformers';
 export * from './document';
 export * from './easing';
 export * from './effects';

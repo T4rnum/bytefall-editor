@@ -3,6 +3,7 @@ import { colorOf } from './cellBuffer';
 import type { Cell } from './cell';
 import { type Rgba, TRANSPARENT, tintColor, withAlpha } from './color';
 import { type CellKey, xOf, yOf } from './grid';
+import { deformedPoses, isDeformed, poseMatrix } from './deformObject';
 import { tintOf } from './look';
 import type { SceneObject } from './object';
 import { glyphMatrix } from './transform';
@@ -127,11 +128,19 @@ export function pushObjectGlyphs(
   obj: SceneObject,
   world: Affine,
   opacity: number,
+  time = 0,
 ): void {
   const pose = decomposeAffine(world);
   const alpha = opacity * obj.opacity;
   const tint = tintOf(obj);
   const paint = (hex: string): Rgba => withAlpha(tintColor(colorOf(hex), tint), alpha);
+  if (isDeformed(obj)) {
+    const tinted = (c: Rgba): Rgba => withAlpha(tintColor(c, tint), alpha);
+    for (const p of deformedPoses(obj, time)) {
+      builder.push(poseMatrix(world, p), p.glyph, tinted(p.fg), tinted(p.bg));
+    }
+    return;
+  }
   const fgOf = (cell: Cell): Rgba => paint(cell.fg);
   const bgOf = (cell: Cell): Rgba => (cell.bg === null ? TRANSPARENT : paint(cell.bg));
   for (const [key, cell] of obj.cells) {

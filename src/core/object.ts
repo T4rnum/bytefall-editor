@@ -1,4 +1,5 @@
 import type { CellAttrValue } from './cell';
+import type { Deformer } from './deformers';
 import { type Document, canEditLayer, findLayer, newId } from './document';
 import { type CellGrid, emptyGrid } from './grid';
 import {
@@ -41,6 +42,8 @@ export interface SceneObject {
   readonly cells: CellGrid;
   /** Поворот, размер и сдвиг отдельных символов. Разреженные: только то, что правили руками. */
   readonly overrides: GlyphOverrides;
+  /** Стек деформеров, порядок важен, см. `core/deformers.ts`. */
+  readonly deformers: readonly Deformer[];
   readonly props: ObjectProps;
 }
 
@@ -71,6 +74,7 @@ export function createObject(init: CreateObjectInit): SceneObject {
     tint: null,
     cells,
     overrides: emptyOverrides(),
+    deformers: [],
     props: init.props ?? {},
   };
 }

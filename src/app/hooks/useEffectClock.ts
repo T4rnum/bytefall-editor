@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isDeformed } from '../../core/deformObject';
 import { hasActiveEffects } from '../../core/effects';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
@@ -14,8 +15,10 @@ const MIN_TICK_MS = 1000 / 30;
 export function useEffectClock(): void {
   const live = useEditorStore((s) => s.effectsLive && !s.isPlaying);
   const hasEffects = useDocumentStore((s) =>
-    s.animation.frames.some((frame) =>
-      frame.layers.some((layer) => hasActiveEffects(layer.effects)),
+    s.animation.frames.some(
+      (frame) =>
+        frame.layers.some((layer) => hasActiveEffects(layer.effects)) ||
+        frame.objects.some(isDeformed),
     ),
   );
 

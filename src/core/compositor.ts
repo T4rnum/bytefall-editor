@@ -2,6 +2,7 @@ import type { Affine } from './affine';
 import { isBlankCell } from './cell';
 import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
+import { isDeformed, rasterizeDeformed } from './deformObject';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
 import { lookCell, tintOf } from './look';
 import type { Rect } from './geometry';
@@ -66,7 +67,7 @@ function layerContent(
  */
 export interface DrawTarget {
   cells(): CellBuffer;
-  free(obj: SceneObject, matrix: Affine, opacity: number): void;
+  free(obj: SceneObject, matrix: Affine, opacity: number, time: number): void;
 }
 
 type CellFilter = (x: number, y: number) => boolean;
@@ -92,6 +93,23 @@ export function blendObject(
   const tint = tintOf(obj);
   // Оттенок бывает только у объектов: смешивание растра, горячий путь, о нём не знает.
   rasterizeObject(obj, matrix, canvas, (x, y, cell) => {
+    if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
+  });
+}
+
+/** Деформированный объект в буфер по ячейкам — так он уходит в текст и миниатюры. */
+function blendDeformed(
+  buf: CellBuffer,
+  obj: SceneObject,
+  matrix: Affine,
+  opacity: number,
+  wanted: CellFilter,
+  time: number,
+): void {
+  const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
+  const alpha = opacity * obj.opacity;
+  const tint = tintOf(obj);
+  rasterizeDeformed(obj, matrix, time, canvas, (x, y, cell) => {
     if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
   });
 }
@@ -170,7 +188,7 @@ export function drawDocument(
       }
       for (const obj of objects) {
         if (isDrawn(obj) && isFreeObject(obj, matrixOf(obj)))
-          target.free(obj, matrixOf(obj), opacity);
+          target.free(obj, matrixOf(obj), opacity, time);
       }
       continue;
     }
@@ -179,7 +197,7 @@ export function drawDocument(
     for (const obj of objects) {
       if (!isDrawn(obj)) continue;
       const matrix = matrixOf(obj);
-      if (isFreeObject(obj, matrix)) target.free(obj, matrix, opacity);
+      if (isFreeObject(obj, matrix)) target.free(obj, matrix, opacity, time);
       else blendObject(target.cells(), obj, matrix, opacity, wanted);
     }
   }
@@ -210,6 +228,9 @@ export function effectsSignature(
   const parts: string[] = [];
   const collect = (d: Document): void => {
     const ctx = { time, width: d.width, height: d.height };
+    // Деформер — функция времени, как и эффект: его объект меняется на каждый момент.
+    for (const obj of d.objects)
+      if (obj.visible && isDeformed(obj)) parts.push(`${obj.id}~${time}`);
     for (const layer of d.layers) {
       if (!layer.visible || layer.opacity <= 0) continue;
       for (const effect of layer.effects) {
@@ -277,7 +298,10 @@ export function composite(
   // Плоский кадр: свободные объекты впечатываются в тот же буфер, как в текст.
   const flat: DrawTarget = {
     cells: () => buf,
-    free: (obj, matrix, opacity) => blendObject(buf, obj, matrix, opacity, wanted),
+    free: (obj, matrix, opacity, t) =>
+      isDeformed(obj)
+        ? blendDeformed(buf, obj, matrix, opacity, wanted, t)
+        : blendObject(buf, obj, matrix, opacity, wanted),
   };
   for (const ghost of ghosts) {
     drawDocument(flat, ghost.doc, null, ghost.opacity, time, layout, tiles);

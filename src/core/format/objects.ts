@@ -168,6 +168,7 @@ export function objectsFromFile(
       tint: obj.tint === undefined ? null : normalizeHex(obj.tint),
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
+      deformers: [],
       props: obj.props ?? {},
     };
   });
