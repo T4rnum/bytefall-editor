@@ -21,6 +21,7 @@ export {
   valueTypeName,
 } from './PropertyEditor';
 export { Resizer, type ResizerProps } from './Resizer';
+export { dropsBefore, reorderIndex } from './reorder';
 export { Select, optionsOf, type SelectOption, type SelectProps } from './Select';
 export { Slider, type SliderProps } from './Slider';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';

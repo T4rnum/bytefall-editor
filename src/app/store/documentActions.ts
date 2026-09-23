@@ -71,6 +71,15 @@ export function moveActiveLayerAction(delta: number): void {
  * Меняет свойства слоя во всех кадрах. Анимированная непрозрачность получает ключ в текущий
  * момент, а не новое значение: иначе поле перезаписало бы то, что ведут ключи.
  */
+/** Переносит слой на позицию `index` во всех кадрах: так слой перетаскивают мышью. */
+export function moveLayerToAction(id: string, index: number): void {
+  const { animation, commitAnimation } = state();
+  commitAnimation(
+    'Move layer',
+    mapFrames(animation, (d) => moveLayer(d, id, index)),
+  );
+}
+
 export function updateLayerAction(
   id: string,
   patch: Partial<Omit<Layer, 'id' | 'cells' | 'effects'>>,

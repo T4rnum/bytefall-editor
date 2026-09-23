@@ -15,31 +15,72 @@ import {
   addLayerAction,
   duplicateActiveLayerAction,
   moveActiveLayerAction,
+  moveLayerToAction,
   removeActiveLayerAction,
   updateLayerAction,
 } from '../store/documentActions';
 import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
 import { toggleKeyAction } from '../store/keyActions';
-import { Button, KeyButton, Panel, Slider, TextField } from '../ui';
+import { Button, KeyButton, Panel, Slider, TextField, dropsBefore, reorderIndex } from '../ui';
+
+/** Перетаскивание строки: откуда взяли, над какой строкой и с какой стороны от неё. */
+interface Drag {
+  readonly from: number;
+  readonly over: number;
+  readonly before: boolean;
+}
+
+interface RowDrag {
+  readonly state: 'dragged' | 'before' | 'after' | null;
+  readonly onStart: () => void;
+  readonly onOver: (before: boolean) => void;
+  readonly onDrop: () => void;
+  readonly onEnd: () => void;
+}
 
 function LayerRow({
   layer,
   active,
   onActivate,
+  drag,
 }: {
   layer: Layer;
   active: boolean;
   onActivate: () => void;
+  drag: RowDrag;
 }) {
   const [editing, setEditing] = useState(false);
   const VisibleIcon = layer.visible ? Eye : EyeOff;
   const LockIcon = layer.locked ? Lock : LockOpen;
+  const classes = [
+    'item-row',
+    active ? 'is-active' : '',
+    layer.visible ? '' : 'is-hidden',
+    drag.state === 'dragged' ? 'is-dragged' : '',
+    drag.state === 'before' ? 'is-drop-before' : '',
+    drag.state === 'after' ? 'is-drop-after' : '',
+  ];
 
   return (
     <li
-      className={`item-row${active ? ' is-active' : ''}${layer.visible ? '' : ' is-hidden'}`}
+      className={classes.filter(Boolean).join(' ')}
       onClick={onActivate}
+      draggable={!editing}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', layer.name);
+        drag.onStart();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        drag.onOver(dropsBefore(e.clientY, e.currentTarget.getBoundingClientRect()));
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        drag.onDrop();
+      }}
+      onDragEnd={drag.onEnd}
     >
       <Button
         icon
@@ -99,6 +140,34 @@ export function LayersPanel() {
   const activeLayerId = useDocumentStore((s) => s.activeLayerId);
   const setActiveLayer = useDocumentStore((s) => s.setActiveLayer);
   const active = doc.layers.find((l) => l.id === activeLayerId);
+  // Сверху — верхний слой, как в любом редакторе; в документе слои идут снизу вверх.
+  const display = [...doc.layers].reverse();
+  const [drag, setDrag] = useState<Drag | null>(null);
+
+  /** Слой, брошенный мышью, встаёт туда, где стояла черта, во всех кадрах сразу. */
+  const drop = (): void => {
+    if (!drag) return;
+    setDrag(null);
+    const to = reorderIndex(drag.from, drag.over, drag.before);
+    if (to !== drag.from) moveLayerToAction(display[drag.from].id, display.length - 1 - to);
+  };
+  const rowDrag = (i: number): RowDrag => ({
+    state:
+      drag === null
+        ? null
+        : drag.from === i
+          ? 'dragged'
+          : drag.over === i
+            ? drag.before
+              ? 'before'
+              : 'after'
+            : null,
+    onStart: () => setDrag({ from: i, over: i, before: true }),
+    onOver: (before) =>
+      setDrag((d) => (d && (d.over !== i || d.before !== before) ? { ...d, over: i, before } : d)),
+    onDrop: drop,
+    onEnd: () => setDrag(null),
+  });
   /**
    * Непрозрачность пишется в документ на каждое движение, чтобы холст менялся живьём.
    * Чтобы жест при этом остался одной записью истории, все правки внутри него помечаются
@@ -155,12 +224,13 @@ export function LayersPanel() {
       }
     >
       <ul className="item-list">
-        {[...doc.layers].reverse().map((layer) => (
+        {display.map((layer, i) => (
           <LayerRow
             key={layer.id}
             layer={layer}
             active={layer.id === activeLayerId}
             onActivate={() => setActiveLayer(layer.id)}
+            drag={rowDrag(i)}
           />
         ))}
       </ul>
