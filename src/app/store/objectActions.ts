@@ -100,9 +100,13 @@ export function duplicateSelectedObjectAction(): void {
   if (!obj || !hasRoomForObject()) return;
   const { doc, animation, time, commitAnimation } = docState();
   const next = duplicateObject(doc, obj.id);
-  const copyId = next.objects[objectIndex(doc, obj.id) + 1].id;
+  const copy = next.objects[objectIndex(doc, obj.id) + 1];
+  const copyId = copy.id;
   const edited = applyEdit(animation, time, doc, next);
-  const copied = copyTracks(edited.tracks, 'object', new Map([[obj.id, copyId]]));
+  // Деформеры копии идут в том же порядке, что у оригинала, но под новыми идентификаторами.
+  const deformerIds = new Map(obj.deformers.map((d, i) => [d.id, copy.deformers[i].id]));
+  let copied = copyTracks(edited.tracks, 'object', new Map([[obj.id, copyId]]));
+  copied = copyTracks(copied, 'deformer', deformerIds);
   const tracks = shiftPositionKeys(copied, new Set([copyId]), 1, 1);
   commitAnimation('Duplicate object', { ...edited, tracks });
   editor().setSelectedObject(copyId);

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { frameDocument } from '../animation';
+import { duplicateAnimationLayer, frameDocument } from '../animation';
 import { createDeformer } from '../deformers';
 import { evaluate, readTarget } from '../evaluate';
 import { applyEdit, pruneTracks, unanimate } from '../keyframes';
-import { findObject, moveObject, updateObject } from '../object';
+import { duplicateObject, findObject, moveObject, pasteObject, updateObject } from '../object';
 import { deserialize, serialize } from '../serialization';
 import { findTrack, setKey } from '../tracks';
 import { BALL, ballScene } from './helpers/ballScene';
@@ -51,5 +51,28 @@ describe('ключи параметров деформера', () => {
   it('трек деформера переживает сохранение', () => {
     const back = deserialize(serialize(wavingBall()));
     expect(findTrack(back.tracks, amplitude)?.keys.map((k) => k.value)).toEqual([[0], [2]]);
+  });
+});
+
+describe('копии объекта с деформерами', () => {
+  it('копия и вставка под новым id получают свои деформеры, тот же объект — те же', () => {
+    const anim = wavingBall();
+    const doc = frameDocument(anim, 0);
+    const copy = duplicateObject(doc, BALL).objects[1];
+    expect(copy.deformers[0].id).not.toBe('wave');
+    const ball = findObject(doc, BALL)!;
+    expect(pasteObject(doc, ball, ball.layerId).object.deformers[0].id).not.toBe('wave');
+    const elsewhere = { ...doc, objects: [] };
+    expect(pasteObject(elsewhere, ball, ball.layerId).object.deformers[0].id).toBe('wave');
+  });
+
+  it('копия слоя уносит ключи деформера на новый деформер', () => {
+    const anim = wavingBall();
+    const layerId = anim.frames[0].layers[0].id;
+    const next = duplicateAnimationLayer(anim, layerId, 'layer-copy');
+    const copy = next.frames[0].objects.find((o) => o.layerId === 'layer-copy')!;
+    const copied = { ...amplitude, id: copy.deformers[0].id };
+    expect(copied.id).not.toBe('wave');
+    expect(findTrack(next.tracks, copied)?.keys).toHaveLength(2);
   });
 });

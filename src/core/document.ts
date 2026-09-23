@@ -163,6 +163,7 @@ export function moveLayer(doc: Document, id: string, toIndex: number): Document 
 export interface CopyIds {
   readonly objects?: ReadonlyMap<string, string>;
   readonly effects?: ReadonlyMap<string, string>;
+  readonly deformers?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -188,6 +189,9 @@ export function duplicateLayer(
   const copies = sources.map((o) => ({
     ...o,
     id: renamed.get(o.id) as string,
+    // Деформеры копии — свои: ключи находят деформер по идентификатору. Без импорта
+    // deformers.ts: он сам зависит от document.ts, и цикл сломал бы порядок загрузки.
+    deformers: o.deformers.map((d) => ({ ...d, id: ids.deformers?.get(d.id) ?? newId('deform') })),
     layerId: copy.id,
     parentId: (o.parentId !== null && renamed.get(o.parentId)) || o.parentId,
   }));

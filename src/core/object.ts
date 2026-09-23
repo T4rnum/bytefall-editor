@@ -1,5 +1,5 @@
 import type { CellAttrValue } from './cell';
-import type { Deformer } from './deformers';
+import { type Deformer, copyDeformers } from './deformers';
 import { type Document, canEditLayer, findLayer, newId } from './document';
 import { type CellGrid, emptyGrid } from './grid';
 import {
@@ -197,6 +197,7 @@ export function duplicateObject(doc: Document, id: string, dx = 1, dy = 1): Docu
     ...source,
     id: newId('object'),
     name: `${source.name} copy`,
+    deformers: copyDeformers(source.deformers),
     transform: normalizeTransform({ ...source.transform, x: x + dx, y: y + dy }),
   };
   return addObject(doc, copy, index + 1);
@@ -216,9 +217,12 @@ export function pasteObject(
   source: SceneObject,
   layerId: string,
 ): { doc: Document; object: SceneObject } {
+  // Тот же id — тот же объект в другом кадре, и деформеры те же; новый id — копия со своими.
+  const renamed = findObject(doc, source.id) !== undefined;
   const object: SceneObject = {
     ...source,
-    id: findObject(doc, source.id) ? newId('object') : source.id,
+    id: renamed ? newId('object') : source.id,
+    deformers: renamed ? copyDeformers(source.deformers) : source.deformers,
     layerId,
     visible: true,
     locked: false,

@@ -151,6 +151,18 @@ export function createDeformer<K extends DeformerKind>(
   return DEFAULTS[kind](id);
 }
 
+/**
+ * Стек для копии объекта: те же деформеры под новыми идентификаторами. Ключи находят деформер по
+ * идентификатору, и общий у оригинала и копии двигал бы их вместе. `ids` задаёт новые снаружи,
+ * чтобы копия одного объекта в разных кадрах получила одни и те же.
+ */
+export function copyDeformers(
+  deformers: readonly Deformer[],
+  ids?: ReadonlyMap<string, string>,
+): Deformer[] {
+  return deformers.map((d) => ({ ...d, id: ids?.get(d.id) ?? newId('deform') }));
+}
+
 export const hasActiveDeformers = (deformers: readonly Deformer[]): boolean =>
   deformers.some((d) => d.enabled);
 

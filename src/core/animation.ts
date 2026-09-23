@@ -223,14 +223,20 @@ export function duplicateAnimationLayer(
   const layer = anim.frames[0].layers.find((l) => l.id === layerId);
   if (!layer) return anim;
   const objects = new Map<string, string>();
+  const deformers = new Map<string, string>();
   for (const frame of anim.frames) {
     for (const obj of frame.objects) {
-      if (obj.layerId === layerId && !objects.has(obj.id)) objects.set(obj.id, newId('object'));
+      if (obj.layerId !== layerId) continue;
+      if (!objects.has(obj.id)) objects.set(obj.id, newId('object'));
+      for (const d of obj.deformers) if (!deformers.has(d.id)) deformers.set(d.id, newId('deform'));
     }
   }
   const effects = new Map(layer.effects.map((e) => [e.id, newId('fx')]));
-  const next = mapFrames(anim, (doc) => duplicateLayer(doc, layerId, copyId, { objects, effects }));
+  const next = mapFrames(anim, (doc) =>
+    duplicateLayer(doc, layerId, copyId, { objects, effects, deformers }),
+  );
   let tracks = copyTracks(next.tracks, 'object', objects);
+  tracks = copyTracks(tracks, 'deformer', deformers);
   tracks = copyTracks(tracks, 'effect', effects);
   tracks = copyTracks(tracks, 'layer', new Map([[layerId, copyId]]));
   return { ...next, tracks };
