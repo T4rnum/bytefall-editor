@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { readSetting, writeSetting } from './persist';
 
 export interface PanelProps {
@@ -16,6 +16,13 @@ export interface PanelProps {
   /** Панель тянется по высоте и прокручивает своё содержимое. */
   readonly grow?: boolean;
   readonly className?: string;
+}
+
+const REVEAL_EVENT = 'panel:reveal';
+
+/** Разворачивает панель по id: горячая клавиша может вести к полю в свёрнутой панели. */
+export function revealPanel(id: string): void {
+  window.dispatchEvent(new CustomEvent<string>(REVEAL_EVENT, { detail: id }));
 }
 
 /**
@@ -36,6 +43,17 @@ export function Panel({
   const [collapsed, setCollapsed] = useState(() =>
     id ? readSetting(`panel.${id}.collapsed`, defaultCollapsed) : defaultCollapsed,
   );
+
+  useEffect(() => {
+    if (!id) return;
+    const onReveal = (event: Event): void => {
+      if ((event as CustomEvent<string>).detail !== id) return;
+      setCollapsed(false);
+      writeSetting(`panel.${id}.collapsed`, false);
+    };
+    window.addEventListener(REVEAL_EVENT, onReveal);
+    return () => window.removeEventListener(REVEAL_EVENT, onReveal);
+  }, [id]);
 
   const toggle = (): void => {
     if (!collapsible) return;

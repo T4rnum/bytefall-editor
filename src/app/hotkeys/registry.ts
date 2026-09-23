@@ -5,6 +5,7 @@ import {
   pasteAction,
   selectAllAction,
 } from '../store/clipboardActions';
+import { focusCellAttrInputAction } from '../store/cellAttrActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
@@ -209,6 +210,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: ungroupSelectedObjectAction,
   },
   { group: 'Объекты', label: 'Дублировать', keys: 'Ctrl+D', run: duplicateSelectedObjectAction },
+  {
+    group: 'Правка',
+    label: 'Свойства выделенных ячеек',
+    keys: 'Alt+Enter',
+    run: focusCellAttrInputAction,
+  },
   {
     group: 'Объекты',
     label: 'Перенести на слой выше',

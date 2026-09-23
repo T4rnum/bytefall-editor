@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { GlyphAtlas } from '../render/font/GlyphAtlas';
 import { PRESS_START_2P, loadFont } from '../render/font/pressStart2P';
 import { BrushPanel } from './components/BrushPanel';
+import { CellAttrsPanel } from './components/CellAttrsPanel';
 import { ColorPanel } from './components/ColorPanel';
 import { EffectsPanel } from './components/EffectsPanel';
 import { GlyphPanel } from './components/GlyphPanel';
@@ -72,6 +73,7 @@ export function App() {
         <aside className="sidebar">
           <LayersPanel />
           <ObjectsPanel />
+          <CellAttrsPanel />
           <EffectsPanel />
           <LookPanel />
           <BrushPanel />
