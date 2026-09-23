@@ -7,6 +7,7 @@ import { useDocumentStore } from '../../store/documentStore';
 import { useEditorStore } from '../../store/editorStore';
 import { toggleKeyAction } from '../../store/keyActions';
 import { type TimelineRow, timelineRows } from '../../timeline/timelineRows';
+import { LANE_PAD, timeToPx } from '../../timeline/timelineMath';
 import { KeyButton } from '../../ui';
 import { SpriteLane } from './SpriteLane';
 import { TimeRuler } from './TimeRuler';
@@ -37,9 +38,13 @@ function Overlay({ scale, span }: { readonly scale: number; readonly span: numbe
   return (
     <div className="tl-overlay" aria-hidden="true">
       {end < span && (
-        <div className="tl-after-end" style={{ left: end * scale }} title="После конца сцены" />
+        <div
+          className="tl-after-end"
+          style={{ left: timeToPx(end, scale) }}
+          title="После конца сцены"
+        />
       )}
-      <div className="tl-playhead" style={{ left: time * scale }} />
+      <div className="tl-playhead" style={{ left: timeToPx(time, scale) }} />
     </div>
   );
 }
@@ -59,7 +64,8 @@ export function TimelineBody({ atlas, scale, span, scrollerRef }: Props) {
     [animation, frameIndex, selectedObjectId],
   );
   const gestures = useKeyGestures(scale, span);
-  const style = { '--tl-content-w': `${Math.ceil(span * scale)}px` } as CSSProperties;
+  const width = Math.ceil(span * scale) + 2 * LANE_PAD;
+  const style = { '--tl-content-w': `${width}px` } as CSSProperties;
 
   return (
     <div className="timeline-body" ref={scrollerRef}>

@@ -6,6 +6,7 @@ import { useDocumentStore } from '../../store/documentStore';
 import { useEditorStore } from '../../store/editorStore';
 import { THUMB_HEIGHT, THUMB_MAX_WIDTH } from '../../thumbnails/thumbnailCache';
 import { useFrameThumbnails } from '../../thumbnails/useFrameThumbnails';
+import { timeToPx } from '../../timeline/timelineMath';
 import { PixelCanvas } from '../../ui';
 
 interface Props {
@@ -62,7 +63,7 @@ export function SpriteLane({ atlas, scale, span }: Props) {
             key={`${loop}:${frame.id}`}
             type="button"
             className={classes}
-            style={{ left: start * scale, width }}
+            style={{ left: timeToPx(start, scale), width }}
             aria-label={`Кадр ${index + 1}`}
             title={`Кадр ${index + 1}: ${frame.duration} мс`}
             onClick={() => select(start)}

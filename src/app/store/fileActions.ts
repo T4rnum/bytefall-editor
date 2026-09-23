@@ -3,9 +3,16 @@ import { composite } from '../../core/compositor';
 import { type ComposedFrame, composeAt } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { safeFileName } from '../../core/filename';
-import { exportSamples, sceneDuration } from '../../core/timeline';
+import { exportSamples, hasMotion, sceneDuration } from '../../core/timeline';
 import { bufferToText } from '../../core/text';
-import { type RenderedFrame, buildSpriteSheet, encodeGif, gifTimings } from '../io/animationExport';
+import {
+  GIF_MAX_FPS,
+  type RenderedFrame,
+  buildSpriteSheet,
+  encodeGif,
+  gifSamples,
+  gifTimings,
+} from '../io/animationExport';
 import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
@@ -127,12 +134,17 @@ function renderMoments(
 export async function exportGifAction(pixelsPerCell: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   try {
-    const moments = gifTimings(exportSamples(animation), sceneDuration(animation));
+    const moments = gifTimings(gifSamples(animation), sceneDuration(animation));
     const frames = renderMoments(animation, moments, pixelsPerCell);
     const bytes = encodeGif(frames, animation.background === null);
     const blob = new Blob([bytes.slice()], { type: 'image/gif' });
     if (await saveBlobFile(blob, `${safeFileName(animation.name)}.gif`, '.gif', 'Анимация GIF')) {
-      notify('GIF сохранён');
+      const capped = hasMotion(animation) && animation.fps > GIF_MAX_FPS;
+      notify(
+        capped
+          ? `GIF сохранён с частотой ${GIF_MAX_FPS} к/с: чаще формат GIF кадры не показывает`
+          : 'GIF сохранён',
+      );
     }
   } catch (error) {
     notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');

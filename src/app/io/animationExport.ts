@@ -1,5 +1,6 @@
 import { GIFEncoder, applyPalette, quantize } from 'gifenc';
-import type { TimeSample } from '../../core/timeline';
+import type { Animation } from '../../core/animation';
+import { type TimeSample, exportSamples, hasMotion } from '../../core/timeline';
 
 /** Кадр в пикселях RGBA сверху вниз, как его отдаёт SceneView.renderPixels. */
 export interface RenderedFrame {
@@ -15,6 +16,19 @@ const MAX_GIF_COLORS = 256;
 const GIF_TICK = 10;
 /** Кадр короче двух сотых браузеры показывают как десять: такие кадры склеиваются. */
 const GIF_MIN_DELAY = 20;
+
+/** Чаще этого GIF кадры не показывает: задержка короче двух сотых становится десятью. */
+export const GIF_MAX_FPS = 1000 / GIF_MIN_DELAY;
+
+/**
+ * Моменты для GIF: те же, что у экрана, но движение не чаще 50 кадров в секунду и ровной
+ * сеткой. 60 к/с после округления до сотых дали бы задержки 20 и 30 мс вперемешку, и анимация
+ * шла бы рывками медленнее, чем на экране.
+ */
+export function gifSamples(anim: Animation): TimeSample[] {
+  if (!hasMotion(anim) || anim.fps <= GIF_MAX_FPS) return exportSamples(anim);
+  return exportSamples({ ...anim, fps: GIF_MAX_FPS });
+}
 
 /**
  * Моменты экспорта в задержки GIF. Округляется до сотых начало каждого кадра, а не каждая

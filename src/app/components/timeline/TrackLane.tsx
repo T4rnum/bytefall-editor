@@ -1,6 +1,7 @@
 import type { Track } from '../../../core/tracks';
 import { trackKey } from '../../../core/tracks';
 import { useEditorStore } from '../../store/editorStore';
+import { timeToPx } from '../../timeline/timelineMath';
 
 interface Props {
   readonly track: Track | undefined;
@@ -28,7 +29,7 @@ export function TrackLane({ track, scale }: Props) {
             <span
               key={`seg${k.time}`}
               className={`tl-seg tl-seg--${k.interpolation}`}
-              style={{ left: k.time * scale, width: (keys[i + 1].time - k.time) * scale }}
+              style={{ left: timeToPx(k.time, scale), width: (keys[i + 1].time - k.time) * scale }}
             />
           ),
         )}
@@ -36,7 +37,7 @@ export function TrackLane({ track, scale }: Props) {
         <span
           key={k.time}
           className={`tl-key${isSelected(k.time) ? ' is-selected' : ''}`}
-          style={{ left: k.time * scale }}
+          style={{ left: timeToPx(k.time, scale) }}
           data-track={key}
           data-time={k.time}
           title={`${k.time / 1000} с`}

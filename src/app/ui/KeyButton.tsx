@@ -28,7 +28,6 @@ export function KeyButton({ state, subject, disabled, onClick }: KeyButtonProps)
       size="sm"
       className={`key-btn key-btn--${state}`}
       label={TIPS[state](subject)}
-      active={state === 'key'}
       disabled={disabled}
       onClick={onClick}
     >

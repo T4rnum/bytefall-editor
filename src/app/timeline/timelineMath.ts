@@ -6,6 +6,15 @@ import { roundTime } from '../../core/time';
  */
 
 export const MIN_SCALE = 0.02;
+/**
+ * Отступ нуля шкалы от края дорожки, в пикселях: ромб ключа в момент 0 иначе наполовину уходил бы
+ * под колонку подписей.
+ */
+export const LANE_PAD = 8;
+
+/** Пиксель дорожки для момента и момент для пикселя дорожки. */
+export const timeToPx = (time: number, scale: number): number => LANE_PAD + time * scale;
+export const pxToTime = (px: number, scale: number): number => (px - LANE_PAD) / scale;
 export const MAX_SCALE = 2;
 
 /** Шаги крупных делений линейки: круглые доли секунды и секунды. */

@@ -2,7 +2,13 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { roundTime } from '../../../core/time';
 import { useDocumentStore } from '../../store/documentStore';
 import { scrubAction } from '../../store/timeActions';
-import { formatSeconds, rulerTicks, snapTime } from '../../timeline/timelineMath';
+import {
+  formatSeconds,
+  pxToTime,
+  rulerTicks,
+  snapTime,
+  timeToPx,
+} from '../../timeline/timelineMath';
 import { snapTargets } from './snapTargets';
 
 interface Props {
@@ -19,7 +25,7 @@ export function TimeRuler({ scale, span }: Props) {
 
   const scrubTo = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const raw = Math.max(0, (event.clientX - rect.left) / scale);
+    const raw = Math.max(0, pxToTime(event.clientX - rect.left, scale));
     const { animation } = useDocumentStore.getState();
     const time = event.altKey
       ? roundTime(raw)
@@ -44,10 +50,10 @@ export function TimeRuler({ scale, span }: Props) {
       }}
     >
       {minor.map((t) => (
-        <span key={`m${t}`} className="tl-tick" style={{ left: t * scale }} />
+        <span key={`m${t}`} className="tl-tick" style={{ left: timeToPx(t, scale) }} />
       ))}
       {major.map((t) => (
-        <span key={`M${t}`} className="tl-tick tl-tick--major" style={{ left: t * scale }}>
+        <span key={`M${t}`} className="tl-tick tl-tick--major" style={{ left: timeToPx(t, scale) }}>
           <span className="tl-tick-label">{formatSeconds(t)}</span>
         </span>
       ))}

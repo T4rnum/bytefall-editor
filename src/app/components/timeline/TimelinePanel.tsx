@@ -4,7 +4,7 @@ import { keyTimes } from '../../../core/tracks';
 import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { useDocumentStore } from '../../store/documentStore';
 import { useUiStore } from '../../store/uiStore';
-import { clampScale, fitScale, timelineSpan } from '../../timeline/timelineMath';
+import { LANE_PAD, clampScale, fitScale, timelineSpan } from '../../timeline/timelineMath';
 import { TimelineBody } from './TimelineBody';
 import { TimelineToolbar } from './TimelineToolbar';
 
@@ -35,7 +35,7 @@ export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
     const labels = scroller?.querySelector('.tl-corner');
     if (!scroller || !labels) return;
     // Ширина под шкалой: вся прокрутка минус колонка подписей и полоса прокрутки.
-    const width = scroller.clientWidth - labels.getBoundingClientRect().width - 16;
+    const width = scroller.clientWidth - labels.getBoundingClientRect().width - 16 - 2 * LANE_PAD;
     const { animation, time } = useDocumentStore.getState();
     const last = keyTimes(animation.tracks).pop() ?? 0;
     setScale(fitScale(width, timelineSpan(sceneDuration(animation), last, time)));
@@ -52,7 +52,7 @@ export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
       event.preventDefault();
       const ruler = scroller.querySelector('.tl-ruler');
       if (!ruler) return;
-      const x = event.clientX - ruler.getBoundingClientRect().left;
+      const x = event.clientX - ruler.getBoundingClientRect().left - LANE_PAD;
       setScale((old) => {
         const next = clampScale(old * Math.exp(-event.deltaY * WHEEL_ZOOM));
         // Момент под указателем остаётся под указателем.
