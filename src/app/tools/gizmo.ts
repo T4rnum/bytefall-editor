@@ -1,5 +1,4 @@
 import type { Affine } from '../../core/affine';
-import { type Document, canEditLayer, findLayer } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import type { SceneObject } from '../../core/object';
 import { objectQuad } from '../../core/placement';
@@ -19,11 +18,6 @@ export interface GizmoLayout {
   readonly stem: Point;
   readonly knob: Point;
   readonly pivot: Point;
-}
-
-/** Двигать и крутить можно объект, который не заперт и лежит на редактируемом слое. */
-export function canTransform(doc: Document, obj: SceneObject): boolean {
-  return !obj.locked && canEditLayer(findLayer(doc, obj.layerId));
 }
 
 /** Радиус захвата ручки в пикселях экрана: при любом зуме ручку одинаково легко схватить. */

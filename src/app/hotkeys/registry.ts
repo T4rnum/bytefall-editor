@@ -19,7 +19,7 @@ import {
 import {
   resetSelectedRotationAction,
   resetSelectedScaleAction,
-  rotateSelectedObjectAction,
+  rotateSelectedAction,
 } from '../store/transformActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
@@ -131,25 +131,25 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     group: 'Объекты',
     label: 'Повернуть на 15° по часовой',
     keys: ']',
-    run: () => rotateSelectedObjectAction(15),
+    run: () => rotateSelectedAction(15),
   },
   {
     group: 'Объекты',
     label: 'Повернуть на 15° против часовой',
     keys: '[',
-    run: () => rotateSelectedObjectAction(-15),
+    run: () => rotateSelectedAction(-15),
   },
   {
     group: 'Объекты',
     label: 'Повернуть на 90° по часовой',
     keys: 'Shift+]',
-    run: () => rotateSelectedObjectAction(90),
+    run: () => rotateSelectedAction(90),
   },
   {
     group: 'Объекты',
     label: 'Повернуть на 90° против часовой',
     keys: 'Shift+[',
-    run: () => rotateSelectedObjectAction(-90),
+    run: () => rotateSelectedAction(-90),
   },
   { group: 'Объекты', label: 'Сбросить поворот', keys: 'Alt+R', run: resetSelectedRotationAction },
   { group: 'Объекты', label: 'Сбросить масштаб', keys: 'Alt+S', run: resetSelectedScaleAction },

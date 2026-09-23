@@ -1,5 +1,5 @@
 import type { CellAttrValue } from './cell';
-import { type Document, findLayer, newId } from './document';
+import { type Document, canEditLayer, findLayer, newId } from './document';
 import { type CellGrid, emptyGrid } from './grid';
 import {
   type GlyphOverrides,
@@ -64,6 +64,11 @@ export function createObject(init: CreateObjectInit): SceneObject {
     overrides: emptyOverrides(),
     props: init.props ?? {},
   };
+}
+
+/** Двигать, крутить и править объект можно, если он не заперт и его слой редактируемый. */
+export function canEditObject(doc: Document, obj: SceneObject): boolean {
+  return !obj.locked && canEditLayer(findLayer(doc, obj.layerId));
 }
 
 export function findObject(doc: Document, id: string): SceneObject | undefined {

@@ -4,6 +4,7 @@ import {
   MAX_OBJECTS,
   type PropValue,
   type SceneObject,
+  canEditObject,
   duplicateObject,
   findObject,
   moveObjectToLayer,
@@ -32,7 +33,7 @@ export function selectedObject(): SceneObject | undefined {
 export function editableSelectedObject(): SceneObject | undefined {
   const obj = selectedObject();
   if (!obj) return undefined;
-  if (obj.locked || !canEditLayer(findLayer(docState().doc, obj.layerId))) {
+  if (!canEditObject(docState().doc, obj)) {
     notify('Объект или его слой заперт', 'error');
     return undefined;
   }

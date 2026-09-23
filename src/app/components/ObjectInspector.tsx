@@ -8,6 +8,7 @@ import {
   setObjectPropAction,
 } from '../store/objectActions';
 import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
+import { GlyphFields } from './GlyphFields';
 import { TransformFields } from './TransformFields';
 
 interface Props {
@@ -51,6 +52,8 @@ export function ObjectInspector({ object }: Props) {
       <span className="dim">
         {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
       </span>
+      <h4 className="inspector-heading">Отдельные символы</h4>
+      <GlyphFields object={object} />
 
       <PropertyEditor
         rows={rows}

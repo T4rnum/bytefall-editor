@@ -3,6 +3,7 @@ import { findObject, transformObject } from '../../core/object';
 import { type Transform2D, withPivot } from '../../core/transform';
 import { normalizeAngle } from '../../core/transformGesture';
 import { useDocumentStore } from './documentStore';
+import { editGlyphsAction, selectedGlyphs } from './glyphActions';
 import { editableSelectedObject } from './objectActions';
 
 const docState = () => useDocumentStore.getState();
@@ -33,22 +34,47 @@ export function setObjectPivotAction(id: string, pivot: Point, mergeKey?: string
   );
 }
 
-/** Доворачивает выбранный объект на `delta` градусов по часовой стрелке. */
-export function rotateSelectedObjectAction(delta: number): void {
+/**
+ * Доворачивает на `delta` градусов по часовой стрелке то, что выбрано: выделенные символы
+ * объекта, каждый вокруг своего центра, а если их нет — объект целиком.
+ */
+export function rotateSelectedAction(delta: number): void {
+  const glyphs = selectedGlyphs();
+  if (glyphs) {
+    editGlyphsAction(
+      glyphs,
+      (c) => ({ ...c, rot: normalizeAngle(c.rot + delta) }),
+      'Rotate glyphs',
+    );
+    return;
+  }
   const obj = editableSelectedObject();
-  if (!obj) return;
-  const rot = normalizeAngle(obj.transform.rot + delta);
-  transformObjectAction(obj.id, { rot }, 'Rotate object');
+  if (obj)
+    transformObjectAction(
+      obj.id,
+      { rot: normalizeAngle(obj.transform.rot + delta) },
+      'Rotate object',
+    );
 }
 
-/** Снимает поворот, как Alt+R в Blender: положение и масштаб остаются. */
+/** Снимает поворот с выделенных символов или с объекта, как Alt+R в Blender. */
 export function resetSelectedRotationAction(): void {
+  const glyphs = selectedGlyphs();
+  if (glyphs) {
+    editGlyphsAction(glyphs, (c) => ({ ...c, rot: 0 }), 'Reset glyph rotation');
+    return;
+  }
   const obj = editableSelectedObject();
   if (obj) transformObjectAction(obj.id, { rot: 0 }, 'Reset rotation');
 }
 
-/** Возвращает масштаб 1:1, как Alt+S в Blender. */
+/** Возвращает масштаб 1:1 выделенным символам или объекту, как Alt+S в Blender. */
 export function resetSelectedScaleAction(): void {
+  const glyphs = selectedGlyphs();
+  if (glyphs) {
+    editGlyphsAction(glyphs, (c) => ({ ...c, sx: 1, sy: 1 }), 'Reset glyph scale');
+    return;
+  }
   const obj = editableSelectedObject();
   if (obj) transformObjectAction(obj.id, { sx: 1, sy: 1 }, 'Reset scale');
 }

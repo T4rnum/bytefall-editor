@@ -4,7 +4,7 @@ import { composite } from '../compositor';
 import { createDocument, setLayerCells, updateLayer } from '../document';
 import { createEffect } from '../effects';
 import { applyEdits, editsFromPoints, emptyGrid, keyOf } from '../grid';
-import { addObject, createObject, transformObject } from '../object';
+import { addObject, createObject, transformObject, updateObject } from '../object';
 import { bufferToText } from '../text';
 import { tileLayout, tilesFromKeys } from '../tiles';
 
@@ -48,6 +48,17 @@ describe('composite: объекты с трансформом', () => {
     expect(textOf({ rot: 360 })).toEqual(textOf({}));
     expect(textOf({ dx: 0.4 })).toEqual(textOf({}));
     expect(textOf({ dx: 0.6 })).toEqual(['', '   ab', '   c', '']);
+  });
+
+  it('правка отдельных символов не меняет текст: символ остаётся в своей ячейке', () => {
+    const { doc, id } = sceneWith({});
+    const edited = updateObject(doc, id, {
+      overrides: new Map([
+        [keyOf(0, 0), { rot: 45, sx: 3, sy: 3 }],
+        [keyOf(1, 0), { dx: 0.9 }],
+      ]),
+    });
+    expect(bufferToText(composite(edited))).toBe(bufferToText(composite(doc)));
   });
 
   it('на слое с эффектами свободный объект рисуется поверх результата эффектов', () => {

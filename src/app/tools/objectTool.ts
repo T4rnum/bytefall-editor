@@ -1,7 +1,13 @@
 import type { Affine } from '../../core/affine';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import { findObject, moveObject, removeObject, transformObject } from '../../core/object';
+import {
+  canEditObject,
+  findObject,
+  moveObject,
+  removeObject,
+  transformObject,
+} from '../../core/object';
 import { objectAt, objectMatrix } from '../../core/placement';
 import type { Transform2D } from '../../core/transform';
 import {
@@ -11,7 +17,7 @@ import {
   rotateByGesture,
   scaleByGesture,
 } from '../../core/transformGesture';
-import { canTransform, gizmoLayout, handleCursor, hitGizmo } from './gizmo';
+import { gizmoLayout, handleCursor, hitGizmo } from './gizmo';
 import type { PointerInfo, Tool, ToolEnv } from './types';
 
 const NUDGE_FAST = 10;
@@ -50,7 +56,7 @@ const LABELS: Readonly<Record<Gesture['kind'], string>> = {
  */
 function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
   const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
-  if (!obj || !canTransform(env.doc, obj)) return null;
+  if (!obj || !canEditObject(env.doc, obj)) return null;
   const world = objectMatrix(env.doc, obj);
   const base = { id: obj.id, start: obj.transform, world, from: info.point };
   if (info.alt) return { kind: 'pivot', ...base };
@@ -121,7 +127,7 @@ export function createObjectTool(): Tool {
       }
       const hit = objectAt(env.doc, info.cell.x, info.cell.y);
       env.setSelectedObject(hit ? hit.id : null);
-      if (hit && canTransform(env.doc, hit)) {
+      if (hit && canEditObject(env.doc, hit)) {
         gesture = { kind: 'move', id: hit.id, anchor: info.cell, moved: false };
       }
     },
@@ -139,7 +145,7 @@ export function createObjectTool(): Tool {
     },
     hoverCursor(env, info) {
       const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
-      if (obj && canTransform(env.doc, obj)) {
+      if (obj && canEditObject(env.doc, obj)) {
         if (info.alt) return 'crosshair';
         const layout = gizmoLayout(obj, objectMatrix(env.doc, obj), env.zoom);
         const handle = hitGizmo(layout, info.point, env.zoom);
@@ -154,7 +160,7 @@ export function createObjectTool(): Tool {
       if (!obj) return false;
       const step = event.shiftKey ? NUDGE_FAST : 1;
       const nudge = (dx: number, dy: number): boolean => {
-        if (canTransform(env.doc, obj)) {
+        if (canEditObject(env.doc, obj)) {
           env.commitDocument('Nudge object', moveObject(env.doc, id, dx, dy));
         }
         return true;
@@ -170,7 +176,7 @@ export function createObjectTool(): Tool {
           return nudge(0, step);
         case 'Delete':
         case 'Backspace':
-          if (canTransform(env.doc, obj)) {
+          if (canEditObject(env.doc, obj)) {
             env.commitDocument('Delete object', removeObject(env.doc, id));
             env.setSelectedObject(null);
           }

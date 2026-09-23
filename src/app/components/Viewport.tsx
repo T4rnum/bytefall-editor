@@ -3,7 +3,7 @@ import { frameDocument } from '../../core/animation';
 import { type Ghost, effectsSignature } from '../../core/compositor';
 import { type Frame, composeFrame } from '../../core/frame';
 import { inBounds } from '../../core/geometry';
-import { findObject } from '../../core/object';
+import { canEditObject, findObject } from '../../core/object';
 import { objectMatrix, objectQuad } from '../../core/placement';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
@@ -15,7 +15,7 @@ import { type EditorState, useEditorStore } from '../store/editorStore';
 import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
-import { canTransform, gizmoLayout } from '../tools/gizmo';
+import { gizmoLayout } from '../tools/gizmo';
 
 type Drag =
   | { readonly kind: 'tool'; readonly pointerId: number }
@@ -110,7 +110,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       const world = obj ? objectMatrix(doc, obj) : null;
       view.setObjectOutline(obj && world ? objectQuad(obj, world) : null);
       const gizmo =
-        obj && world && tool === 'object' && canTransform(doc, obj)
+        obj && world && tool === 'object' && canEditObject(doc, obj)
           ? gizmoLayout(obj, world, camera.zoom)
           : null;
       view.setGizmo(gizmo && { ...gizmo, handles: gizmo.scale.map((s) => s.at) });
