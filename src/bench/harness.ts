@@ -1,7 +1,7 @@
 import { type Document, updateLayer } from '../core/document';
-import { type Preview, composite } from '../core/compositor';
+import type { Preview } from '../core/compositor';
 import { createEffect } from '../core/effects';
-import type { CellBuffer } from '../core/cellBuffer';
+import { composeFrame } from '../core/frame';
 import { type TileLayout, tileLayout, tilesFromKeys } from '../core/tiles';
 import { BENCH_SIZES, type BenchSize, benchDocument } from '../core/__bench__/fixtures';
 import { type Cell, makeCell } from '../core/cell';
@@ -105,11 +105,11 @@ function measureFrames(work: (frame: number) => void, frames: number): Promise<n
 function setup(view: SceneView, size: BenchSize) {
   const doc = benchDocument(size);
   const layout = tileLayout(size.width, size.height);
-  const buffer = composite(doc);
+  const shown = composeFrame(doc);
   view.setDocument(doc.width, doc.height, doc.background);
   view.setCamera(view.fitCamera(doc.width, doc.height));
-  view.setBuffer(buffer);
-  return { doc, layout, buffer };
+  view.setFrame(shown);
+  return { doc, layout, shown };
 }
 
 const BRUSH_LENGTH = 8;
@@ -129,35 +129,35 @@ function strokeAt(doc: Document, layout: TileLayout, frame: number) {
 }
 
 export async function runSize(view: SceneView, size: BenchSize): Promise<SizeReport> {
-  const { doc, layout, buffer } = setup(view, size);
+  const { doc, layout, shown } = setup(view, size);
   const measurements: Measurement[] = [];
 
   const strokeTiles = strokeAt(doc, layout, 0);
   measurements.push(
     summarize(
       'composite, весь холст',
-      timeIt(() => composite(doc, null, buffer), 30),
+      timeIt(() => composeFrame(doc, null, shown), 30),
       'полная пересборка кадра на CPU',
     ),
   );
   measurements.push(
     summarize(
       'composite, задетые тайлы',
-      timeIt(() => composite(doc, strokeTiles.preview, buffer, [], 0, strokeTiles.tiles), 200),
+      timeIt(() => composeFrame(doc, strokeTiles.preview, shown, [], 0, strokeTiles.tiles), 200),
       'то, что происходит на каждое движение кисти',
     ),
   );
   measurements.push(
     summarize(
       'заливка GPU, весь холст',
-      timeIt(() => view.setBuffer(buffer), 30),
+      timeIt(() => view.setFrame({ ...shown, dirty: null }), 30),
       'перенос кадра в атрибуты инстансов',
     ),
   );
   measurements.push(
     summarize(
       'заливка GPU, один тайл',
-      timeIt(() => view.setBuffer(buffer, strokeTiles.tiles), 200),
+      timeIt(() => view.setFrame({ ...shown, dirty: strokeTiles.tiles }), 200),
       'то же во время рисования',
     ),
   );
@@ -176,8 +176,7 @@ export async function runSize(view: SceneView, size: BenchSize): Promise<SizeRep
       'полный шаг рисования',
       timeIt(() => {
         const stroke = strokeAt(doc, layout, Math.floor(Math.random() * doc.width));
-        const next = composite(doc, stroke.preview, buffer, [], 0, stroke.tiles);
-        view.setBuffer(next, stroke.tiles);
+        view.setFrame(composeFrame(doc, stroke.preview, shown, [], 0, stroke.tiles));
         view.renderNow(true);
       }, 40),
       'сборка, заливка и отрисовка одного движения кисти',
@@ -187,8 +186,7 @@ export async function runSize(view: SceneView, size: BenchSize): Promise<SizeRep
   // Кадр целиком: сборка, заливка и отрисовка, как при настоящем рисовании.
   const drawing = await measureFrames((frame) => {
     const stroke = strokeAt(doc, layout, frame);
-    const next = composite(doc, stroke.preview, buffer, [], 0, stroke.tiles);
-    view.setBuffer(next, stroke.tiles);
+    view.setFrame(composeFrame(doc, stroke.preview, shown, [], 0, stroke.tiles));
   }, 60);
   measurements.push(
     summarize('кадр при рисовании', drawing, 'время между кадрами браузера, включая отрисовку'),
@@ -196,10 +194,9 @@ export async function runSize(view: SceneView, size: BenchSize): Promise<SizeRep
 
   // То же, но с активным эффектом: он запрещает частичную пересборку.
   const withFire = updateLayer(doc, doc.layers[0].id, { effects: [createEffect('fire', 'bench')] });
-  view.setBuffer(composite(withFire, null, buffer, [], 0));
+  view.setFrame(composeFrame(withFire, null, shown, [], 0));
   const fire = await measureFrames((frame) => {
-    const next = composite(withFire, null, buffer, [], frame * 33);
-    view.setBuffer(next);
+    view.setFrame(composeFrame(withFire, null, shown, [], frame * 33));
   }, 40);
   measurements.push(summarize('кадр с огнём', fire, 'эффект пересобирает слой целиком'));
 
@@ -240,4 +237,3 @@ export function frameBudget(mean: number): string {
 }
 
 export { BENCH_SIZES };
-export type { CellBuffer };

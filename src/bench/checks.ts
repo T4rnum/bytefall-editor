@@ -1,7 +1,8 @@
 import { makeCell } from '../core/cell';
-import { composite } from '../core/compositor';
 import { createDocument, setLayerCells } from '../core/document';
+import { composeFrame } from '../core/frame';
 import { applyEdits, emptyGrid, keyOf } from '../core/grid';
+import { addObject, createObject, transformObject } from '../core/object';
 import { tileLayout, tilesFromKeys } from '../core/tiles';
 import type { SceneView } from '../render/SceneView';
 
@@ -58,7 +59,7 @@ export function runChecks(view: SceneView): CheckResult[] {
     ),
   );
 
-  const pixels = view.renderPixels(composite(doc), scale);
+  const pixels = view.renderPixels(composeFrame(doc), scale);
   const corners: [string, number, number, (c: number[]) => boolean][] = [
     ['левый верхний красный', 0, 0, (c) => c[0] > 120 && c[1] < 90],
     ['правый верхний зелёный', 69, 0, (c) => c[1] > 120 && c[0] < 90],
@@ -91,14 +92,14 @@ export function runChecks(view: SceneView): CheckResult[] {
 
   // Частичная пересборка не портит остальной холст.
   const layout = tileLayout(70, 40);
-  const buffer = composite(doc);
+  const previous = composeFrame(doc);
   const edited = setLayerCells(
     doc,
     layerId,
     applyEdits(doc.layers[0].cells, new Map([[keyOf(40, 21), makeCell('#', '#ff00ff')]])),
   );
   const tiles = [...tilesFromKeys(layout, [keyOf(40, 21)])];
-  const partial = view.renderPixels(composite(edited, null, buffer, [], 0, tiles), scale);
+  const partial = view.renderPixels(composeFrame(edited, null, previous, [], 0, tiles), scale);
   const added = cellColor(partial, scale, 40, 21);
   const untouched = cellColor(partial, scale, 0, 0);
   add(
@@ -117,7 +118,7 @@ export function runChecks(view: SceneView): CheckResult[] {
   const transparent = { ...doc, background: null };
   view.setDocument(transparent.width, transparent.height, transparent.background);
   view.setShowChecker(true);
-  const exported = view.renderPixels(composite(transparent), scale);
+  const exported = view.renderPixels(composeFrame(transparent), scale);
   const hole = cellColor(exported, scale, 10, 10);
   add('Экспорт прозрачного холста без шахматки', hole[3] === 0, `alpha ${hole[3]}`);
   const drawn = cellColor(exported, scale, 0, 0);
@@ -127,5 +128,45 @@ export function runChecks(view: SceneView): CheckResult[] {
     `rgba ${drawn[0]},${drawn[1]},${drawn[2]},${drawn[3]}`,
   );
 
+  checkTurnedObject(view, scale, add);
   return results;
+}
+
+/**
+ * Свободный объект рисует отдельный проход символов. Полоска 3×1 из голубого фона после
+ * поворота на 90° вокруг своего центра обязана встать столбцом на месте средней ячейки.
+ */
+function checkTurnedObject(
+  view: SceneView,
+  scale: number,
+  add: (name: string, passed: boolean, detail: string) => void,
+): void {
+  let doc = createDocument({ width: 70, height: 40, background: '#000000' });
+  const cyan = makeCell('', '#ffffff', '#00ffff');
+  const cells = applyEdits(
+    emptyGrid(),
+    new Map([
+      [keyOf(0, 0), cyan],
+      [keyOf(1, 0), cyan],
+      [keyOf(2, 0), cyan],
+    ]),
+  );
+  const bar = createObject({ name: 'bar', layerId: doc.layers[0].id, x: 10, y: 10, cells });
+  doc = transformObject(addObject(doc, bar), bar.id, { rot: 90 });
+  view.setDocument(doc.width, doc.height, doc.background);
+  const pixels = view.renderPixels(composeFrame(doc), scale);
+  const isCyan = (c: readonly number[]): boolean => c[0] < 90 && c[1] > 150 && c[2] > 150;
+  const top = cellColor(pixels, scale, 11, 9);
+  const bottom = cellColor(pixels, scale, 11, 11);
+  add(
+    'Повёрнутый объект: полоска встала столбцом',
+    isCyan(top) && isCyan(bottom),
+    `сверху rgb ${top[0]},${top[1]},${top[2]}, снизу rgb ${bottom[0]},${bottom[1]},${bottom[2]}`,
+  );
+  const left = cellColor(pixels, scale, 10, 10);
+  add(
+    'Повёрнутый объект: на прежнем месте пусто',
+    !isCyan(left),
+    `rgb ${left[0]},${left[1]},${left[2]}`,
+  );
 }

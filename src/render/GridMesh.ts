@@ -8,17 +8,7 @@ import {
   tileLayout,
   tileRect,
 } from '../core/tiles';
-import type { GlyphRect } from './font/GlyphAtlas';
-
-/**
- * То, что меш берёт у атласа. Отдельный интерфейс, а не сам класс: атлас растеризует глифы через
- * Canvas2D, и без этой границы раскладку инстансов нельзя было бы проверить тестами вне браузера.
- */
-export interface GlyphSource {
-  readonly texture: THREE.Texture;
-  readonly version: number;
-  getRect(glyph: string): GlyphRect;
-}
+import { type GlyphSource, createGlyphMaterial, createQuadGeometry } from './glyphShader';
 
 const VERTEX_SHADER = /* glsl */ `
   attribute vec2 aCell;
@@ -39,33 +29,6 @@ const VERTEX_SHADER = /* glsl */ `
   }
 `;
 
-const FRAGMENT_SHADER = /* glsl */ `
-  uniform sampler2D uAtlas;
-  varying vec2 vUv;
-  varying vec4 vFg;
-  varying vec4 vBg;
-
-  void main() {
-    float coverage = step(0.5, texture2D(uAtlas, vUv).a);
-    float glyphAlpha = coverage * vFg.a;
-    float outAlpha = glyphAlpha + vBg.a * (1.0 - glyphAlpha);
-    if (outAlpha <= 0.002) discard;
-    vec3 rgb = (vFg.rgb * glyphAlpha + vBg.rgb * vBg.a * (1.0 - glyphAlpha)) / outAlpha;
-    gl_FragColor = vec4(rgb, outAlpha);
-  }
-`;
-
-/** Единичный квадрат: position.y растёт вниз по ячейке, uv совпадает с position. */
-function createQuadGeometry(): THREE.InstancedBufferGeometry {
-  const geometry = new THREE.InstancedBufferGeometry();
-  const positions = new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]);
-  const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  geometry.setIndex([0, 2, 1, 0, 3, 2]);
-  return geometry;
-}
-
 /**
  * Вся сетка одним инстансированным вызовом: по инстансу на ячейку, пустые отбрасываются в шейдере.
  *
@@ -85,17 +48,9 @@ export class GridMesh {
 
   constructor(private readonly atlas: GlyphSource) {
     this.geometry = createQuadGeometry();
-    this.material = new THREE.ShaderMaterial({
-      uniforms: { uAtlas: { value: atlas.texture } },
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-    });
+    this.material = createGlyphMaterial(atlas, VERTEX_SHADER);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = 1;
     this.geometry.instanceCount = 0;
   }
 

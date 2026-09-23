@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RENDER_ORDER } from './order';
 
 /** Два тёмных тона: подложка должна читаться как «здесь пусто», а не спорить с рисунком. */
 export const CHECKER_LIGHT = '#2a2a31';
@@ -61,7 +62,7 @@ export function createChecker(): Checker {
   material.depthTest = false;
   const mesh = new THREE.Mesh(geometry, material);
   // Под ячейками, как и сплошной фон холста: оба никогда не видны одновременно.
-  mesh.renderOrder = 0;
+  mesh.renderOrder = RENDER_ORDER.backdrop;
 
   return {
     mesh,

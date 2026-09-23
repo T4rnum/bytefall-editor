@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Selection } from '../core/selection';
+import { RENDER_ORDER } from './order';
 
 export type { Selection };
 
@@ -74,7 +75,7 @@ export function createSelectionLayer(color: string): SelectionLayer {
   });
   material.depthTest = false;
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.renderOrder = 3;
+  mesh.renderOrder = RENDER_ORDER.marks;
   mesh.visible = false;
 
   let width = 0;

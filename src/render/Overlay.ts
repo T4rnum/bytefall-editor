@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { Point, Rect } from '../core/geometry';
+import type { Point } from '../core/geometry';
 import { type Checker, createChecker } from './checker';
+import { RENDER_ORDER } from './order';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
 
 export const ACCENT_COLOR = '#ffb347';
@@ -38,6 +39,13 @@ function unitOutline(): THREE.BufferGeometry {
   return geometry;
 }
 
+/** Четыре вершины рамки объекта: их координаты задаются каждый раз заново. */
+function quadOutline(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
+  return geometry;
+}
+
 function disposeObject(obj: Plane | Outline | Lines): void {
   obj.geometry.dispose();
   obj.material.dispose();
@@ -61,17 +69,19 @@ export class Overlay {
   private chromeVisible = true;
   private cursorCell: Point | null = null;
   private hasSelection = false;
-  private objectRect: Rect | null = null;
+  private hasObject = false;
 
   constructor() {
     this.background = new THREE.Mesh(unitPlane(), planeMaterial('#000000', 1));
-    this.background.renderOrder = 0;
+    this.background.renderOrder = RENDER_ORDER.backdrop;
     this.checker = createChecker();
     this.selection = createSelectionLayer(ACCENT_COLOR);
-    this.objectOutline = new THREE.LineLoop(unitOutline(), lineMaterial(OBJECT_COLOR, 1));
-    this.objectOutline.renderOrder = 3;
+    this.objectOutline = new THREE.LineLoop(quadOutline(), lineMaterial(OBJECT_COLOR, 1));
+    this.objectOutline.renderOrder = RENDER_ORDER.marks;
+    // Вершины рамки меняются на лету, и сфера отсечения, посчитанная однажды, устарела бы.
+    this.objectOutline.frustumCulled = false;
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
-    this.cursor.renderOrder = 4;
+    this.cursor.renderOrder = RENDER_ORDER.cursor;
     this.group.add(
       this.background,
       this.checker.mesh,
@@ -125,13 +135,15 @@ export class Overlay {
     this.checker.setZoom(zoom);
   }
 
-  /** Рамка выбранного объекта в координатах документа. */
-  setObjectOutline(rect: Rect | null): void {
-    this.objectRect = rect && rect.w > 0 && rect.h > 0 ? rect : null;
-    if (this.objectRect) {
-      const { x, y, w, h } = this.objectRect;
-      this.objectOutline.position.set(x, -y, 0);
-      this.objectOutline.scale.set(w, h, 1);
+  /** Рамка выбранного объекта: четыре угла в координатах документа, повёрнутая вместе с ним. */
+  setObjectOutline(quad: readonly Point[] | null): void {
+    this.hasObject = quad !== null && quad.length === 4;
+    if (quad && this.hasObject) {
+      const position = this.objectOutline.geometry.getAttribute(
+        'position',
+      ) as THREE.BufferAttribute;
+      quad.forEach((p, i) => position.setXYZ(i, p.x, -p.y, 0));
+      position.needsUpdate = true;
     }
     this.applyVisibility();
   }
@@ -149,7 +161,7 @@ export class Overlay {
     if (this.gridLines) this.gridLines.visible = chrome && this.showGrid;
     this.cursor.visible = chrome && this.cursorCell !== null;
     this.selection.mesh.visible = chrome && this.hasSelection;
-    this.objectOutline.visible = chrome && this.objectRect !== null;
+    this.objectOutline.visible = chrome && this.hasObject;
   }
 
   private rebuildGrid(): void {
@@ -164,7 +176,7 @@ export class Overlay {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points), 3));
     this.gridLines = new THREE.LineSegments(geometry, lineMaterial('#ffffff', 0.12));
-    this.gridLines.renderOrder = 2;
+    this.gridLines.renderOrder = RENDER_ORDER.gridLines;
     this.gridLines.visible = this.showGrid;
     this.group.add(this.gridLines);
   }

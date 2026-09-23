@@ -26,7 +26,8 @@ export function createCellBuffer(width: number, height: number): CellBuffer {
 }
 
 const colorCache = new Map<string, Rgba>();
-function colorOf(hex: string): Rgba {
+/** Разобранный цвет по hex. Цветов в документе немного, поэтому кэш без вытеснения. */
+export function colorOf(hex: string): Rgba {
   let color = colorCache.get(hex);
   if (!color) {
     color = parseHex(hex);

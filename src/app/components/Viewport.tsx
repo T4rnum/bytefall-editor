@@ -1,10 +1,10 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { frameDocument } from '../../core/animation';
-import type { CellBuffer } from '../../core/cellBuffer';
-import { type Ghost, canRebuildTiles, composite, effectsSignature } from '../../core/compositor';
+import { type Ghost, effectsSignature } from '../../core/compositor';
+import { type Frame, composeFrame } from '../../core/frame';
 import { inBounds } from '../../core/geometry';
 import { findObject } from '../../core/object';
-import { objectBounds, objectMatrix } from '../../core/placement';
+import { objectMatrix, objectQuad } from '../../core/placement';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
@@ -26,7 +26,7 @@ const WHEEL_ZOOM_SPEED = 0.0015;
 export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<SceneView | null>(null);
-  const bufferRef = useRef<CellBuffer | null>(null);
+  const frameRef = useRef<Frame | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const spaceRef = useRef(false);
   const tool = useEditorStore((s) => s.tool);
@@ -61,22 +61,20 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       return ghosts;
     };
 
+    /**
+     * Композитор и заливка на GPU обязаны сойтись в том, что считается изменившимся: если
+     * пересобрать больше, а залить меньше, на экране останется старое. Поэтому решает только
+     * `composeFrame`, а кадр несёт его решение в `dirty` до самой заливки.
+     */
     const recomposite = (dirty?: Iterable<number>): void => {
       const { preview, effectTime } = useEditorStore.getState();
       const doc = currentDoc();
       const ghosts = ghostFrames();
-      const previous = bufferRef.current;
-      /**
-       * Композитор и заливка на GPU обязаны сойтись в том, что считается изменившимся: если
-       * пересобрать больше, а залить меньше, на экране останется старое. Поэтому решение
-       * принимается один раз и отдаётся обоим.
-       */
-      const tiles = dirty && previous && canRebuildTiles(doc, ghosts) ? [...dirty] : undefined;
-      bufferRef.current = composite(doc, preview, previous ?? undefined, ghosts, effectTime, tiles);
+      frameRef.current = composeFrame(doc, preview, frameRef.current, ghosts, effectTime, dirty);
       // Запоминаем при каждой пересборке, а не только на тиках: так проверка ниже не зависит
       // от того, в каком порядке пришли события.
       lastEffects = effectsSignature(doc, effectTime, ghosts);
-      view.setBuffer(bufferRef.current, tiles);
+      view.setFrame(frameRef.current);
     };
 
     /**
@@ -107,7 +105,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       const { selectedObjectId } = useEditorStore.getState();
       const doc = currentDoc();
       const obj = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
-      view.setObjectOutline(obj ? objectBounds(obj, objectMatrix(doc, obj)) : null);
+      view.setObjectOutline(obj ? objectQuad(obj, objectMatrix(doc, obj)) : null);
     };
 
     let lastEpoch = -1;

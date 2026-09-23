@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import type { CellBuffer } from '../core/cellBuffer';
-import type { Point, Rect } from '../core/geometry';
+import type { Frame } from '../core/frame';
+import type { Point } from '../core/geometry';
 import type { Selection } from '../core/selection';
 import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
-import { GridMesh } from './GridMesh';
+import { FrameMeshes } from './FrameMeshes';
 import { Overlay } from './Overlay';
 import {
   DEFAULT_POST,
@@ -28,17 +28,17 @@ export interface RenderedPixels {
 
 /**
  * Владеет WebGL-рендерером, ортокамерой и сценой. Ничего не знает о React и о сторах:
- * получает готовый CellBuffer и служебное состояние, рисует по требованию.
+ * получает готовый кадр и служебное состояние, рисует по требованию.
  */
 export class SceneView {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.OrthographicCamera;
-  private readonly grid: GridMesh;
+  private readonly content: FrameMeshes;
   private readonly overlay = new Overlay();
   private readonly resizeObserver: ResizeObserver;
-  private frame: number | null = null;
-  private buffer: CellBuffer | null = null;
+  private pending: number | null = null;
+  private frame: Frame | null = null;
   private cameraState: CameraState = { centerX: 0, centerY: 0, zoom: 16 };
   private viewWidth = 1;
   private viewHeight = 1;
@@ -68,8 +68,8 @@ export class SceneView {
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     this.camera.position.set(0, 0, 10);
-    this.grid = new GridMesh(atlas);
-    this.scene.add(this.overlay.group, this.grid.mesh);
+    this.content = new FrameMeshes(atlas);
+    this.scene.add(this.overlay.group, this.content.group);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -88,10 +88,10 @@ export class SceneView {
     return { width: this.viewWidth, height: this.viewHeight };
   }
 
-  /** `dirty` перечисляет изменившиеся тайлы; без него на GPU уходит весь холст. */
-  setBuffer(buffer: CellBuffer, dirty?: Iterable<number>): void {
-    this.buffer = buffer;
-    this.grid.update(buffer, dirty);
+  /** Проходы ячеек заливаются только в тайлах `frame.dirty`; без них на GPU уходит весь кадр. */
+  setFrame(frame: Frame): void {
+    this.frame = frame;
+    this.content.apply(frame);
     this.requestRender();
   }
 
@@ -125,8 +125,8 @@ export class SceneView {
     this.requestRender();
   }
 
-  setObjectOutline(rect: Rect | null): void {
-    this.overlay.setObjectOutline(rect);
+  setObjectOutline(quad: readonly Point[] | null): void {
+    this.overlay.setObjectOutline(quad);
     this.requestRender();
   }
 
@@ -164,28 +164,28 @@ export class SceneView {
    * измерится только время постановки команд в очередь, а не сама отрисовка.
    */
   renderNow(flush = false): void {
-    if (this.frame !== null) {
-      cancelAnimationFrame(this.frame);
-      this.frame = null;
+    if (this.pending !== null) {
+      cancelAnimationFrame(this.pending);
+      this.pending = null;
     }
     this.render();
     if (flush) this.renderer.getContext().finish();
   }
 
   requestRender(): void {
-    if (this.frame !== null || this.disposed || this.contextLost) return;
-    this.frame = requestAnimationFrame(() => {
-      this.frame = null;
+    if (this.pending !== null || this.disposed || this.contextLost) return;
+    this.pending = requestAnimationFrame(() => {
+      this.pending = null;
       this.render();
     });
   }
 
   /**
-   * Рендерит буфер без служебной графики в пиксели RGBA сверху вниз. Буфер может быть чужим,
+   * Рендерит кадр без служебной графики в пиксели RGBA сверху вниз. Кадр может быть чужим,
    * например другим кадром анимации: после рендера возвращается текущий.
    */
-  renderPixels(buffer: CellBuffer, pixelsPerCell: number): RenderedPixels {
-    const { width, height } = buffer;
+  renderPixels(frame: Frame, pixelsPerCell: number): RenderedPixels {
+    const { width, height } = frame;
     const w = Math.round(width * pixelsPerCell);
     const h = Math.round(height * pixelsPerCell);
     const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false, stencilBuffer: false });
@@ -195,11 +195,11 @@ export class SceneView {
 
     const previousClear = this.renderer.getClearColor(new THREE.Color());
     const previousAlpha = this.renderer.getClearAlpha();
-    const swapped = buffer !== this.buffer;
+    const swapped = frame !== this.frame;
     const pixels = new Uint8Array(w * h * 4);
     this.overlay.setChromeVisible(false);
     try {
-      if (swapped) this.grid.update(buffer);
+      if (swapped) this.content.apply(frame, true);
       this.renderer.setClearColor(0x000000, 0);
       if (hasPost(this.post)) {
         // Экспорт проходит через те же постэффекты, что и экран, но в своём размере.
@@ -222,7 +222,7 @@ export class SceneView {
       this.renderer.setRenderTarget(null);
       this.renderer.setClearColor(previousClear, previousAlpha);
       this.overlay.setChromeVisible(true);
-      if (swapped && this.buffer) this.grid.update(this.buffer);
+      if (swapped && this.frame) this.content.apply(this.frame, true);
       target.dispose();
       this.requestRender();
     }
@@ -239,8 +239,8 @@ export class SceneView {
 
   /** Рендерит текущий документ без служебной графики в PNG заданного масштаба. */
   async exportPng(pixelsPerCell: number): Promise<Blob> {
-    if (!this.buffer) throw new Error('Nothing to export');
-    const { width, height, data } = this.renderPixels(this.buffer, pixelsPerCell);
+    if (!this.frame) throw new Error('Nothing to export');
+    const { width, height, data } = this.renderPixels(this.frame, pixelsPerCell);
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -258,11 +258,11 @@ export class SceneView {
 
   dispose(): void {
     this.disposed = true;
-    if (this.frame !== null) cancelAnimationFrame(this.frame);
+    if (this.pending !== null) cancelAnimationFrame(this.pending);
     this.resizeObserver.disconnect();
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
-    this.grid.dispose();
+    this.content.dispose();
     this.overlay.dispose();
     this.composer.dispose();
     this.renderer.dispose();
@@ -277,9 +277,9 @@ export class SceneView {
   private readonly onContextLost = (event: Event): void => {
     event.preventDefault();
     this.contextLost = true;
-    if (this.frame !== null) {
-      cancelAnimationFrame(this.frame);
-      this.frame = null;
+    if (this.pending !== null) {
+      cancelAnimationFrame(this.pending);
+      this.pending = null;
     }
     this.onContextChange?.(true);
   };
@@ -293,7 +293,7 @@ export class SceneView {
     this.contextLost = false;
     this.atlas.texture.needsUpdate = true;
     this.resize();
-    if (this.buffer) this.grid.update(this.buffer);
+    if (this.frame) this.content.apply(this.frame, true);
     this.requestRender();
     this.onContextChange?.(false);
   };
@@ -315,9 +315,9 @@ export class SceneView {
     // Рисуем сразу, а не через requestAnimationFrame. ResizeObserver срабатывает после раскладки,
     // но до отрисовки, поэтому отложенный кадр показал бы старый буфер, растянутый по CSS:
     // при перетаскивании границы панели холст заметно отставал и мылился.
-    if (this.frame !== null) {
-      cancelAnimationFrame(this.frame);
-      this.frame = null;
+    if (this.pending !== null) {
+      cancelAnimationFrame(this.pending);
+      this.pending = null;
     }
     this.render();
   }
@@ -337,7 +337,7 @@ export class SceneView {
   private render(): void {
     // Рисовать в потерянный контекст бессмысленно: вызовы молча игнорируются драйвером.
     if (this.disposed || this.contextLost) return;
-    if (this.buffer && this.grid.needsRefresh()) this.grid.update(this.buffer);
+    this.content.refreshStale(this.frame);
     if (hasPost(this.post)) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
   }

@@ -3,6 +3,7 @@ import { type CellBuffer, createCellBuffer } from '../cellBuffer';
 import { composite } from '../compositor';
 import { updateLayer } from '../document';
 import { createEffect } from '../effects';
+import { composeFrame } from '../frame';
 import { tileLayout, tilesFromKeys } from '../tiles';
 import { BENCH_SIZES, benchDocument, benchStroke, benchWithTurnedObject } from './fixtures';
 
@@ -20,6 +21,9 @@ for (const size of BENCH_SIZES) {
   const preview = { layerId: doc.layers[2].id, edits: benchStroke(size, 64) };
   const withFire = updateLayer(doc, doc.layers[0].id, { effects: [createEffect('fire', 'fx')] });
   const withTurned = benchWithTurnedObject(doc, size);
+  // Кадр для экрана: буферы проходов переиспользуются так же, как target у composite.
+  let shown = composeFrame(doc, preview);
+  let shownTurned = composeFrame(withTurned);
 
   // Тайлы, задетые мазком: ровно то, что пересобирается во время рисования.
   const layout = tileLayout(size.width, size.height);
@@ -55,6 +59,14 @@ for (const size of BENCH_SIZES) {
         // Объект на 1/16 холста под 30°: растеризация обратным преобразованием.
         bench('кадр с повёрнутым объектом', () => {
           composite(withTurned, null, target);
+        }),
+        // Экран: тот же мазок через composeFrame, как на каждое движение кисти.
+        bench('экран, только задетые тайлы', () => {
+          shown = composeFrame(doc, preview, shown, [], 0, strokeTiles);
+        }),
+        // Экран с повёрнутым объектом: три прохода, символы объекта — отдельным потоком.
+        bench('экран с повёрнутым объектом', () => {
+          shownTurned = composeFrame(withTurned, null, shownTurned);
         }),
       );
     });

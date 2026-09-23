@@ -52,32 +52,84 @@ function layerContent(
 }
 
 /**
- * Объект в буфер. Свободный объект — повёрнутый, отмасштабированный — попадает в ячейки так же,
- * как в текст и при впечатывании в слой: через `rasterizeObject`.
+ * Куда рисовать документ. Ячейки смешиваются в буфер, который отдаёт `cells()`, свободный
+ * объект целиком уходит в `free()`. Плоский кадр впечатывает его в тот же буфер, кадр для экрана
+ * выносит в отдельный проход поверх уже нарисованного.
  */
-function drawObject(
+export interface DrawTarget {
+  cells(): CellBuffer;
+  free(obj: SceneObject, matrix: Affine, opacity: number): void;
+}
+
+type CellFilter = (x: number, y: number) => boolean;
+
+/** Фильтр ячеек по грязным тайлам: без списка тайлов годится любая ячейка. */
+export function tileFilter(layout: TileLayout, tiles: ReadonlySet<number> | null): CellFilter {
+  return tiles === null ? () => true : (x, y) => tiles.has(tileOf(layout, x, y));
+}
+
+/**
+ * Объект в буфер по ячейкам. Свободный объект — повёрнутый, отмасштабированный — попадает в
+ * ячейки так же, как в текст и при впечатывании в слой: через `rasterizeObject`.
+ */
+export function blendObject(
   buf: CellBuffer,
   obj: SceneObject,
   matrix: Affine,
   opacity: number,
-  canvas: Rect,
-  wanted: (x: number, y: number) => boolean,
+  wanted: CellFilter,
 ): void {
-  if (!obj.visible) return;
+  const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
   rasterizeObject(obj, matrix, canvas, (x, y, cell) => {
     if (wanted(x, y)) blendAt(buf, x, y, cell, opacity);
   });
 }
 
+/** Растр слоя и превью инструмента поверх него. */
+function drawRaster(
+  buf: CellBuffer,
+  layer: Layer,
+  edits: CellEdits | null,
+  opacity: number,
+  layout: TileLayout,
+  tiles: ReadonlySet<number> | null,
+): void {
+  if (tiles === null) {
+    for (const [key, cell] of layer.cells) {
+      if (edits?.has(key)) continue;
+      blendCell(buf, key, cell, opacity);
+    }
+  } else {
+    // Индекс даёт ключи ровно нужных тайлов, не трогая остальной слой.
+    const index = tileIndexOf(layer.cells, layout);
+    for (const tile of tiles) {
+      const keys = index[tile];
+      if (!keys) continue;
+      for (const key of keys) {
+        if (edits?.has(key)) continue;
+        const cell = layer.cells.get(key);
+        if (cell) blendCell(buf, key, cell, opacity);
+      }
+    }
+  }
+  if (!edits) return;
+  const wanted = tileFilter(layout, tiles);
+  for (const [key, cell] of edits) {
+    if (cell && !isBlankCell(cell) && wanted(xOf(key), yOf(key)))
+      blendCell(buf, key, cell, opacity);
+  }
+}
+
 /**
- * Рисует документ в буфер. Слой без эффектов смешивается напрямую: растр, превью, объекты.
- * Слой с эффектами сначала собирается в одну сетку, к ней применяются эффекты, потом смешивание.
+ * Рисует документ. Слой без эффектов смешивается напрямую: растр, превью, объекты по порядку.
+ * Слой с эффектами сначала собирается в одну сетку, к ней применяются эффекты, потом смешивание;
+ * свободные объекты такого слоя идут поверх результата.
  *
  * `tiles` ограничивает работу перечисленными тайлами. Внутри них результат обязан совпадать с
- * полной пересборкой: всё, что рисуется, проверяется на попадание в грязный тайл.
+ * полной пересборкой: всё, что рисуется в ячейки, проверяется на попадание в грязный тайл.
  */
-function drawDocument(
-  buf: CellBuffer,
+export function drawDocument(
+  target: DrawTarget,
   doc: Document,
   preview: Preview | null,
   alpha: number,
@@ -90,8 +142,7 @@ function drawDocument(
   const matrixOf = (obj: SceneObject): Affine => matrices.get(obj.id) as Affine;
   const ctx = { time, width: doc.width, height: doc.height };
   const canvas = { x: 0, y: 0, w: doc.width, h: doc.height };
-  const wanted = (x: number, y: number): boolean =>
-    tiles === null || tiles.has(tileOf(layout, x, y));
+  const wanted = tileFilter(layout, tiles);
 
   for (const layer of doc.layers) {
     if (!layer.visible || layer.opacity <= 0) continue;
@@ -102,43 +153,24 @@ function drawDocument(
     if (hasActiveEffects(layer.effects)) {
       const inGrid = objects.filter((o) => !isFreeObject(o, matrixOf(o)));
       const content = layerContent(layer, edits, inGrid, matrices, canvas);
-      const cells = applyEffects(content, layer.effects, ctx);
-      for (const [key, cell] of cells) blendCell(buf, key, cell, opacity);
+      const buf = target.cells();
+      for (const [key, cell] of applyEffects(content, layer.effects, ctx)) {
+        blendCell(buf, key, cell, opacity);
+      }
       for (const obj of objects) {
-        if (isFreeObject(obj, matrixOf(obj))) {
-          drawObject(buf, obj, matrixOf(obj), opacity, canvas, wanted);
-        }
+        if (obj.visible && isFreeObject(obj, matrixOf(obj)))
+          target.free(obj, matrixOf(obj), opacity);
       }
       continue;
     }
 
-    if (tiles === null) {
-      for (const [key, cell] of layer.cells) {
-        if (edits?.has(key)) continue;
-        blendCell(buf, key, cell, opacity);
-      }
-    } else {
-      // Индекс даёт ключи ровно нужных тайлов, не трогая остальной слой.
-      const index = tileIndexOf(layer.cells, layout);
-      for (const tile of tiles) {
-        const keys = index[tile];
-        if (!keys) continue;
-        for (const key of keys) {
-          if (edits?.has(key)) continue;
-          const cell = layer.cells.get(key);
-          if (cell) blendCell(buf, key, cell, opacity);
-        }
-      }
+    drawRaster(target.cells(), layer, edits, opacity, layout, tiles);
+    for (const obj of objects) {
+      if (!obj.visible) continue;
+      const matrix = matrixOf(obj);
+      if (isFreeObject(obj, matrix)) target.free(obj, matrix, opacity);
+      else blendObject(target.cells(), obj, matrix, opacity, wanted);
     }
-
-    if (edits) {
-      for (const [key, cell] of edits) {
-        if (cell && !isBlankCell(cell) && wanted(xOf(key), yOf(key))) {
-          blendCell(buf, key, cell, opacity);
-        }
-      }
-    }
-    for (const obj of objects) drawObject(buf, obj, matrixOf(obj), opacity, canvas, wanted);
   }
 }
 
@@ -180,7 +212,11 @@ export function effectsSignature(
 }
 
 /** Очищает либо весь буфер, либо только перечисленные тайлы. */
-function clearBuffer(buf: CellBuffer, layout: TileLayout, tiles: ReadonlySet<number> | null): void {
+export function clearBuffer(
+  buf: CellBuffer,
+  layout: TileLayout,
+  tiles: ReadonlySet<number> | null,
+): void {
   if (tiles === null) {
     buf.glyphs.fill('');
     buf.fg.fill(0);
@@ -200,9 +236,12 @@ function clearBuffer(buf: CellBuffer, layout: TileLayout, tiles: ReadonlySet<num
 }
 
 /**
- * Сводит документ в один кадр. Призраки рисуются первыми и просвечивают там, где основной
- * документ пуст. time задаёт момент для эффектов. Если передан target подходящего размера,
- * он переиспользуется, чтобы не выделять память на каждое движение мыши.
+ * Сводит документ в один плоский кадр: символ на ячейку. Так документ уходит в текст и в
+ * миниатюры; экран рисует `composeFrame`, где повёрнутые символы остаются повёрнутыми.
+ *
+ * Призраки рисуются первыми и просвечивают там, где основной документ пуст. time задаёт момент
+ * для эффектов. Если передан target подходящего размера, он переиспользуется, чтобы не выделять
+ * память на каждое движение мыши.
  */
 export function composite(
   doc: Document,
@@ -223,9 +262,15 @@ export function composite(
   const tiles = dirty && reusable && canRebuildTiles(doc, ghosts) ? new Set(dirty) : null;
 
   clearBuffer(buf, layout, tiles);
+  const wanted = tileFilter(layout, tiles);
+  // Плоский кадр: свободные объекты впечатываются в тот же буфер, как в текст.
+  const flat: DrawTarget = {
+    cells: () => buf,
+    free: (obj, matrix, opacity) => blendObject(buf, obj, matrix, opacity, wanted),
+  };
   for (const ghost of ghosts) {
-    drawDocument(buf, ghost.doc, null, ghost.opacity, time, layout, tiles);
+    drawDocument(flat, ghost.doc, null, ghost.opacity, time, layout, tiles);
   }
-  drawDocument(buf, doc, preview, 1, time, layout, tiles);
+  drawDocument(flat, doc, preview, 1, time, layout, tiles);
   return buf;
 }

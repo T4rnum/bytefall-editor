@@ -1,5 +1,6 @@
 import { type Animation, createAnimation, frameDocument } from '../../core/animation';
 import { composite } from '../../core/compositor';
+import { composeFrame } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { hasActiveEffects } from '../../core/effects';
 import { safeFileName } from '../../core/filename';
@@ -125,8 +126,8 @@ function renderFrames(pixelsPerCell: number): RenderedFrame[] {
   const { animation } = useDocumentStore.getState();
   return exportSamples(animation).map((sample) => {
     const doc = frameDocument(animation, sample.frameIndex);
-    const buffer = composite(doc, null, undefined, [], sample.time);
-    return { ...view.renderPixels(buffer, pixelsPerCell), delay: sample.delay };
+    const frame = composeFrame(doc, null, null, [], sample.time);
+    return { ...view.renderPixels(frame, pixelsPerCell), delay: sample.delay };
   });
 }
 

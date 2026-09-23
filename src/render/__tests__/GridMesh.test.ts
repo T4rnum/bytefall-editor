@@ -2,26 +2,8 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { type CellBuffer, createCellBuffer } from '../../core/cellBuffer';
 import { slotCount, slotOf, tileLayout, tileOf } from '../../core/tiles';
-import type { GlyphRect } from '../font/GlyphAtlas';
-import { GridMesh, type GlyphSource } from '../GridMesh';
-
-/** Атлас-заглушка: настоящий растеризует глифы через Canvas2D, которого вне браузера нет. */
-class FakeAtlas implements GlyphSource {
-  readonly texture = new THREE.Texture();
-  version = 0;
-  private readonly rects = new Map<string, GlyphRect>();
-
-  getRect(glyph: string): GlyphRect {
-    let rect = this.rects.get(glyph);
-    if (!rect) {
-      // Уникальные, но детерминированные координаты: по ним видно, какой глиф попал в слот.
-      const i = this.rects.size + 1;
-      rect = { u0: i / 100, v0: 0, u1: i / 100 + 0.01, v1: 1 };
-      this.rects.set(glyph, rect);
-    }
-    return rect;
-  }
-}
+import { GridMesh } from '../GridMesh';
+import { FakeAtlas } from './helpers/fakeAtlas';
 
 function meshOf(width: number, height: number) {
   const atlas = new FakeAtlas();
