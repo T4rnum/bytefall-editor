@@ -15,6 +15,16 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
+ * Пока открыто модальное окно, клавиши принадлежат ему: Enter подтверждает, Escape закрывает. Иначе
+ * Ctrl+Z в диалоге откатил бы документ у него за спиной, а в импорте картинки — прямо под
+ * предпросмотром.
+ */
+function insideModal(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.closest('dialog[open]')) return true;
+  return document.querySelector('dialog:modal') !== null;
+}
+
+/**
  * Глобальные горячие клавиши. Активный инструмент получает клавиши первым: он может съесть
  * стрелки и Escape, пока ведёт своё взаимодействие. Всё остальное разбирается по реестру
  * из hotkeys/registry.ts, который же рисует справку.
@@ -22,7 +32,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 export function useHotkeys(): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (isEditableTarget(event.target)) return;
+      if (isEditableTarget(event.target) || insideModal(event.target)) return;
       const tool = getTool(useEditorStore.getState().tool);
       if (tool.onKeyDown?.(buildToolEnv(), event)) {
         event.preventDefault();
