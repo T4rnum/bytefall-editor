@@ -69,7 +69,12 @@ export function TopBar() {
         <Button icon label="Новый документ" onClick={() => setNewOpen(true)}>
           <FilePlus size={16} />
         </Button>
-        <Button icon label="Открыть" hotkey="Ctrl+O" onClick={() => void openDocumentAction()}>
+        <Button
+          icon
+          label="Открыть документ, .xp REXPaint или файл прототипа"
+          hotkey="Ctrl+O"
+          onClick={() => void openDocumentAction()}
+        >
           <FolderOpen size={16} />
         </Button>
         <Button

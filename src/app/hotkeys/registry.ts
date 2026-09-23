@@ -160,7 +160,12 @@ function cancelEverything(): void {
 
 /** Сочетания, не зависящие от набора инструментов. */
 const STATIC_HOTKEYS: readonly Hotkey[] = [
-  { group: 'Файл', label: 'Открыть', keys: 'Ctrl+O', run: () => void openDocumentAction() },
+  {
+    group: 'Файл',
+    label: 'Открыть или импортировать',
+    keys: 'Ctrl+O',
+    run: () => void openDocumentAction(),
+  },
   { group: 'Файл', label: 'Сохранить', keys: 'Ctrl+S', run: () => void saveDocumentAction(false) },
   {
     group: 'Файл',

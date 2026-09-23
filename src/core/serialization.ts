@@ -336,6 +336,11 @@ export function deserialize(text: string): Animation {
   } catch {
     throw new DocumentFormatError('File is not valid JSON');
   }
+  return deserializeObject(raw);
+}
+
+/** То же для уже разобранного JSON: открытие файла узнаёт формат по разобранному объекту. */
+export function deserializeObject(raw: unknown): Animation {
   const result = documentSchema.safeParse(raw);
   if (!result.success) {
     const issue = result.error.issues[0];

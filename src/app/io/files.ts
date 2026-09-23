@@ -1,17 +1,17 @@
 import { fileOpen, fileSave } from 'browser-fs-access';
 import type { Animation } from '../../core/animation';
 import { safeFileName } from '../../core/filename';
-import {
-  DocumentFormatError,
-  FILE_EXTENSION,
-  deserialize,
-  serialize,
-} from '../../core/serialization';
+import { DocumentFormatError, FILE_EXTENSION, serialize } from '../../core/serialization';
 import type { FileRef } from '../store/documentStore';
+import { type SourceKind, readDocument } from './readDocument';
 
 export interface OpenedFile {
   readonly animation: Animation;
   readonly file: FileRef;
+  /** Откуда документ: импорт из чужого формата к исходному файлу не привязывается. */
+  readonly kind: SourceKind;
+  /** Имя открытого файла, в том числе импортированного. */
+  readonly sourceName: string;
 }
 
 /** Разбор идёт синхронно в главном потоке, поэтому файл ограничен ещё до чтения. */
@@ -24,16 +24,22 @@ const isAbort = (error: unknown): boolean =>
 export async function openDocumentFile(): Promise<OpenedFile | null> {
   try {
     const file = await fileOpen({
-      description: 'Документ Bytefall',
-      extensions: ['.json'],
-      mimeTypes: ['application/json'],
+      description: 'Документ Bytefall, изображение REXPaint или файл первого прототипа',
+      extensions: ['.json', '.xp'],
+      mimeTypes: ['application/json', 'application/octet-stream'],
     });
     if (file.size > MAX_FILE_BYTES) {
       const mb = Math.round(file.size / (1024 * 1024));
       throw new DocumentFormatError(`Файл слишком большой: ${mb} МБ, предел — 100 МБ`);
     }
-    const animation = deserialize(await file.text());
-    return { animation, file: { name: file.name, handle: file.handle ?? null } };
+    const read = await readDocument(new Uint8Array(await file.arrayBuffer()), file.name);
+    // Импорт не привязывается к исходному файлу: иначе «Сохранить» перезаписало бы .xp или
+    // файл прототипа нашим форматом, и открыть их прежней программой стало бы нельзя.
+    const ref: FileRef =
+      read.kind === 'bytefall'
+        ? { name: file.name, handle: file.handle ?? null }
+        : { name: null, handle: null };
+    return { animation: read.animation, file: ref, kind: read.kind, sourceName: file.name };
   } catch (error) {
     if (isAbort(error)) return null;
     throw error;

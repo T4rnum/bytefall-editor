@@ -6,6 +6,7 @@ import { safeFileName } from '../../core/filename';
 import { bufferToText } from '../../core/text';
 import { type RenderedFrame, buildSpriteSheet, encodeGif } from '../io/animationExport';
 import { openDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
+import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
 import { errorMessage, notify } from './notifyStore';
 import { getActiveView } from './viewActions';
@@ -24,6 +25,12 @@ export function newDocumentAction(options: CreateDocumentOptions): void {
   }
 }
 
+const OPENED_MESSAGES: Readonly<Record<SourceKind, (name: string) => string>> = {
+  bytefall: (name) => `Открыт ${name}`,
+  rexpaint: (name) => `Импортирован ${name} из REXPaint. Сохраните его как документ Bytefall.`,
+  prototype: (name) => `Импортирован ${name} из первого прототипа. Сохраните как новый документ.`,
+};
+
 export async function openDocumentAction(): Promise<void> {
   if (!confirmDiscard()) return;
   const before = useDocumentStore.getState().animation;
@@ -33,7 +40,7 @@ export async function openDocumentAction(): Promise<void> {
     // Пока был открыт диалог, документ могли изменить: спрашиваем ещё раз.
     if (useDocumentStore.getState().animation !== before && !confirmDiscard()) return;
     useDocumentStore.getState().replaceAnimation(opened.animation, opened.file);
-    notify(`Открыт ${opened.file.name}`);
+    notify(OPENED_MESSAGES[opened.kind](opened.sourceName));
   } catch (error) {
     notify(`Не удалось открыть: ${errorMessage(error)}`, 'error');
   }
