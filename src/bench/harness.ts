@@ -1,7 +1,7 @@
 import { type Document, updateLayer } from '../core/document';
 import { type Preview, composite } from '../core/compositor';
 import { createEffect } from '../core/effects';
-import type { CellBuffer } from '../core/compositor';
+import type { CellBuffer } from '../core/cellBuffer';
 import { type TileLayout, tileLayout, tilesFromKeys } from '../core/tiles';
 import { BENCH_SIZES, type BenchSize, benchDocument } from '../core/__bench__/fixtures';
 import { type Cell, makeCell } from '../core/cell';

@@ -1,11 +1,11 @@
 import { canEditLayer, findLayer, layerIndex } from '../../core/document';
+import { groupSelection, ungroupObject } from '../../core/grouping';
 import {
   MAX_OBJECTS,
   type PropValue,
   type SceneObject,
   duplicateObject,
   findObject,
-  groupSelection,
   moveObjectToLayer,
   objectIndex,
   pasteObject,
@@ -13,9 +13,10 @@ import {
   removeObjectProp,
   setObjectProp,
   shiftObjectOrder,
-  ungroupObject,
+  transformObject,
   updateObject,
 } from '../../core/object';
+import type { Transform2D } from '../../core/transform';
 import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
@@ -167,6 +168,16 @@ export function updateObjectAction(
 ): void {
   const { doc, commitStructural } = docState();
   commitStructural(label, updateObject(doc, id, patch));
+}
+
+export function transformObjectAction(
+  id: string,
+  patch: Partial<Transform2D>,
+  label: string,
+  mergeKey?: string,
+): void {
+  const { doc, commitStructural } = docState();
+  commitStructural(label, transformObject(doc, id, patch), mergeKey);
 }
 
 export function setObjectPropAction(id: string, key: string, value: PropValue): void {

@@ -26,14 +26,13 @@ const sampleDoc = () => {
 const sample = () => createAnimation(sampleDoc());
 
 describe('serialization with objects', () => {
-  it('writes version 3 and round-trips objects with props', () => {
+  it('writes the current version and round-trips objects with props', () => {
     const anim = sample();
     const file = toFileObject(anim);
     expect(file.version).toBe(FORMAT_VERSION);
     expect(file.frames?.[0].objects?.[0]).toMatchObject({
       name: 'Hero',
-      x: -1,
-      y: 2,
+      transform: { x: -1, y: 2 },
       props: { hp: 10 },
     });
     expect(deserialize(serialize(anim))).toEqual(anim);
@@ -42,12 +41,18 @@ describe('serialization with objects', () => {
   it('reads version 2 files with objects as one frame', () => {
     const doc = sampleDoc();
     const file = toFileObject(createAnimation(doc));
+    // До версии 5 позиция лежала прямо в объекте, трансформа не было.
+    const objects = file.frames![0].objects!.map(({ transform, ...rest }) => ({
+      ...rest,
+      x: transform!.x,
+      y: transform!.y,
+    }));
     const legacy = {
       ...file,
       version: 2 as const,
       frames: undefined,
       layers: file.frames![0].layers,
-      objects: file.frames![0].objects,
+      objects,
     };
     expect(frameDocument(deserialize(JSON.stringify(legacy)), 0)).toEqual(doc);
   });
@@ -66,8 +71,9 @@ describe('serialization with objects', () => {
     expect(() => deserialize(JSON.stringify(withObjects([object, object])))).toThrow(
       DocumentFormatError,
     );
-    expect(() => deserialize(JSON.stringify(withObjects([{ ...object, x: 5000 }])))).toThrow(
-      /objects\.0\.x/,
+    const far = { ...object, transform: { ...object.transform!, x: 5000 } };
+    expect(() => deserialize(JSON.stringify(withObjects([far])))).toThrow(
+      /objects\.0\.transform\.x/,
     );
     const dupFrame = { ...file, frames: [frame, frame] };
     expect(() => deserialize(JSON.stringify(dupFrame))).toThrow(/Duplicate frame id/);

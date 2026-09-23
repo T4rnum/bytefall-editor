@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
-import { type CellBuffer, composite } from '../compositor';
+import type { CellBuffer } from '../cellBuffer';
+import { composite } from '../compositor';
 import { addLayer, createDocument, createLayer, setLayerCells, updateLayer } from '../document';
 import { applyEdits, editsFromPoints, emptyGrid, keyOf } from '../grid';
 import { addObject, createObject, updateObject } from '../object';

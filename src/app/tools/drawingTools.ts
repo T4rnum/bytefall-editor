@@ -2,7 +2,7 @@ import type { Cell } from '../../core/cell';
 import { floodFill } from '../../core/fill';
 import { type Point, inBounds } from '../../core/geometry';
 import { type CellEdits, type CellKey, editsFromPoints, keyOf } from '../../core/grid';
-import { topCellAt } from '../../core/object';
+import { topCellAt } from '../../core/placement';
 import { ellipsePoints, linePoints, rectPoints } from '../../core/shapes';
 import type { PointerInfo, Tool, ToolEnv, ToolId } from './types';
 

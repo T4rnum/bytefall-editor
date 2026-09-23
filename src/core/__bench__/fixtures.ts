@@ -1,6 +1,7 @@
 import { type Cell, makeCell } from '../cell';
 import { type Document, addLayer, createDocument, createLayer, setLayerCells } from '../document';
 import { type CellGrid, type CellKey, keyOf } from '../grid';
+import { addObject, createObject, transformObject } from '../object';
 
 /**
  * Синтетические документы для бенчмарков. Заполнение детерминировано seed'ом, поэтому прогоны
@@ -63,6 +64,22 @@ export function benchDocument(size: BenchSize): Document {
     doc = setLayerCells(doc, layer.id, benchGrid(sparse, 2 + i));
   }
   return doc;
+}
+
+/**
+ * Тот же документ с плотным объектом в четверть ширины и высоты холста, повёрнутым на 30°.
+ * Поворот уводит объект с сетки: его ячейки ищутся обратным преобразованием.
+ */
+export function benchWithTurnedObject(doc: Document, size: BenchSize): Document {
+  const part = { ...size, width: size.width >> 2, height: size.height >> 2, fill: 0.9 };
+  const obj = createObject({
+    name: 'turned',
+    layerId: doc.layers[1].id,
+    x: part.width,
+    y: part.height,
+    cells: benchGrid(part, 7),
+  });
+  return transformObject(addObject(doc, obj), obj.id, { rot: 30 });
 }
 
 /** Мазок кисти: подряд идущие ячейки одной строки, как при протаскивании указателя. */

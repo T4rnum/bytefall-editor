@@ -1,12 +1,7 @@
 import { canEditLayer, findLayer } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import {
-  type SceneObject,
-  findObject,
-  objectAt,
-  removeObject,
-  updateObject,
-} from '../../core/object';
+import { type SceneObject, findObject, moveObject, removeObject } from '../../core/object';
+import { objectAt } from '../../core/placement';
 import type { Tool, ToolEnv } from './types';
 
 const NUDGE_FAST = 10;
@@ -22,7 +17,6 @@ function isMovable(env: ToolEnv, obj: SceneObject): boolean {
 export function createObjectTool(): Tool {
   let dragId: string | null = null;
   let anchor: Point = { x: 0, y: 0 };
-  let origin: Point = { x: 0, y: 0 };
   let moved = false;
 
   return {
@@ -37,7 +31,6 @@ export function createObjectTool(): Tool {
       if (!hit || !isMovable(env, hit)) return;
       dragId = hit.id;
       anchor = info.cell;
-      origin = { x: hit.x, y: hit.y };
       moved = false;
     },
     onPointerMove(env, info) {
@@ -46,7 +39,8 @@ export function createObjectTool(): Tool {
       const dy = info.cell.y - anchor.y;
       if (dx === 0 && dy === 0 && !moved) return;
       moved = true;
-      env.setDraft(updateObject(env.doc, dragId, { x: origin.x + dx, y: origin.y + dy }));
+      // Черновик строится от закоммиченного документа: смещение считается от начала жеста.
+      env.setDraft(moveObject(env.doc, dragId, dx, dy));
     },
     onPointerUp(env, info) {
       if (!dragId) return;
@@ -56,10 +50,7 @@ export function createObjectTool(): Tool {
       const dy = info.cell.y - anchor.y;
       env.setDraft(null);
       if (moved && (dx !== 0 || dy !== 0)) {
-        env.commitDocument(
-          'Move object',
-          updateObject(env.doc, id, { x: origin.x + dx, y: origin.y + dy }),
-        );
+        env.commitDocument('Move object', moveObject(env.doc, id, dx, dy));
       }
     },
     onKeyDown(env, event) {
@@ -69,12 +60,8 @@ export function createObjectTool(): Tool {
       if (!obj) return false;
       const step = event.shiftKey ? NUDGE_FAST : 1;
       const nudge = (dx: number, dy: number): boolean => {
-        if (isMovable(env, obj)) {
-          env.commitDocument(
-            'Nudge object',
-            updateObject(env.doc, id, { x: obj.x + dx, y: obj.y + dy }),
-          );
-        }
+        if (isMovable(env, obj))
+          env.commitDocument('Nudge object', moveObject(env.doc, id, dx, dy));
         return true;
       };
       switch (event.key) {

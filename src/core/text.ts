@@ -1,4 +1,4 @@
-import type { CellBuffer } from './compositor';
+import type { CellBuffer } from './cellBuffer';
 
 /** Кадр как обычный текст: пустые ячейки становятся пробелами, хвостовые пробелы срезаются. */
 export function bufferToText(buffer: CellBuffer): string {

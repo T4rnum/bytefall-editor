@@ -5,7 +5,7 @@ import { type Ghost, composite } from '../compositor';
 import { addLayer, createDocument, createLayer, setLayerCells, updateLayer } from '../document';
 import { createEffect } from '../effects';
 import { applyEdits, emptyGrid, keyOf } from '../grid';
-import { groupSelection } from '../object';
+import { groupSelection } from '../grouping';
 import { selectionFromRect } from '../selection';
 import { deserialize } from '../serialization';
 import { bufferToText } from '../text';

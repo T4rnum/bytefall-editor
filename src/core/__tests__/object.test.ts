@@ -1,91 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
-import {
-  addLayer,
-  createDocument,
-  createLayer,
-  duplicateLayer,
-  findLayer,
-  removeLayer,
-  setLayerCells,
-  updateLayer,
-} from '../document';
-import type { Rect } from '../geometry';
-import { applyEdits, editsFromPoints, emptyGrid, getCell, keyOf } from '../grid';
-import { type Selection, selectionFromRect } from '../selection';
+import { addLayer, createDocument, createLayer, duplicateLayer, removeLayer } from '../document';
+import { applyEdits, emptyGrid, keyOf } from '../grid';
 import {
   MAX_OBJECTS,
   addObject,
   createObject,
   duplicateObject,
   findObject,
-  groupSelection,
   moveObjectToLayer,
-  objectAt,
-  objectBounds,
   objectsInVisualOrder,
   pasteObject,
   removeObject,
   removeObjectProp,
   setObjectProp,
   shiftObjectOrder,
-  topCellAt,
-  ungroupObject,
   updateObject,
 } from '../object';
-
-const points = [
-  { x: 2, y: 2 },
-  { x: 3, y: 2 },
-  { x: 2, y: 3 },
-];
-
-/** Документ 8×8 с тремя ячейками на первом слое. */
-/** Прямоугольное выделение на холсте 8×8: у объектов свой предмет теста, не форма выделения. */
-const rectSel = (rect: Rect): Selection => selectionFromRect(rect, 8, 8)!;
-
-const setup = () => {
-  const doc = createDocument({ width: 8, height: 8 });
-  const layerId = doc.layers[0].id;
-  const cells = applyEdits(emptyGrid(), editsFromPoints(points, makeCell('#', '#ff0000')));
-  return { doc: setLayerCells(doc, layerId, cells), layerId };
-};
-
-describe('groupSelection / ungroupObject', () => {
-  it('moves cells from the raster into a new object and back', () => {
-    const { doc, layerId } = setup();
-    const grouped = groupSelection(doc, layerId, rectSel({ x: 2, y: 2, w: 2, h: 2 }));
-    expect(grouped).not.toBeNull();
-    const { doc: next, object } = grouped!;
-    expect(findLayer(next, layerId)!.cells.size).toBe(0);
-    expect(object.cells.size).toBe(3);
-    expect(getCell(object.cells, 0, 0)?.glyph).toBe('#');
-    expect(objectBounds(object)).toEqual({ x: 2, y: 2, w: 2, h: 2 });
-
-    const moved = updateObject(next, object.id, { x: 5, y: 5 });
-    const baked = ungroupObject(moved, object.id);
-    expect(baked.objects).toHaveLength(0);
-    const raster = findLayer(baked, layerId)!.cells;
-    expect(getCell(raster, 5, 5)?.glyph).toBe('#');
-    expect(getCell(raster, 6, 5)?.glyph).toBe('#');
-    expect(getCell(raster, 5, 6)?.glyph).toBe('#');
-  });
-
-  it('returns null for an empty selection or missing layer and drops off-canvas cells on bake', () => {
-    const { doc, layerId } = setup();
-    expect(groupSelection(doc, layerId, rectSel({ x: 6, y: 6, w: 2, h: 2 }))).toBeNull();
-    expect(groupSelection(doc, 'missing', rectSel({ x: 2, y: 2, w: 2, h: 2 }))).toBeNull();
-    const { doc: next, object } = groupSelection(
-      doc,
-      layerId,
-      rectSel({ x: 2, y: 2, w: 2, h: 2 }),
-    )!;
-    const outside = updateObject(next, object.id, { x: 7, y: 7 });
-    const baked = ungroupObject(outside, object.id);
-    expect(findLayer(baked, layerId)!.cells.size).toBe(1);
-    expect(ungroupObject(baked, 'missing')).toBe(baked);
-  });
-});
+import { setupObjectDoc as setup } from './helpers/objectDoc';
 
 describe('object collection operations', () => {
   it('adds, updates, reorders, duplicates and removes objects immutably', () => {
@@ -112,7 +44,7 @@ describe('object collection operations', () => {
 
     const duplicated = duplicateObject(withBoth, a.id);
     expect(duplicated.objects).toHaveLength(3);
-    expect(duplicated.objects[1]).toMatchObject({ name: 'A copy', x: 1, y: 1 });
+    expect(duplicated.objects[1]).toMatchObject({ name: 'A copy', transform: { x: 1, y: 1 } });
     expect(duplicateObject(withBoth, 'missing')).toBe(withBoth);
 
     const removed = removeObject(withBoth, b.id);
@@ -140,53 +72,6 @@ describe('object collection operations', () => {
     expect(findObject(cleared, obj.id)?.props).toEqual({});
     expect(removeObjectProp(cleared, obj.id, 'hp')).toBe(cleared);
     expect(setObjectProp(cleared, 'missing', 'k', 1)).toBe(cleared);
-  });
-});
-
-describe('hit testing', () => {
-  it('prefers cell hits over bounding boxes and respects visibility and layer order', () => {
-    const { doc, layerId } = setup();
-    const top = createLayer('top');
-    let next = addLayer(doc, top);
-    const { doc: grouped, object: lower } = groupSelection(
-      next,
-      layerId,
-      rectSel({ x: 2, y: 2, w: 2, h: 2 }),
-    )!;
-    next = grouped;
-    const upper = createObject({
-      name: 'upper',
-      layerId: top.id,
-      x: 2,
-      y: 2,
-      cells: applyEdits(emptyGrid(), new Map([[keyOf(1, 1), makeCell('@')]])),
-    });
-    next = addObject(next, upper);
-
-    expect(objectAt(next, 2, 2)?.id).toBe(lower.id);
-    expect(objectAt(next, 3, 3)?.id).toBe(upper.id);
-    expect(objectAt(next, 0, 0)).toBeUndefined();
-    expect(objectsInVisualOrder(next).map((o) => o.id)).toEqual([lower.id, upper.id]);
-
-    const hiddenUpper = updateObject(next, upper.id, { visible: false });
-    expect(objectAt(hiddenUpper, 3, 3)?.id).toBe(lower.id);
-    const hiddenLayer = updateLayer(next, top.id, { visible: false });
-    expect(objectAt(hiddenLayer, 3, 3)?.id).toBe(lower.id);
-    expect(objectBounds(createObject({ name: 'e', layerId, x: 4, y: 4 }))).toEqual({
-      x: 4,
-      y: 4,
-      w: 1,
-      h: 1,
-    });
-  });
-
-  it('topCellAt looks through objects and rasters from the top', () => {
-    const { doc, layerId } = setup();
-    const { doc: grouped } = groupSelection(doc, layerId, rectSel({ x: 2, y: 2, w: 1, h: 1 }))!;
-    expect(topCellAt(grouped, 2, 2)?.glyph).toBe('#');
-    expect(topCellAt(grouped, 3, 2)?.glyph).toBe('#');
-    expect(topCellAt(grouped, 0, 0)).toBeUndefined();
-    expect(topCellAt(grouped, 9, 9)).toBeUndefined();
   });
 });
 
@@ -243,7 +128,7 @@ describe('pasteObject', () => {
     const { doc, top, source } = base();
     const { doc: next, object } = pasteObject(doc, source, top.id);
     expect(object.id).toBe(source.id);
-    expect(object).toMatchObject({ x: 3, y: 2, name: 'hero', layerId: top.id });
+    expect(object).toMatchObject({ transform: { x: 3, y: 2 }, name: 'hero', layerId: top.id });
     expect(findObject(next, source.id)?.cells.size).toBe(1);
   });
 

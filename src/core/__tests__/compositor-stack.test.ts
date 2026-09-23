@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
-import { composite, stackCell } from '../compositor';
+import { stackCell } from '../cellBuffer';
+import { composite } from '../compositor';
 import { createDocument, setLayerCells, updateLayer } from '../document';
 import { createEffect } from '../effects';
 import { applyEdits, editsFromPoints, emptyGrid, keyOf } from '../grid';

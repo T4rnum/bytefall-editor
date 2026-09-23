@@ -4,7 +4,9 @@ import { type Point, type Rect, inBounds } from './geometry';
 /** Ключ ячейки: y * 65536 + x. Координаты неотрицательные и меньше 65536. */
 export type CellKey = number;
 
-const STRIDE = 65536;
+/** Шаг ключа по строке. Он же предел координат: ключ однозначен, пока x и y меньше него. */
+export const KEY_STRIDE = 65536;
+const STRIDE = KEY_STRIDE;
 
 /** Отрицательная координата дала бы ключ другой ячейки, поэтому инвариант проверяется здесь. */
 export function keyOf(x: number, y: number): CellKey {

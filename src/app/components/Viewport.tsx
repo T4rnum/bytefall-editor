@@ -1,14 +1,10 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { frameDocument } from '../../core/animation';
-import {
-  type CellBuffer,
-  type Ghost,
-  canRebuildTiles,
-  composite,
-  effectsSignature,
-} from '../../core/compositor';
+import type { CellBuffer } from '../../core/cellBuffer';
+import { type Ghost, canRebuildTiles, composite, effectsSignature } from '../../core/compositor';
 import { inBounds } from '../../core/geometry';
-import { findObject, objectBounds } from '../../core/object';
+import { findObject } from '../../core/object';
+import { objectBounds, objectMatrix } from '../../core/placement';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
@@ -109,8 +105,9 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
 
     const syncObjectOutline = (): void => {
       const { selectedObjectId } = useEditorStore.getState();
-      const obj = selectedObjectId ? findObject(currentDoc(), selectedObjectId) : undefined;
-      view.setObjectOutline(obj ? objectBounds(obj) : null);
+      const doc = currentDoc();
+      const obj = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
+      view.setObjectOutline(obj ? objectBounds(obj, objectMatrix(doc, obj)) : null);
     };
 
     let lastEpoch = -1;

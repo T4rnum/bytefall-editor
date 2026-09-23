@@ -116,11 +116,11 @@ describe('resizeDocument', () => {
 
     const grown = resizeDocument(doc, 8, 8, 'center');
     expect(getCell(findLayer(grown, id)!.cells, 2, 2)?.glyph).toBe('#');
-    expect(grown.objects[0]).toMatchObject({ x: 2, y: 2 });
+    expect(grown.objects[0].transform).toMatchObject({ x: 2, y: 2 });
 
     const corner = resizeDocument(doc, 8, 8, 'bottom-right');
     expect(getCell(findLayer(corner, id)!.cells, 4, 4)?.glyph).toBe('#');
-    expect(corner.objects[0]).toMatchObject({ x: 4, y: 4 });
+    expect(corner.objects[0].transform).toMatchObject({ x: 4, y: 4 });
   });
 
   it('смещение якоря считается от разницы размеров', () => {

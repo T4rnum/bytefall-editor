@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CellBuffer } from '../core/compositor';
+import type { CellBuffer } from '../core/cellBuffer';
 import {
   type TileLayout,
   mergeTileRanges,

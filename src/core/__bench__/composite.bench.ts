@@ -1,9 +1,10 @@
 import { describe, it } from 'vitest';
-import { type CellBuffer, composite, createCellBuffer } from '../compositor';
+import { type CellBuffer, createCellBuffer } from '../cellBuffer';
+import { composite } from '../compositor';
 import { updateLayer } from '../document';
 import { createEffect } from '../effects';
 import { tileLayout, tilesFromKeys } from '../tiles';
-import { BENCH_SIZES, benchDocument, benchStroke } from './fixtures';
+import { BENCH_SIZES, benchDocument, benchStroke, benchWithTurnedObject } from './fixtures';
 
 /**
  * Стоимость одного кадра на CPU. Это то, что выполняется на каждое движение указателя и на
@@ -18,6 +19,7 @@ for (const size of BENCH_SIZES) {
   const target: CellBuffer = createCellBuffer(size.width, size.height);
   const preview = { layerId: doc.layers[2].id, edits: benchStroke(size, 64) };
   const withFire = updateLayer(doc, doc.layers[0].id, { effects: [createEffect('fire', 'fx')] });
+  const withTurned = benchWithTurnedObject(doc, size);
 
   // Тайлы, задетые мазком: ровно то, что пересобирается во время рисования.
   const layout = tileLayout(size.width, size.height);
@@ -49,6 +51,10 @@ for (const size of BENCH_SIZES) {
         }),
         bench('кадр без переиспользования буфера', () => {
           composite(doc);
+        }),
+        // Объект на 1/16 холста под 30°: растеризация обратным преобразованием.
+        bench('кадр с повёрнутым объектом', () => {
+          composite(withTurned, null, target);
         }),
       );
     });

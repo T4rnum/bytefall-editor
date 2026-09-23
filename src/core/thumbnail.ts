@@ -1,5 +1,5 @@
 import { parseHex } from './color';
-import type { CellBuffer } from './compositor';
+import type { CellBuffer } from './cellBuffer';
 
 /** Картинка миниатюры: RGBA на пиксель, 0..255, без домножения на альфу — так её ждёт ImageData. */
 export interface Thumbnail {

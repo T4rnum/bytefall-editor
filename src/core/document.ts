@@ -237,8 +237,11 @@ export function resizeDocument(
     width,
     height,
     layers: doc.layers.map((l) => ({ ...l, cells: shiftGrid(l.cells, dx, dy, width, height) })),
+    // Дети едут вместе с родителем: их позиция задана относительно него.
     objects: doc.objects.map((o) =>
-      dx === 0 && dy === 0 ? o : { ...o, x: o.x + dx, y: o.y + dy },
+      (dx === 0 && dy === 0) || o.parentId !== null
+        ? o
+        : { ...o, transform: { ...o.transform, x: o.transform.x + dx, y: o.transform.y + dy } },
     ),
   };
 }

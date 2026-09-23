@@ -1,22 +1,14 @@
-import { type Cell, isBlankCell } from './cell';
-import { type Rgba, TRANSPARENT, over, parseHex, toHex, withAlpha } from './color';
+import type { Affine } from './affine';
+import { isBlankCell } from './cell';
+import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
-import { type CellEdits, type CellGrid, type CellKey, keyOf, xOf, yOf } from './grid';
-import { type TileLayout, tileIndexOf, tileLayout, tileOf, tileRect } from './tiles';
+import type { Rect } from './geometry';
+import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
-
-/**
- * Плоский кадр для рендерера: по одному символу и двум цветам на ячейку.
- * Цвета лежат в Float32Array по четыре компоненты r, g, b, a на ячейку.
- */
-export interface CellBuffer {
-  readonly width: number;
-  readonly height: number;
-  readonly glyphs: string[];
-  readonly fg: Float32Array;
-  readonly bg: Float32Array;
-}
+import { isFreeObject, layerDrawOrder, objectMatrices } from './placement';
+import { rasterizeObject } from './rasterize';
+import { type TileLayout, tileIndexOf, tileLayout, tileOf, tileRect } from './tiles';
 
 /** Незакоммиченные правки инструмента, показываемые поверх слоя. */
 export interface Preview {
@@ -30,84 +22,16 @@ export interface Ghost {
   readonly opacity: number;
 }
 
-export function createCellBuffer(width: number, height: number): CellBuffer {
-  const size = width * height;
-  return {
-    width,
-    height,
-    glyphs: new Array<string>(size).fill(''),
-    fg: new Float32Array(size * 4),
-    bg: new Float32Array(size * 4),
-  };
-}
-
-const colorCache = new Map<string, Rgba>();
-function colorOf(hex: string): Rgba {
-  let color = colorCache.get(hex);
-  if (!color) {
-    color = parseHex(hex);
-    colorCache.set(hex, color);
-  }
-  return color;
-}
-
-function readRgba(arr: Float32Array, i: number): Rgba {
-  const o = i * 4;
-  return { r: arr[o], g: arr[o + 1], b: arr[o + 2], a: arr[o + 3] };
-}
-
-function writeRgba(arr: Float32Array, i: number, c: Rgba): void {
-  const o = i * 4;
-  arr[o] = c.r;
-  arr[o + 1] = c.g;
-  arr[o + 2] = c.b;
-  arr[o + 3] = c.a;
-}
-
-function blendAt(buf: CellBuffer, x: number, y: number, cell: Cell, opacity: number): void {
-  if (x < 0 || y < 0 || x >= buf.width || y >= buf.height) return;
-  const i = y * buf.width + x;
-
-  if (cell.bg !== null) {
-    const bg = withAlpha(colorOf(cell.bg), opacity);
-    writeRgba(buf.bg, i, over(bg, readRgba(buf.bg, i)));
-    if (cell.glyph === '') {
-      if (bg.a >= 1) {
-        // Непрозрачный фон закрашивает символ снизу.
-        buf.glyphs[i] = '';
-        writeRgba(buf.fg, i, TRANSPARENT);
-      } else if (buf.glyphs[i] !== '') {
-        // Полупрозрачный фон просвечивает символ снизу.
-        writeRgba(buf.fg, i, over(bg, readRgba(buf.fg, i)));
-      }
-    }
-  }
-  if (cell.glyph !== '') {
-    buf.glyphs[i] = cell.glyph;
-    writeRgba(buf.fg, i, withAlpha(colorOf(cell.fg), opacity));
-  }
-}
-
-const blendCell = (buf: CellBuffer, key: CellKey, cell: Cell, opacity: number): void =>
-  blendAt(buf, xOf(key), yOf(key), cell, opacity);
-
-/** Ячейка объекта поверх ячейки растра по тем же правилам, что и blendAt при полной непрозрачности. */
-export function stackCell(under: Cell | undefined, top: Cell): Cell {
-  if (!under) return top;
-  if (top.glyph !== '') return { ...top, bg: top.bg ?? under.bg };
-  if (top.bg === null) return under;
-  if (colorOf(top.bg).a >= 1) return top;
-  // Полупрозрачный фон без символа подкрашивает то, что снизу, а не стирает.
-  const underBg = under.bg === null ? TRANSPARENT : colorOf(under.bg);
-  return { ...under, bg: toHex(over(colorOf(top.bg), underBg)) };
-}
-
-/** Растр слоя с превью инструмента и объектами в одной сетке: нужно только слоям с эффектами. */
+/**
+ * Растр слоя с превью инструмента и объектами в одной сетке: нужно только слоям с эффектами.
+ * Сюда попадают только объекты, лежащие в сетке: у свободных нет ячеек, которые можно поджечь.
+ */
 function layerContent(
   layer: Layer,
   edits: CellEdits | null,
   objects: readonly SceneObject[],
-  doc: Document,
+  matrices: ReadonlyMap<string, Affine>,
+  canvas: Rect,
 ): CellGrid {
   if (!edits && objects.length === 0) return layer.cells;
   const out = new Map(layer.cells);
@@ -119,15 +43,30 @@ function layerContent(
   }
   for (const obj of objects) {
     if (!obj.visible) continue;
-    for (const [key, cell] of obj.cells) {
-      const x = obj.x + xOf(key);
-      const y = obj.y + yOf(key);
-      if (x < 0 || y < 0 || x >= doc.width || y >= doc.height) continue;
+    rasterizeObject(obj, matrices.get(obj.id) as Affine, canvas, (x, y, cell) => {
       const target = keyOf(x, y);
       out.set(target, stackCell(out.get(target), cell));
-    }
+    });
   }
   return out;
+}
+
+/**
+ * Объект в буфер. Свободный объект — повёрнутый, отмасштабированный — попадает в ячейки так же,
+ * как в текст и при впечатывании в слой: через `rasterizeObject`.
+ */
+function drawObject(
+  buf: CellBuffer,
+  obj: SceneObject,
+  matrix: Affine,
+  opacity: number,
+  canvas: Rect,
+  wanted: (x: number, y: number) => boolean,
+): void {
+  if (!obj.visible) return;
+  rasterizeObject(obj, matrix, canvas, (x, y, cell) => {
+    if (wanted(x, y)) blendAt(buf, x, y, cell, opacity);
+  });
 }
 
 /**
@@ -147,19 +86,29 @@ function drawDocument(
   tiles: ReadonlySet<number> | null,
 ): void {
   const objectsByLayer = groupObjectsByLayer(doc);
+  const matrices = objectMatrices(doc);
+  const matrixOf = (obj: SceneObject): Affine => matrices.get(obj.id) as Affine;
   const ctx = { time, width: doc.width, height: doc.height };
-  const wanted = (key: CellKey): boolean =>
-    tiles === null || tiles.has(tileOf(layout, xOf(key), yOf(key)));
+  const canvas = { x: 0, y: 0, w: doc.width, h: doc.height };
+  const wanted = (x: number, y: number): boolean =>
+    tiles === null || tiles.has(tileOf(layout, x, y));
 
   for (const layer of doc.layers) {
     if (!layer.visible || layer.opacity <= 0) continue;
     const opacity = layer.opacity * alpha;
     const edits = preview && preview.layerId === layer.id ? preview.edits : null;
-    const objects = objectsByLayer.get(layer.id) ?? [];
+    const objects = layerDrawOrder(layer, objectsByLayer.get(layer.id) ?? [], matrices);
 
     if (hasActiveEffects(layer.effects)) {
-      const cells = applyEffects(layerContent(layer, edits, objects, doc), layer.effects, ctx);
+      const inGrid = objects.filter((o) => !isFreeObject(o, matrixOf(o)));
+      const content = layerContent(layer, edits, inGrid, matrices, canvas);
+      const cells = applyEffects(content, layer.effects, ctx);
       for (const [key, cell] of cells) blendCell(buf, key, cell, opacity);
+      for (const obj of objects) {
+        if (isFreeObject(obj, matrixOf(obj))) {
+          drawObject(buf, obj, matrixOf(obj), opacity, canvas, wanted);
+        }
+      }
       continue;
     }
 
@@ -184,18 +133,12 @@ function drawDocument(
 
     if (edits) {
       for (const [key, cell] of edits) {
-        if (cell && !isBlankCell(cell) && wanted(key)) blendCell(buf, key, cell, opacity);
+        if (cell && !isBlankCell(cell) && wanted(xOf(key), yOf(key))) {
+          blendCell(buf, key, cell, opacity);
+        }
       }
     }
-    for (const obj of objects) {
-      if (!obj.visible) continue;
-      for (const [key, cell] of obj.cells) {
-        const x = obj.x + xOf(key);
-        const y = obj.y + yOf(key);
-        if (tiles !== null && !tiles.has(tileOf(layout, x, y))) continue;
-        blendAt(buf, x, y, cell, opacity);
-      }
-    }
+    for (const obj of objects) drawObject(buf, obj, matrixOf(obj), opacity, canvas, wanted);
   }
 }
 

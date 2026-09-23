@@ -32,12 +32,12 @@ describe('object tool pointer', () => {
     tool.onPointerDown?.(env, at(2, 2));
     expect(calls.selected).toEqual([id]);
     tool.onPointerMove?.(env, at(4, 3));
-    expect(findObject(calls.draft!, id)).toMatchObject({ x: 4, y: 3 });
+    expect(findObject(calls.draft!, id)).toMatchObject({ transform: { x: 4, y: 3 } });
     tool.onPointerUp?.(env, at(4, 3));
     expect(calls.draft).toBeNull();
     expect(calls.docCommits).toHaveLength(1);
     expect(calls.docCommits[0].label).toBe('Move object');
-    expect(findObject(calls.docCommits[0].doc, id)).toMatchObject({ x: 4, y: 3 });
+    expect(findObject(calls.docCommits[0].doc, id)).toMatchObject({ transform: { x: 4, y: 3 } });
   });
 
   it('deselects on empty clicks and never moves locked objects', () => {
@@ -77,9 +77,9 @@ describe('object tool keyboard', () => {
     const { env, calls } = makeToolEnv(doc, { selectedObjectId: id });
     const tool = createObjectTool();
     expect(tool.onKeyDown?.(env, key('ArrowRight'))).toBe(true);
-    expect(findObject(calls.docCommits[0].doc, id)).toMatchObject({ x: 3, y: 2 });
+    expect(findObject(calls.docCommits[0].doc, id)).toMatchObject({ transform: { x: 3, y: 2 } });
     expect(tool.onKeyDown?.(env, key('ArrowDown', { shiftKey: true }))).toBe(true);
-    expect(findObject(calls.docCommits[1].doc, id)).toMatchObject({ x: 2, y: 12 });
+    expect(findObject(calls.docCommits[1].doc, id)).toMatchObject({ transform: { x: 2, y: 12 } });
     expect(tool.onKeyDown?.(env, key('ArrowRight', { ctrlKey: true }))).toBe(false);
     expect(tool.onKeyDown?.(env, key('Delete'))).toBe(true);
     expect(findObject(calls.docCommits[2].doc, id)).toBeUndefined();

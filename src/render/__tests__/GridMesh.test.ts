@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { type CellBuffer, createCellBuffer } from '../../core/compositor';
+import { type CellBuffer, createCellBuffer } from '../../core/cellBuffer';
 import { slotCount, slotOf, tileLayout, tileOf } from '../../core/tiles';
 import type { GlyphRect } from '../font/GlyphAtlas';
 import { GridMesh, type GlyphSource } from '../GridMesh';

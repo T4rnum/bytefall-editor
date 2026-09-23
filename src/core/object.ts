@@ -1,42 +1,42 @@
-import type { Cell, CellAttrValue } from './cell';
-import { type Document, findLayer, newId, setLayerCells } from './document';
-import { type Rect, inBounds, rectContains } from './geometry';
+import type { CellAttrValue } from './cell';
+import { type Document, findLayer, newId } from './document';
+import { type CellGrid, emptyGrid } from './grid';
 import {
-  type CellGrid,
-  type CellKey,
-  applyEdits,
-  emptyGrid,
-  gridBounds,
-  keyOf,
-  xOf,
-  yOf,
-} from './grid';
-import { type Selection, clearSelectionEdits, copySelection } from './selection';
+  type GlyphOverrides,
+  type Transform2D,
+  centerPivot,
+  createTransform,
+  emptyOverrides,
+  normalizeTransform,
+  pruneOverrides,
+} from './transform';
 
 export type PropValue = CellAttrValue;
 /** Произвольные свойства объекта: задел под логику, связи и анимацию. */
 export type ObjectProps = Readonly<Record<string, PropValue>>;
 
 /**
- * Объект: именованный набор ячеек с позицией, живущий поверх растра своего слоя.
+ * Объект: именованный набор ячеек с трансформом, живущий поверх растра своего слоя.
  * Слои остаются растровыми контейнерами, как в Photoshop, объекты живут поверх, как в Blender.
  */
 export interface SceneObject {
   readonly id: string;
   readonly name: string;
   readonly layerId: string;
-  /** Левый верхний угол в координатах документа. Может выходить за холст, в том числе в минус. */
-  readonly x: number;
-  readonly y: number;
+  /** Родитель: трансформ объекта задан относительно него. null — объект в корне. */
+  readonly parentId: string | null;
+  /** Домашняя ячейка, поворот, масштаб, опорная точка. Позиция может выходить за холст. */
+  readonly transform: Transform2D;
   readonly visible: boolean;
   readonly locked: boolean;
   /** Ячейки в локальных координатах от (0, 0). */
   readonly cells: CellGrid;
+  /** Поворот, размер и сдвиг отдельных символов. Разреженные: только то, что правили руками. */
+  readonly overrides: GlyphOverrides;
   readonly props: ObjectProps;
 }
 
 export const MAX_OBJECTS = 1024;
-const LOCAL_LIMIT = 65536;
 
 export interface CreateObjectInit {
   readonly name: string;
@@ -48,16 +48,19 @@ export interface CreateObjectInit {
   readonly id?: string;
 }
 
+/** Новый объект без поворота и масштаба, опорная точка — в центре содержимого. */
 export function createObject(init: CreateObjectInit): SceneObject {
+  const cells = init.cells ?? emptyGrid();
   return {
     id: init.id ?? newId('object'),
     name: init.name,
     layerId: init.layerId,
-    x: init.x,
-    y: init.y,
+    parentId: null,
+    transform: createTransform(init.x, init.y, centerPivot(cells)),
     visible: true,
     locked: false,
-    cells: init.cells ?? emptyGrid(),
+    cells,
+    overrides: emptyOverrides(),
     props: init.props ?? {},
   };
 }
@@ -116,8 +119,26 @@ export function updateObject(
     throw new Error(`Unknown layer: ${patch.layerId}`);
   }
   const objects = doc.objects.slice();
-  objects[index] = { ...objects[index], ...patch };
+  const next = { ...objects[index], ...patch };
+  // Новые ячейки уносят правки символов, которым больше не на что ссылаться.
+  objects[index] = patch.cells
+    ? { ...next, overrides: pruneOverrides(next.overrides, next.cells) }
+    : next;
   return { ...doc, objects };
+}
+
+/** Меняет поля трансформа и приводит его к пределам формата. */
+export function transformObject(doc: Document, id: string, patch: Partial<Transform2D>): Document {
+  const obj = findObject(doc, id);
+  if (!obj) return doc;
+  return updateObject(doc, id, { transform: normalizeTransform({ ...obj.transform, ...patch }) });
+}
+
+/** Переносит домашнюю ячейку на целое число ячеек. */
+export function moveObject(doc: Document, id: string, dx: number, dy: number): Document {
+  const obj = findObject(doc, id);
+  if (!obj) return doc;
+  return transformObject(doc, id, { x: obj.transform.x + dx, y: obj.transform.y + dy });
 }
 
 /**
@@ -142,12 +163,12 @@ export function duplicateObject(doc: Document, id: string, dx = 1, dy = 1): Docu
   const index = objectIndex(doc, id);
   if (index === -1) return doc;
   const source = doc.objects[index];
+  const { x, y } = source.transform;
   const copy: SceneObject = {
     ...source,
     id: newId('object'),
     name: `${source.name} copy`,
-    x: source.x + dx,
-    y: source.y + dy,
+    transform: normalizeTransform({ ...source.transform, x: x + dx, y: y + dy }),
   };
   return addObject(doc, copy, index + 1);
 }
@@ -186,88 +207,6 @@ export function moveObjectToLayer(doc: Document, id: string, layerId: string): D
   if (!findLayer(doc, layerId)) throw new Error(`Unknown layer: ${layerId}`);
   const moved = { ...doc.objects[index], layerId };
   return { ...doc, objects: [...doc.objects.filter((_, i) => i !== index), moved] };
-}
-
-/** Ограничивающий прямоугольник в координатах документа. Пустой объект занимает одну ячейку. */
-export function objectBounds(obj: SceneObject): Rect {
-  const bounds = gridBounds(obj.cells);
-  if (!bounds) return { x: obj.x, y: obj.y, w: 1, h: 1 };
-  return { x: obj.x + bounds.x, y: obj.y + bounds.y, w: bounds.w, h: bounds.h };
-}
-
-export function objectCellAt(obj: SceneObject, x: number, y: number): Cell | undefined {
-  const lx = x - obj.x;
-  const ly = y - obj.y;
-  if (lx < 0 || ly < 0 || lx >= LOCAL_LIMIT || ly >= LOCAL_LIMIT) return undefined;
-  return obj.cells.get(keyOf(lx, ly));
-}
-
-function isLayerShown(doc: Document, layerId: string): boolean {
-  const layer = findLayer(doc, layerId);
-  return layer !== undefined && layer.visible && layer.opacity > 0;
-}
-
-/** Верхний видимый объект под ячейкой: сначала по непустой ячейке, затем по рамке. */
-export function objectAt(doc: Document, x: number, y: number): SceneObject | undefined {
-  const candidates = objectsInVisualOrder(doc)
-    .filter((o) => o.visible && isLayerShown(doc, o.layerId))
-    .reverse();
-  return (
-    candidates.find((o) => objectCellAt(o, x, y) !== undefined) ??
-    candidates.find((o) => rectContains(objectBounds(o), x, y))
-  );
-}
-
-/** Верхняя видимая ячейка под координатой с учётом объектов и растров всех слоёв. */
-export function topCellAt(doc: Document, x: number, y: number): Cell | undefined {
-  if (!inBounds(x, y, doc.width, doc.height)) return undefined;
-  const groups = groupObjectsByLayer(doc);
-  for (let i = doc.layers.length - 1; i >= 0; i--) {
-    const layer = doc.layers[i];
-    if (!layer.visible || layer.opacity <= 0) continue;
-    const objects = groups.get(layer.id) ?? [];
-    for (let j = objects.length - 1; j >= 0; j--) {
-      if (!objects[j].visible) continue;
-      const cell = objectCellAt(objects[j], x, y);
-      if (cell) return cell;
-    }
-    const cell = layer.cells.get(keyOf(x, y));
-    if (cell) return cell;
-  }
-  return undefined;
-}
-
-/** Вырезает выделенные ячейки из растра слоя в новый объект. null, если в выделении пусто. */
-export function groupSelection(
-  doc: Document,
-  layerId: string,
-  selection: Selection,
-  name: string = `Объект ${doc.objects.length + 1}`,
-): { doc: Document; object: SceneObject } | null {
-  const layer = findLayer(doc, layerId);
-  if (!layer) return null;
-  const clip = copySelection(layer.cells, selection);
-  if (clip.cells.size === 0) return null;
-  const { x, y } = selection.bounds;
-  const object = createObject({ name, layerId, x, y, cells: clip.cells });
-  const raster = applyEdits(layer.cells, clearSelectionEdits(layer.cells, selection));
-  return { doc: addObject(setLayerCells(doc, layerId, raster), object), object };
-}
-
-/** Впечатывает объект в растр его слоя и удаляет объект. Ячейки за холстом теряются. */
-export function ungroupObject(doc: Document, id: string): Document {
-  const obj = findObject(doc, id);
-  if (!obj) return doc;
-  const layer = findLayer(doc, obj.layerId);
-  if (!layer) return removeObject(doc, id);
-  const edits = new Map<CellKey, Cell | null>();
-  for (const [key, cell] of obj.cells) {
-    const x = obj.x + xOf(key);
-    const y = obj.y + yOf(key);
-    if (inBounds(x, y, doc.width, doc.height)) edits.set(keyOf(x, y), cell);
-  }
-  const baked = setLayerCells(doc, obj.layerId, applyEdits(layer.cells, edits));
-  return removeObject(baked, id);
 }
 
 export function setObjectProp(doc: Document, id: string, key: string, value: PropValue): Document {

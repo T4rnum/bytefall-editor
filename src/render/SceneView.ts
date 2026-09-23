@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import type { CellBuffer } from '../core/compositor';
+import type { CellBuffer } from '../core/cellBuffer';
 import type { Point, Rect } from '../core/geometry';
 import type { Selection } from '../core/selection';
 import { type CameraState, fitCamera, screenToWorld } from './camera';

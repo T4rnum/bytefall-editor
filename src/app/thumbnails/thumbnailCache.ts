@@ -1,5 +1,6 @@
 import { type Animation, type Frame, frameDocument } from '../../core/animation';
-import { type CellBuffer, composite } from '../../core/compositor';
+import type { CellBuffer } from '../../core/cellBuffer';
+import { composite } from '../../core/compositor';
 import {
   type GlyphCoverage,
   type Thumbnail,

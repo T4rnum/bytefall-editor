@@ -6,7 +6,7 @@ import {
   moveSelectedObjectToLayerAction,
   removeObjectPropAction,
   setObjectPropAction,
-  updateObjectAction,
+  transformObjectAction,
 } from '../store/objectActions';
 import { Field, NumberField, PropertyEditor, Select, plural, valueTypeName } from '../ui';
 
@@ -24,7 +24,9 @@ export function ObjectInspector({ object }: Props) {
     disabled: layer.id !== object.layerId && !canEditLayer(layer),
   }));
   const move = (axis: 'x' | 'y', value: number): void => {
-    if (value !== object[axis]) updateObjectAction(object.id, { [axis]: value }, 'Move object');
+    if (value !== object.transform[axis]) {
+      transformObjectAction(object.id, { [axis]: value }, 'Move object');
+    }
   };
 
   const rows = Object.entries(object.props).map(([key, value]) => ({
@@ -53,7 +55,7 @@ export function ObjectInspector({ object }: Props) {
       <Field label="Положение">
         <NumberField
           label="X"
-          value={object.x}
+          value={object.transform.x}
           min={-MAX_DIMENSION}
           max={MAX_DIMENSION}
           onChange={(value) => move('x', value)}
@@ -61,7 +63,7 @@ export function ObjectInspector({ object }: Props) {
         />
         <NumberField
           label="Y"
-          value={object.y}
+          value={object.transform.y}
           min={-MAX_DIMENSION}
           max={MAX_DIMENSION}
           onChange={(value) => move('y', value)}

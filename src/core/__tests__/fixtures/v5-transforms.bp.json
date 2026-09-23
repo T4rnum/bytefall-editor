@@ -1,0 +1,76 @@
+{
+  "format": "bytefall",
+  "version": 5,
+  "name": "Fixture v5",
+  "width": 12,
+  "height": 8,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff", "#ff004d"],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-arm",
+          "name": "Arm",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 4,
+            "y": 3,
+            "dx": 0.25,
+            "dy": -0.5,
+            "rot": 90,
+            "sx": 2,
+            "sy": 1,
+            "px": 1.5,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [
+            { "x": 0, "y": 0, "g": "A", "f": "#ffffff" },
+            { "x": 1, "y": 0, "g": "B", "f": "#ffffff" },
+            { "x": 2, "y": 0, "g": "C", "f": "#ff004d", "b": "#000000" }
+          ],
+          "overrides": [
+            { "x": 1, "y": 0, "rot": 45, "sx": 1.5, "sy": 1.5 },
+            { "x": 2, "y": 0, "dy": 0.5 }
+          ]
+        },
+        {
+          "id": "object-hand",
+          "name": "Hand",
+          "layerId": "layer-base",
+          "parentId": "object-arm",
+          "transform": {
+            "x": 3,
+            "y": 0,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 0.5,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [{ "x": 0, "y": 0, "g": "@", "f": "#ffffff" }],
+          "props": { "grip": true }
+        }
+      ]
+    }
+  ]
+}

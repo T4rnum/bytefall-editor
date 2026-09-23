@@ -1,4 +1,4 @@
-import type { CellBuffer } from '../../compositor';
+import type { CellBuffer } from '../../cellBuffer';
 
 /** Компонента Float32 0..1 как двузначный hex: снимок не должен зависеть от точности float. */
 function byte(value: number): string {

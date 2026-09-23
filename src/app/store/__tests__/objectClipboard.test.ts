@@ -48,7 +48,7 @@ describe('копирование и вставка объекта', () => {
     useDocumentStore.getState().setFrameIndex(1);
     pasteAction();
     const pasted = findObject(doc(), hero.id);
-    expect(pasted).toMatchObject({ x: 3, y: 2, name: 'hero' });
+    expect(pasted).toMatchObject({ transform: { x: 3, y: 2 }, name: 'hero' });
     expect(editor().selectedObjectId).toBe(hero.id);
     expect(editor().tool).toBe('object');
   });

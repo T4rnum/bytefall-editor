@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Cell, makeCell } from '../cell';
-import { type CellBuffer, canRebuildTiles, composite } from '../compositor';
+import type { CellBuffer } from '../cellBuffer';
+import { canRebuildTiles, composite } from '../compositor';
 import {
   type Document,
   addLayer,
@@ -11,7 +12,8 @@ import {
 } from '../document';
 import { createEffect } from '../effects';
 import { type CellKey, applyEdits, emptyGrid, keyOf } from '../grid';
-import { groupSelection } from '../object';
+import { groupSelection } from '../grouping';
+import { moveObject } from '../object';
 import { selectionFromRect } from '../selection';
 import { tileLayout, tilesFromKeys } from '../tiles';
 
@@ -128,10 +130,7 @@ describe('частичная пересборка кадра', () => {
     );
     if (!grouped) throw new Error('groupSelection вернул null');
     const previous = composite(grouped.doc);
-    const moved = {
-      ...grouped.doc,
-      objects: grouped.doc.objects.map((o) => ({ ...o, x: o.x + 1 })),
-    };
+    const moved = moveObject(grouped.doc, grouped.object.id, 1, 0);
     // Объект задевает и старое, и новое место.
     const tiles = tilesFromKeys(layout, [keyOf(5, 5), keyOf(16, 11)]);
     expectSameAsFull(moved, tiles, previous);
