@@ -1,4 +1,4 @@
-import { mapFrames } from '../../core/animation';
+import { mapFrames, resizeAnimation } from '../../core/animation';
 import { removeLayerKeepingChildren } from '../../core/hierarchy';
 import {
   type Layer,
@@ -10,7 +10,6 @@ import {
   layerIndex,
   moveLayer,
   newId,
-  resizeDocument,
   updateLayer,
 } from '../../core/document';
 import { useDocumentStore } from './documentStore';
@@ -121,9 +120,6 @@ export function removePaletteColorAction(hex: string): void {
 export function resizeCanvasAction(width: number, height: number, anchor: ResizeAnchor): void {
   const { doc, animation, commitAnimation } = state();
   if (width === doc.width && height === doc.height) return;
-  commitAnimation(
-    'Resize canvas',
-    mapFrames(animation, (d) => resizeDocument(d, width, height, anchor)),
-  );
+  commitAnimation('Resize canvas', resizeAnimation(animation, width, height, anchor));
   useEditorStore.getState().setSelection(null);
 }

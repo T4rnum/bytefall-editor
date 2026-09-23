@@ -1,4 +1,4 @@
-import { type Document, type Layer, newId } from './document';
+import { type Document, type Layer, type ResizeAnchor, newId, resizeDocument } from './document';
 import { emptyGrid } from './grid';
 import type { SceneObject } from './object';
 
@@ -92,6 +92,25 @@ export function withFrameDocument(anim: Animation, index: number, doc: Document)
     palette: doc.palette,
     frames,
   };
+}
+
+/**
+ * Меняет размер холста во всех кадрах. Сдвиг от якоря считается один раз, по прежнему размеру:
+ * через `mapFrames` это не сделать, там со второго кадра размер в заголовке уже новый, и
+ * содержимое остальных кадров не сдвинулось бы.
+ */
+export function resizeAnimation(
+  anim: Animation,
+  width: number,
+  height: number,
+  anchor: ResizeAnchor = 'top-left',
+): Animation {
+  if (width === anim.width && height === anim.height) return anim;
+  const frames = anim.frames.map((frame, index) => {
+    const resized = resizeDocument(frameDocument(anim, index), width, height, anchor);
+    return { ...frame, layers: resized.layers, objects: resized.objects };
+  });
+  return { ...anim, width, height, frames };
 }
 
 /** Применяет операцию над документом к каждому кадру: так слои остаются одинаковыми во всех кадрах. */

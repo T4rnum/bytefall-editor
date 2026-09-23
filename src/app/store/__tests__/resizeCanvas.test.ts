@@ -36,6 +36,20 @@ describe('resizeCanvasAction', () => {
     }
   });
 
+  it('якорь сдвигает содержимое в каждом кадре, а не только в первом', () => {
+    const store = useDocumentStore.getState();
+    store.commitAnimation('New frame', addFrame(store.animation, 0, 'duplicate'), 1);
+
+    resizeCanvasAction(12, 12, 'bottom-right');
+
+    const anim = useDocumentStore.getState().animation;
+    for (let i = 0; i < anim.frames.length; i++) {
+      const cells = frameDocument(anim, i).layers[0].cells;
+      expect(getCell(cells, 11, 11)?.glyph).toBe('#');
+      expect(getCell(cells, 7, 7)).toBeUndefined();
+    }
+  });
+
   it('якорь доезжает до документа: содержимое сдвигается вместе с холстом', () => {
     resizeCanvasAction(12, 12, 'bottom-right');
     expect(getCell(doc().layers[0].cells, 11, 11)?.glyph).toBe('#');
