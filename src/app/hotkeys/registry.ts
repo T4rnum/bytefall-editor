@@ -9,6 +9,7 @@ import { focusCellAttrInputAction } from '../store/cellAttrActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
+import { importImageAction } from '../store/importActions';
 import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import {
   duplicateSelectedObjectAction,
@@ -69,6 +70,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     label: 'Сохранить как',
     keys: 'Ctrl+Shift+S',
     run: () => void saveDocumentAction(true),
+  },
+  {
+    group: 'Файл',
+    label: 'Картинку в символы',
+    keys: 'Ctrl+I',
+    run: () => void importImageAction(),
   },
 
   {

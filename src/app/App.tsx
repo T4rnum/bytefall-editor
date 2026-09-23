@@ -7,6 +7,7 @@ import { ColorPanel } from './components/ColorPanel';
 import { EffectsPanel } from './components/EffectsPanel';
 import { GlyphPanel } from './components/GlyphPanel';
 import { HotkeysDialog } from './components/HotkeysDialog';
+import { ImportImageDialog } from './components/ImportImageDialog';
 import { LayersPanel } from './components/LayersPanel';
 import { LookPanel } from './components/LookPanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
@@ -18,6 +19,7 @@ import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
 import { useAutosave } from './hooks/useAutosave';
 import { useEffectClock } from './hooks/useEffectClock';
+import { useFileDrop } from './hooks/useFileDrop';
 import { useHotkeys } from './hooks/useHotkeys';
 import { usePlayback } from './hooks/usePlayback';
 import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
@@ -36,6 +38,7 @@ export function App() {
   const hotkeysOpen = useUiStore((s) => s.hotkeysOpen);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   useHotkeys();
+  const dropping = useFileDrop();
   useUnsavedChangesGuard();
   useAutosave();
   usePlayback();
@@ -85,6 +88,12 @@ export function App() {
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
       <RecoveryDialog />
+      <ImportImageDialog atlas={atlas} />
+      {dropping && (
+        <div className="drop-overlay" aria-hidden="true">
+          <p>Отпустите файл: картинка станет символами, документ откроется</p>
+        </div>
+      )}
       <TooltipLayer />
     </div>
   );

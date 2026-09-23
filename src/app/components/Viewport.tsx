@@ -116,12 +116,21 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       view.setGizmo(gizmo && { ...gizmo, handles: gizmo.scale.map((s) => s.at) });
     };
 
+    /**
+     * Холст, фон и сетка — по тому, что на экране. Черновик может быть другого размера: импорт
+     * картинки с подгонкой холста показывает результат ещё до вставки.
+     */
+    const syncCanvas = (): void => {
+      const doc = currentDoc();
+      view.setDocument(doc.width, doc.height, doc.background);
+    };
+
     let lastEpoch = -1;
     /** Подпись эффектов на последнем собранном кадре, см. проверку в syncEditor. */
     let lastEffects = '';
     const syncDocument = (state: DocumentState, prev: DocumentState | null): void => {
       if (!prev || state.doc !== prev.doc) {
-        view.setDocument(state.doc.width, state.doc.height, state.doc.background);
+        syncCanvas();
         // Коммит ячеек знает, что он тронул, и кадр пересобирается только в этих тайлах.
         // Всё остальное — смена кадра, структурная правка, отмена — требует полной пересборки.
         const layout = tileLayout(state.doc.width, state.doc.height);
@@ -179,6 +188,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         }
         recomposite(dirtyFromPreview(state, prev) ?? undefined);
       }
+      if (prev && state.draft !== prev.draft) syncCanvas();
       if (
         !prev ||
         state.draft !== prev.draft ||

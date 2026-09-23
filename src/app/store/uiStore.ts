@@ -1,5 +1,12 @@
 import { create } from 'zustand';
+import type { RgbaImage } from '../../core/quantize';
 import { readSetting, writeSetting } from '../ui/persist';
+
+/** Картинка, которую сейчас настраивают в диалоге импорта. */
+export interface ImageImportSource {
+  readonly name: string;
+  readonly image: RgbaImage;
+}
 
 const MIN_SIDEBAR = 220;
 const MAX_SIDEBAR = 520;
@@ -10,6 +17,8 @@ interface UiState {
   readonly sidebarWidth: number;
   readonly hotkeysOpen: boolean;
   readonly resizeOpen: boolean;
+  /** Открыт ли диалог импорта и с какой картинкой. */
+  readonly imageImport: ImageImportSource | null;
   /** Когда автосохранение последний раз легло на диск. null — ещё не писало или не может. */
   readonly autosavedAt: number | null;
   /** Автосохранение не смогло записать: хранилище браузера недоступно или переполнено. */
@@ -17,6 +26,7 @@ interface UiState {
   setSidebarWidth: (width: number) => void;
   setHotkeysOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
+  setImageImport: (source: ImageImportSource | null) => void;
   setAutosaveStatus: (status: { at: number | null; failed: boolean }) => void;
 }
 
@@ -31,6 +41,7 @@ export const useUiStore = create<UiState>((set) => ({
   ),
   hotkeysOpen: false,
   resizeOpen: false,
+  imageImport: null,
   autosavedAt: null,
   autosaveFailed: false,
   setSidebarWidth: (width) => {
@@ -40,6 +51,7 @@ export const useUiStore = create<UiState>((set) => ({
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),
+  setImageImport: (imageImport) => set({ imageImport }),
   setAutosaveStatus: ({ at, failed }) => set({ autosavedAt: at, autosaveFailed: failed }),
 }));
 

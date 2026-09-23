@@ -6,7 +6,7 @@ import { hasActiveEffects } from '../../core/effects';
 import { safeFileName } from '../../core/filename';
 import { bufferToText } from '../../core/text';
 import { type RenderedFrame, buildSpriteSheet, encodeGif } from '../io/animationExport';
-import { openDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
+import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
 import { errorMessage, notify } from './notifyStore';
@@ -44,6 +44,18 @@ export async function openDocumentAction(): Promise<void> {
     notify(OPENED_MESSAGES[opened.kind](opened.sourceName));
   } catch (error) {
     notify(`Не удалось открыть: ${errorMessage(error)}`, 'error');
+  }
+}
+
+/** Документ, перетащенный в окно: .bp.json, .xp из REXPaint или файл первого прототипа. */
+export async function openDroppedDocumentAction(file: File): Promise<void> {
+  if (!confirmDiscard()) return;
+  try {
+    const opened = await readDocumentFile(file);
+    useDocumentStore.getState().replaceAnimation(opened.animation, opened.file);
+    notify(OPENED_MESSAGES[opened.kind](opened.sourceName));
+  } catch (error) {
+    notify(`Не удалось открыть ${file.name}: ${errorMessage(error)}`, 'error');
   }
 }
 

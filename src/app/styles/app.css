@@ -598,6 +598,44 @@ select {
   padding: var(--space-6);
 }
 
+/** Файл тащат над окном: подсказка поверх всего, чтобы было ясно, что будет по отпусканию. */
+.drop-overlay {
+  position: fixed;
+  inset: var(--space-4);
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--scrim);
+  color: var(--text);
+  font-size: var(--text-lg);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/**
+ * Диалог у правого края: холст слева остаётся виден, а предпросмотр импорта рисуется прямо на
+ * нём. Высокий список настроек прокручивается внутри.
+ */
+.dialog--side {
+  margin: var(--space-6) var(--space-6) var(--space-6) auto;
+  max-height: calc(100vh - var(--space-6) * 2);
+  overflow-y: auto;
+}
+
+.dialog--side::backdrop {
+  background: transparent;
+}
+
+.dialog-section {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /** Справка по клавишам: колонок столько, сколько влезет, чтобы обойтись без прокрутки. */
 .dialog--wide {
   max-width: calc(100vw - var(--space-7) * 2);

@@ -105,8 +105,9 @@ export function zoomByAction(factor: number): void {
   tweenCameraTo({ ...camera, zoom: clampZoom(camera.zoom * factor) });
 }
 
+/** Вписывает в окно то, что на экране: черновик, если он есть, например предпросмотр импорта. */
 export function fitViewAction(): void {
   if (!activeView) return;
-  const { doc } = useDocumentStore.getState();
+  const doc = useEditorStore.getState().draft ?? useDocumentStore.getState().doc;
   tweenCameraTo(activeView.fitCamera(doc.width, doc.height));
 }

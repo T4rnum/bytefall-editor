@@ -5,6 +5,7 @@ import {
   FolderOpen,
   Grid3x3,
   Image,
+  ImagePlus,
   Keyboard,
   LayoutGrid,
   Maximize,
@@ -28,6 +29,7 @@ import {
   openDocumentAction,
   saveDocumentAction,
 } from '../store/fileActions';
+import { importImageAction } from '../store/importActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { Button, Select, TextField } from '../ui';
@@ -76,6 +78,14 @@ export function TopBar() {
           onClick={() => void openDocumentAction()}
         >
           <FolderOpen size={16} />
+        </Button>
+        <Button
+          icon
+          label="Картинку в символы: импорт PNG, JPEG, GIF, WebP. Можно и перетащить в окно"
+          hotkey="Ctrl+I"
+          onClick={() => void importImageAction()}
+        >
+          <ImagePlus size={16} />
         </Button>
         <Button
           icon
