@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { findHotkey } from '../hotkeys/registry';
 import { useEditorStore } from '../store/editorStore';
+import { closeImageImport } from '../store/importActions';
+import { useUiStore } from '../store/uiStore';
 import { getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
 
@@ -34,6 +36,16 @@ export function useHotkeys(): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (isEditableTarget(event.target) || insideModal(event.target)) return;
+      // Пока открыт импорт картинки, документ заперт: работают только клавиши вида, Escape
+      // закрывает импорт. Иначе Ctrl+Z откатил бы документ прямо под предпросмотром.
+      if (useUiStore.getState().imageImport) {
+        const view = findHotkey(event);
+        if (event.key === 'Escape') closeImageImport();
+        else if (view?.group === 'Вид') view.run();
+        else return;
+        event.preventDefault();
+        return;
+      }
       const contextual = findHotkey(event, true);
       if (contextual) {
         event.preventDefault();

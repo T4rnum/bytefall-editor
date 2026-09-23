@@ -64,8 +64,10 @@ function ImportImageDialogBody({ source, atlas }: BodyProps) {
   });
   const converted = useConversion(source, settings, atlas);
 
+  // Не модальное окно: холст за ним можно двигать и приближать, чтобы разглядеть результат.
+  // Инструменты и правки документа при этом заперты, см. `importOpen` во вьюпорте и клавишах.
   useEffect(() => {
-    ref.current?.showModal();
+    ref.current?.show();
   }, []);
   useEffect(() => {
     previewImageImport(converted, settings.fitCanvas);
@@ -84,7 +86,14 @@ function ImportImageDialogBody({ source, atlas }: BodyProps) {
 
   const { image } = source;
   return (
-    <dialog ref={ref} className="dialog dialog--side" onClose={closeImageImport}>
+    <dialog
+      ref={ref}
+      className="dialog dialog--side dialog--floating"
+      onClose={closeImageImport}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') closeImageImport();
+      }}
+    >
       <form onSubmit={submit}>
         <h2>Картинка в символы</h2>
         <p className="dim">

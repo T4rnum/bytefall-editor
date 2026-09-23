@@ -13,6 +13,7 @@ import { isEditableTarget } from '../hooks/useHotkeys';
 import { notify } from '../store/notifyStore';
 import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
+import { useUiStore } from '../store/uiStore';
 import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
@@ -300,7 +301,8 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     } catch {
       // Синтетические события без активного указателя: захват необязателен.
     }
-    if (event.button === 1 || spaceRef.current) {
+    // Пока открыт импорт картинки, холст только смотрят: любая кнопка двигает вид.
+    if (event.button === 1 || spaceRef.current || useUiStore.getState().imageImport) {
       dragRef.current = {
         kind: 'pan',
         pointerId: event.pointerId,

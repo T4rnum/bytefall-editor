@@ -626,6 +626,13 @@ select {
   background: transparent;
 }
 
+/** Не модальное окно поверх редактора: вне верхнего слоя его надо поднять самому. */
+.dialog--floating {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: var(--z-popover);
+}
+
 .dialog-section {
   margin: 0;
   color: var(--text-dim);
