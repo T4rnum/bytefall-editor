@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import type { Frame } from '../core/frame';
+import type { ComposedFrame } from '../core/frame';
 import type { Point } from '../core/geometry';
 import type { Selection } from '../core/selection';
 import { type CameraState, fitCamera, screenToWorld } from './camera';
@@ -39,7 +39,7 @@ export class SceneView {
   private readonly overlay = new Overlay();
   private readonly resizeObserver: ResizeObserver;
   private pending: number | null = null;
-  private frame: Frame | null = null;
+  private frame: ComposedFrame | null = null;
   private cameraState: CameraState = { centerX: 0, centerY: 0, zoom: 16 };
   private viewWidth = 1;
   private viewHeight = 1;
@@ -91,7 +91,7 @@ export class SceneView {
   }
 
   /** Проходы ячеек заливаются только в тайлах `frame.dirty`; без них на GPU уходит весь кадр. */
-  setFrame(frame: Frame): void {
+  setFrame(frame: ComposedFrame): void {
     this.frame = frame;
     this.content.apply(frame);
     this.requestRender();
@@ -191,7 +191,7 @@ export class SceneView {
    * Рендерит кадр без служебной графики в пиксели RGBA сверху вниз. Кадр может быть чужим,
    * например другим кадром анимации: после рендера возвращается текущий.
    */
-  renderPixels(frame: Frame, pixelsPerCell: number): RenderedPixels {
+  renderPixels(frame: ComposedFrame, pixelsPerCell: number): RenderedPixels {
     const { width, height } = frame;
     const w = Math.round(width * pixelsPerCell);
     const h = Math.round(height * pixelsPerCell);

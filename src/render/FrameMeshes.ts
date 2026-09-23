@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Frame } from '../core/frame';
+import type { ComposedFrame } from '../core/frame';
 import { GridMesh } from './GridMesh';
 import type { GlyphSource } from './glyphShader';
 import { InstanceMesh } from './InstanceMesh';
@@ -24,7 +24,7 @@ export class FrameMeshes {
    * Переносит кадр на GPU. `full` требует залить всё; иначе проходы ячеек получают только тайлы
    * из `frame.dirty`. Новый меш заливается целиком в любом случае: в нём ещё ничего нет.
    */
-  apply(frame: Frame, full = false): void {
+  apply(frame: ComposedFrame, full = false): void {
     frame.passes.forEach((pass, index) => {
       let slot = this.slots[index];
       const fresh = slot?.kind !== pass.kind;
@@ -44,7 +44,7 @@ export class FrameMeshes {
   }
 
   /** Атлас вырос, пока кадр стоял на экране: старые UV больше не указывают на свои символы. */
-  refreshStale(frame: Frame | null): void {
+  refreshStale(frame: ComposedFrame | null): void {
     this.slots.forEach((slot, index) => {
       if (slot.kind === 'glyphs') {
         if (slot.mesh.needsRefresh()) slot.mesh.refresh();

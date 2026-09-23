@@ -23,7 +23,7 @@ export type FramePass =
  * повёрнутые, отмасштабированные — уходят потоком символов в отдельный проход ровно там, где
  * они лежат по порядку отрисовки. Документ без таких объектов даёт один проход.
  */
-export interface Frame {
+export interface ComposedFrame {
   readonly width: number;
   readonly height: number;
   readonly passes: readonly FramePass[];
@@ -117,7 +117,7 @@ function drawFrame(
   time: number,
   reuse: readonly CellBuffer[],
   tiles: ReadonlySet<number> | null,
-): Frame {
+): ComposedFrame {
   const layout = tileLayout(doc.width, doc.height);
   const target = new PassTarget(doc, reuse, layout, tiles);
   // Первый проход всегда ячейки, даже если все слои скрыты: пустой холст — тоже кадр.
@@ -147,11 +147,11 @@ const sameShape = (a: readonly FramePass[], b: readonly FramePass[]): boolean =>
 export function composeFrame(
   doc: Document,
   preview: Preview | null = null,
-  previous: Frame | null = null,
+  previous: ComposedFrame | null = null,
   ghosts: readonly Ghost[] = [],
   time = 0,
   dirty?: Iterable<number> | null,
-): Frame {
+): ComposedFrame {
   const sameSize = previous && previous.width === doc.width && previous.height === doc.height;
   const reuse = sameSize ? cellBuffersOf(previous.passes) : [];
   const tiles = dirty && reuse.length > 0 && canRebuildTiles(doc, ghosts) ? new Set(dirty) : null;

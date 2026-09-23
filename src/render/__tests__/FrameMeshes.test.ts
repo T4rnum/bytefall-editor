@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCellBuffer } from '../../core/cellBuffer';
-import type { Frame, FramePass } from '../../core/frame';
+import type { ComposedFrame, FramePass } from '../../core/frame';
 import { GlyphBatchBuilder } from '../../core/instances';
 import { FrameMeshes } from '../FrameMeshes';
 import { RENDER_ORDER } from '../order';
@@ -9,7 +9,7 @@ import { FakeAtlas } from './helpers/fakeAtlas';
 
 const cells = (): FramePass => ({ kind: 'cells', buffer: createCellBuffer(64, 32) });
 const glyphs = (): FramePass => ({ kind: 'glyphs', batch: new GlyphBatchBuilder().finish() });
-const frameOf = (passes: FramePass[], dirty: number[] | null = null): Frame => ({
+const frameOf = (passes: FramePass[], dirty: number[] | null = null): ComposedFrame => ({
   width: 64,
   height: 32,
   passes,

@@ -1,7 +1,7 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
 import { frameDocument } from '../../core/animation';
 import { type Ghost, effectsSignature } from '../../core/compositor';
-import { type Frame, composeFrame } from '../../core/frame';
+import { type ComposedFrame, composeFrame } from '../../core/frame';
 import { inBounds } from '../../core/geometry';
 import { canEditObject, findObject } from '../../core/object';
 import { objectMatrix, objectQuad } from '../../core/placement';
@@ -27,7 +27,7 @@ const WHEEL_ZOOM_SPEED = 0.0015;
 export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<SceneView | null>(null);
-  const frameRef = useRef<Frame | null>(null);
+  const frameRef = useRef<ComposedFrame | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const spaceRef = useRef(false);
   const tool = useEditorStore((s) => s.tool);

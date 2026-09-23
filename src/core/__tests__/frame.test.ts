@@ -11,13 +11,13 @@ import {
   updateLayer,
 } from '../document';
 import { createEffect } from '../effects';
-import { type Frame, type FramePass, composeFrame } from '../frame';
+import { type ComposedFrame, type FramePass, composeFrame } from '../frame';
 import { applyEdits, editsFromPoints, emptyGrid, keyOf } from '../grid';
 import { readInstance } from '../instances';
 import { addObject, createObject, transformObject, updateObject } from '../object';
 import { tileLayout, tilesFromKeys } from '../tiles';
 
-const kinds = (frame: Frame): string[] => frame.passes.map((p) => p.kind);
+const kinds = (frame: ComposedFrame): string[] => frame.passes.map((p) => p.kind);
 const cellsOf = (pass: FramePass): CellBuffer => {
   if (pass.kind !== 'cells') throw new Error('ожидался проход ячеек');
   return pass.buffer;
