@@ -9,16 +9,19 @@ import {
   Group,
   Lock,
   LockOpen,
+  Plus,
   Trash2,
   Ungroup,
 } from 'lucide-react';
-import { useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { findLayer } from '../../core/document';
-import { type SceneObject, findObject, objectsInVisualOrder } from '../../core/object';
+import { objectOutline } from '../../core/hierarchy';
+import { type SceneObject, findObject } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { pasteAction } from '../store/clipboardActions';
 import {
+  addEmptyObjectAction,
   copySelectedObjectAction,
   deleteSelectedObjectAction,
   duplicateSelectedObjectAction,
@@ -32,12 +35,14 @@ import { ObjectInspector } from './ObjectInspector';
 
 interface RowProps {
   readonly object: SceneObject;
+  /** Глубина в иерархии: ребёнок стоит под родителем с отступом. */
+  readonly depth: number;
   readonly layerName: string;
   readonly active: boolean;
   readonly onActivate: () => void;
 }
 
-function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
+function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
   const [editing, setEditing] = useState(false);
   const VisibleIcon = object.visible ? Eye : EyeOff;
   const LockIcon = object.locked ? Lock : LockOpen;
@@ -45,6 +50,7 @@ function ObjectRow({ object, layerName, active, onActivate }: RowProps) {
   return (
     <li
       className={`item-row${active ? ' is-active' : ''}${object.visible ? '' : ' is-hidden'}`}
+      style={{ '--depth': depth } as CSSProperties}
       onClick={onActivate}
     >
       <Button
@@ -107,14 +113,14 @@ export function ObjectsPanel() {
   const setSelectedObject = useEditorStore((s) => s.setSelectedObject);
   const hasSelection = useEditorStore((s) => s.selection !== null);
   const objectInClipboard = useEditorStore((s) => s.clipboard?.kind === 'object');
-  const objects = objectsInVisualOrder(doc).reverse();
+  const outline = objectOutline(doc);
   const selected = selectedId ? findObject(doc, selectedId) : undefined;
 
   return (
     <Panel
       id="objects"
       title="Объекты"
-      badge={objects.length > 0 ? `${objects.length}` : undefined}
+      badge={outline.length > 0 ? `${outline.length}` : undefined}
       actions={
         <>
           <Button
@@ -126,6 +132,15 @@ export function ObjectsPanel() {
             onClick={groupSelectionAction}
           >
             <Group size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Пустой объект: к нему привязывают детей и крутят их вместе"
+            hotkey="Shift+A"
+            onClick={addEmptyObjectAction}
+          >
+            <Plus size={14} />
           </Button>
           <Button
             icon
@@ -198,14 +213,15 @@ export function ObjectsPanel() {
         </>
       }
     >
-      {objects.length === 0 ? (
+      {outline.length === 0 ? (
         <p className="panel-hint">Выдели ячейки и нажми Ctrl+G, чтобы собрать из них объект.</p>
       ) : (
         <ul className="item-list">
-          {objects.map((object) => (
+          {outline.map(({ object, depth }) => (
             <ObjectRow
               key={object.id}
               object={object}
+              depth={depth}
               layerName={findLayer(doc, object.layerId)?.name ?? '?'}
               active={object.id === selectedId}
               onActivate={() => setSelectedObject(object.id)}

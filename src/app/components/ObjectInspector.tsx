@@ -1,11 +1,14 @@
 import { parseAttrValue } from '../../core/cell';
 import { canEditLayer } from '../../core/document';
+import { descendantIds } from '../../core/hierarchy';
 import type { SceneObject } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import {
+  OBJECT_PARENT_SELECT_ID,
   moveSelectedObjectToLayerAction,
   removeObjectPropAction,
   setObjectPropAction,
+  setSelectedParentAction,
 } from '../store/objectActions';
 import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
 import { GlyphFields } from './GlyphFields';
@@ -17,13 +20,23 @@ interface Props {
 
 /** Слой, трансформ и произвольные свойства выбранного объекта. */
 export function ObjectInspector({ object }: Props) {
-  const layers = useDocumentStore((s) => s.doc.layers);
+  const doc = useDocumentStore((s) => s.doc);
+  const layers = doc.layers;
   // Сверху вниз, как в панели слоёв. Запертый или скрытый слой объект не примет.
   const layerOptions = [...layers].reverse().map((layer) => ({
     value: layer.id,
     label: layer.name,
     disabled: layer.id !== object.layerId && !canEditLayer(layer),
   }));
+
+  // Родителем не может стать сам объект и его потомки: цепочка замкнулась бы.
+  const descendants = descendantIds(doc, object.id);
+  const parentOptions = [
+    { value: '', label: 'Нет' },
+    ...doc.objects
+      .filter((o) => o.id !== object.id)
+      .map((o) => ({ value: o.id, label: o.name, disabled: descendants.has(o.id) })),
+  ];
 
   const rows = Object.entries(object.props).map(([key, value]) => ({
     key,
@@ -46,6 +59,17 @@ export function ObjectInspector({ object }: Props) {
           ariaLabel="Слой объекта"
           title="Перенести объект на другой слой (Alt+] выше, Alt+[ ниже)"
           onChange={moveSelectedObjectToLayerAction}
+        />
+      </Field>
+      <Field label="Родитель">
+        <Select
+          id={OBJECT_PARENT_SELECT_ID}
+          value={object.parentId ?? ''}
+          options={parentOptions}
+          size="sm"
+          ariaLabel="Родитель объекта"
+          title="Объект едет и крутится вместе с родителем (Ctrl+P выбрать, Alt+P отвязать)"
+          onChange={(id) => setSelectedParentAction(id === '' ? null : id)}
         />
       </Field>
       <TransformFields object={object} />

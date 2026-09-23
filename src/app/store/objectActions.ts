@@ -1,16 +1,20 @@
 import { canEditLayer, findLayer, layerIndex } from '../../core/document';
 import { groupSelection, ungroupObject } from '../../core/grouping';
+import { canSetParent, detachedCopy, removeObject, setParent } from '../../core/hierarchy';
+import { objectMatrix } from '../../core/placement';
+import { pivotInDocument } from '../../core/transformGesture';
 import {
   MAX_OBJECTS,
   type PropValue,
   type SceneObject,
+  addObject,
   canEditObject,
+  createObject,
   duplicateObject,
   findObject,
   moveObjectToLayer,
   objectIndex,
   pasteObject,
-  removeObject,
   removeObjectProp,
   setObjectProp,
   shiftObjectOrder,
@@ -20,6 +24,7 @@ import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
+import { revealPanel } from '../ui/Panel';
 
 const docState = () => useDocumentStore.getState();
 const editor = () => useEditorStore.getState();
@@ -93,18 +98,22 @@ export function duplicateSelectedObjectAction(): void {
   editor().setSelectedObject(next.objects[objectIndex(doc, obj.id) + 1].id);
 }
 
-/** Кладёт выбранный объект в буфер обмена целиком. Запертый объект копировать можно. */
+/**
+ * Кладёт выбранный объект в буфер обмена целиком. Запертый объект копировать можно. В буфер
+ * объект уходит без родителя, но туда же, где он на экране: в кадре, куда его вставят, родителя
+ * может не оказаться.
+ */
 export function copySelectedObjectAction(): boolean {
   const obj = selectedObject();
   if (!obj) return false;
-  editor().setClipboard({ kind: 'object', object: obj });
+  editor().setClipboard({ kind: 'object', object: detachedCopy(docState().doc, obj) });
   return true;
 }
 
 export function cutSelectedObjectAction(): void {
   const obj = editableSelectedObject();
   if (!obj) return;
-  editor().setClipboard({ kind: 'object', object: obj });
+  editor().setClipboard({ kind: 'object', object: detachedCopy(docState().doc, obj) });
   docState().commitStructural('Cut object', removeObject(docState().doc, obj.id));
   editor().setSelectedObject(null);
 }
@@ -179,4 +188,61 @@ export function setObjectPropAction(id: string, key: string, value: PropValue): 
 export function removeObjectPropAction(id: string, key: string): void {
   const { doc, commitStructural } = docState();
   commitStructural('Remove property', removeObjectProp(doc, id, key));
+}
+
+/** Поле выбора родителя в инспекторе: на него ведёт Ctrl+P. */
+export const OBJECT_PARENT_SELECT_ID = 'object-parent';
+
+/**
+ * Назначает выбранному объекту родителя. Объект остаётся на месте, а дальше едет и крутится
+ * вместе с родителем. null отвязывает, и объект тоже не сдвигается.
+ */
+export function setSelectedParentAction(parentId: string | null): void {
+  const obj = editableSelectedObject();
+  if (!obj || obj.parentId === parentId) return;
+  const { doc, commitStructural } = docState();
+  if (parentId !== null && !canSetParent(doc, obj.id, parentId)) {
+    notify('Объект не может стать ребёнком самого себя или своего потомка', 'error');
+    return;
+  }
+  commitStructural(
+    parentId === null ? 'Clear parent' : 'Set parent',
+    setParent(doc, obj.id, parentId),
+  );
+}
+
+/** Ctrl+P, как в Blender: к выбору родителя выбранного объекта. */
+export function focusParentSelectAction(): void {
+  if (!selectedObject()) {
+    notify('Сначала выберите объект');
+    return;
+  }
+  revealPanel('objects');
+  // Поле появляется после отрисовки развёрнутой панели, поэтому фокус — на следующем шаге.
+  setTimeout(() => document.getElementById(OBJECT_PARENT_SELECT_ID)?.focus(), 0);
+}
+
+/**
+ * Пустой объект, как Empty в Blender: без символов, только трансформ. К нему привязывают детей
+ * и крутят их вместе — так собирается группа. Встаёт на опору выбранного объекта, а без выбора —
+ * в центр холста, на активный слой.
+ */
+export function addEmptyObjectAction(): void {
+  const state = docState();
+  const layer = editableActiveLayer(state);
+  if (!layer) {
+    notify('Активный слой скрыт или заперт', 'error');
+    return;
+  }
+  if (!hasRoomForObject()) return;
+  const { doc } = state;
+  const selected = selectedObject();
+  const at = selected
+    ? pivotInDocument(selected.transform, objectMatrix(doc, selected))
+    : { x: doc.width / 2, y: doc.height / 2 };
+  const name = `Пустой ${doc.objects.length + 1}`;
+  const empty = createObject({ name, layerId: layer.id, x: Math.floor(at.x), y: Math.floor(at.y) });
+  state.commitStructural('Add empty object', addObject(doc, empty));
+  editor().setTool('object');
+  editor().setSelectedObject(empty.id);
 }

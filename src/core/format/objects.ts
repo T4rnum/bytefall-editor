@@ -84,11 +84,14 @@ function overridesToFile(overrides: GlyphOverrides): OverrideFile[] {
 }
 
 export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
+  // Ссылка на родителя, которого в кадре нет, сделала бы файл нечитаемым: такую не пишем. Так
+  // объект и рисуется — пропавший родитель считается корнем.
+  const ids = new Set(objects.map((o) => o.id));
   return objects.map((obj) => ({
     id: obj.id,
     name: obj.name,
     layerId: obj.layerId,
-    ...(obj.parentId !== null ? { parentId: obj.parentId } : {}),
+    ...(obj.parentId !== null && ids.has(obj.parentId) ? { parentId: obj.parentId } : {}),
     transform: { ...obj.transform },
     visible: obj.visible,
     locked: obj.locked,

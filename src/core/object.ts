@@ -109,7 +109,11 @@ export function addObject(
   return { ...doc, objects };
 }
 
-export function removeObject(doc: Document, id: string): Document {
+/**
+ * Убирает объект из списка и больше ничего. Его дети остались бы со ссылкой в никуда, поэтому
+ * снаружи зовут `removeObject` из `hierarchy.ts`: там дети переходят к деду.
+ */
+export function dropObject(doc: Document, id: string): Document {
   const objects = doc.objects.filter((o) => o.id !== id);
   return objects.length === doc.objects.length ? doc : { ...doc, objects };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
 import { addLayer, createDocument, createLayer, duplicateLayer, removeLayer } from '../document';
+import { removeObject } from '../hierarchy';
 import { applyEdits, emptyGrid, keyOf } from '../grid';
 import {
   MAX_OBJECTS,
@@ -11,7 +12,6 @@ import {
   moveObjectToLayer,
   objectsInVisualOrder,
   pasteObject,
-  removeObject,
   removeObjectProp,
   setObjectProp,
   shiftObjectOrder,

@@ -16,6 +16,8 @@ export interface SelectProps<T extends string> {
   readonly ariaLabel?: string;
   readonly title?: string;
   readonly className?: string;
+  /** Для фокуса по горячей клавише. */
+  readonly id?: string;
 }
 
 /**
@@ -32,10 +34,12 @@ export function Select<T extends string>({
   ariaLabel,
   title,
   className,
+  id,
 }: SelectProps<T>) {
   const classes = ['select', `select--${size}`, className ?? ''].filter(Boolean).join(' ');
   return (
     <select
+      id={id}
       className={classes}
       value={value}
       disabled={disabled}

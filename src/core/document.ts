@@ -137,7 +137,10 @@ export function addLayer(doc: Document, layer: Layer, index: number = doc.layers
   return { ...doc, layers };
 }
 
-/** Удаляет слой вместе с его объектами. */
+/**
+ * Удаляет слой вместе с его объектами. Детей этих объектов с других слоёв не трогает: приложение
+ * удаляет слой через `removeLayerKeepingChildren` из `hierarchy.ts`.
+ */
 export function removeLayer(doc: Document, id: string): Document {
   if (doc.layers.length <= 1) throw new Error('Cannot remove the last layer');
   const layers = doc.layers.filter((l) => l.id !== id);
@@ -170,9 +173,15 @@ export function duplicateLayer(
   const source = doc.layers[index];
   const copy: Layer = { ...source, id: copyId, name: `${source.name} copy` };
   const withLayer = addLayer(doc, copy, index + 1);
-  const copies = doc.objects
-    .filter((o) => o.layerId === id)
-    .map((o) => ({ ...o, id: newId('object'), layerId: copy.id }));
+  const sources = doc.objects.filter((o) => o.layerId === id);
+  const renamed = new Map(sources.map((o) => [o.id, newId('object')]));
+  // Родитель, скопированный вместе с ребёнком, остаётся его родителем и в копии.
+  const copies = sources.map((o) => ({
+    ...o,
+    id: renamed.get(o.id) as string,
+    layerId: copy.id,
+    parentId: (o.parentId !== null && renamed.get(o.parentId)) || o.parentId,
+  }));
   return copies.length === 0
     ? withLayer
     : { ...withLayer, objects: [...withLayer.objects, ...copies] };

@@ -12,7 +12,10 @@ import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
 import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import {
   duplicateSelectedObjectAction,
+  addEmptyObjectAction,
+  focusParentSelectAction,
   groupSelectionAction,
+  setSelectedParentAction,
   stepSelectedObjectLayerAction,
   ungroupSelectedObjectAction,
 } from '../store/objectActions';
@@ -152,6 +155,14 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: () => rotateSelectedAction(-90),
   },
   { group: 'Объекты', label: 'Сбросить поворот', keys: 'Alt+R', run: resetSelectedRotationAction },
+  { group: 'Объекты', label: 'Пустой объект', keys: 'Shift+A', run: addEmptyObjectAction },
+  { group: 'Объекты', label: 'Выбрать родителя', keys: 'Ctrl+P', run: focusParentSelectAction },
+  {
+    group: 'Объекты',
+    label: 'Отвязать от родителя',
+    keys: 'Alt+P',
+    run: () => setSelectedParentAction(null),
+  },
   { group: 'Объекты', label: 'Сбросить масштаб', keys: 'Alt+S', run: resetSelectedScaleAction },
 
   { group: 'Кадры', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },

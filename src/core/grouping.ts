@@ -1,7 +1,8 @@
 import type { Cell } from './cell';
 import { type Document, findLayer, setLayerCells } from './document';
 import { type CellKey, applyEdits, keyOf } from './grid';
-import { type SceneObject, addObject, createObject, findObject, removeObject } from './object';
+import { removeObject } from './hierarchy';
+import { type SceneObject, addObject, createObject, findObject } from './object';
 import { objectMatrix } from './placement';
 import { rasterizeObject } from './rasterize';
 import { type Selection, clearSelectionEdits, copySelection } from './selection';

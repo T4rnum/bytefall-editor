@@ -1,4 +1,5 @@
 import { mapFrames } from '../../core/animation';
+import { removeLayerKeepingChildren } from '../../core/hierarchy';
 import {
   type Layer,
   MAX_LAYERS,
@@ -9,7 +10,6 @@ import {
   layerIndex,
   moveLayer,
   newId,
-  removeLayer,
   resizeDocument,
   updateLayer,
 } from '../../core/document';
@@ -43,7 +43,7 @@ export function removeActiveLayerAction(): void {
   const { doc, animation, activeLayerId, commitAnimation, setActiveLayer } = state();
   if (doc.layers.length <= 1) return;
   const index = layerIndex(doc, activeLayerId);
-  const next = mapFrames(animation, (d) => removeLayer(d, activeLayerId));
+  const next = mapFrames(animation, (d) => removeLayerKeepingChildren(d, activeLayerId));
   commitAnimation('Delete layer', next);
   setActiveLayer(state().doc.layers[Math.max(0, index - 1)].id);
 }

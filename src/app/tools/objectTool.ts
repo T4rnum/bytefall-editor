@@ -1,13 +1,8 @@
 import type { Affine } from '../../core/affine';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import {
-  canEditObject,
-  findObject,
-  moveObject,
-  removeObject,
-  transformObject,
-} from '../../core/object';
+import { moveInDocument, removeObject } from '../../core/hierarchy';
+import { canEditObject, findObject, transformObject } from '../../core/object';
 import { objectAt, objectMatrix } from '../../core/placement';
 import type { Transform2D } from '../../core/transform';
 import {
@@ -75,7 +70,7 @@ function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | 
       const dy = info.cell.y - g.anchor.y;
       if (dx === 0 && dy === 0 && !g.moved) return null;
       g.moved = true;
-      return moveObject(env.doc, g.id, dx, dy);
+      return moveInDocument(env.doc, g.id, dx, dy);
     }
     case 'rotate': {
       const pivot = pivotInDocument(g.start, g.world);
@@ -161,7 +156,7 @@ export function createObjectTool(): Tool {
       const step = event.shiftKey ? NUDGE_FAST : 1;
       const nudge = (dx: number, dy: number): boolean => {
         if (canEditObject(env.doc, obj)) {
-          env.commitDocument('Nudge object', moveObject(env.doc, id, dx, dy));
+          env.commitDocument('Nudge object', moveInDocument(env.doc, id, dx, dy));
         }
         return true;
       };
