@@ -11,6 +11,7 @@ import {
   setSelectedParentAction,
 } from '../store/objectActions';
 import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
+import { DeformerFields } from './DeformerFields';
 import { GlyphFields } from './GlyphFields';
 import { LookFields } from './LookFields';
 import { TransformFields } from './TransformFields';
@@ -79,6 +80,8 @@ export function ObjectInspector({ object }: Props) {
       <span className="dim">
         {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
       </span>
+      <h4 className="inspector-heading">Деформеры</h4>
+      <DeformerFields object={object} />
       <h4 className="inspector-heading">Отдельные символы</h4>
       <GlyphFields object={object} />
 
