@@ -9,6 +9,7 @@ import {
   emptyOverrides,
   normalizeTransform,
   pruneOverrides,
+  sameTransform,
 } from './transform';
 
 export type PropValue = CellAttrValue;
@@ -127,11 +128,17 @@ export function updateObject(
   return { ...doc, objects };
 }
 
-/** Меняет поля трансформа и приводит его к пределам формата. */
+/**
+ * Меняет поля трансформа и приводит его к пределам формата. Если после этого ничего не
+ * поменялось, возвращает тот же документ: щелчок по ручке без движения не должен становиться
+ * записью истории.
+ */
 export function transformObject(doc: Document, id: string, patch: Partial<Transform2D>): Document {
   const obj = findObject(doc, id);
   if (!obj) return doc;
-  return updateObject(doc, id, { transform: normalizeTransform({ ...obj.transform, ...patch }) });
+  const transform = normalizeTransform({ ...obj.transform, ...patch });
+  if (sameTransform(transform, obj.transform)) return doc;
+  return updateObject(doc, id, { transform });
 }
 
 /** Переносит домашнюю ячейку на целое число ячеек. */

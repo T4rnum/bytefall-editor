@@ -59,8 +59,14 @@ export function createTransform(x: number, y: number, pivot: Point): Transform2D
   return { x, y, dx: 0, dy: 0, rot: 0, sx: 1, sy: 1, px: pivot.x, py: pivot.y };
 }
 
+/**
+ * Число в пределах, без двоичных хвостов: 89.1 + 15 даёт 104.10000000000002, и такое число
+ * ушло бы и в инспектор, и в файл. Шесть знаков после запятой — это миллионная доля ячейки или
+ * градуса, глазу не видна.
+ */
 function bounded(value: number, min: number, max: number, fallback: number): number {
-  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  if (!Number.isFinite(value)) return fallback;
+  return Math.round(Math.min(max, Math.max(min, value)) * 1e6) / 1e6;
 }
 
 /** Приводит трансформ к пределам формата: позиция целая, сдвиг и масштаб ограничены. */
@@ -78,6 +84,11 @@ export function normalizeTransform(t: Transform2D): Transform2D {
   };
 }
 
+const TRANSFORM_KEYS = ['x', 'y', 'dx', 'dy', 'rot', 'sx', 'sy', 'px', 'py'] as const;
+
+export const sameTransform = (a: Transform2D, b: Transform2D): boolean =>
+  TRANSFORM_KEYS.every((key) => a[key] === b[key]);
+
 /** Трансформ ничего не меняет в виде: только позиция. */
 export function isPlainTransform(t: Transform2D): boolean {
   return t.dx === 0 && t.dy === 0 && t.rot % 360 === 0 && t.sx === 1 && t.sy === 1;
@@ -92,6 +103,24 @@ export function transformMatrix(t: Transform2D): Affine {
     { x: t.px, y: t.py },
     { x: t.x + t.dx, y: t.y + t.dy },
   );
+}
+
+/**
+ * Переносит опорную точку, не сдвигая объект на экране. Смена опоры у повёрнутого объекта
+ * сдвинула бы его: поворот теперь шёл бы вокруг другой точки. Поэтому домашняя ячейка и сдвиг
+ * подстраиваются так, чтобы матрица осталась прежней: целая часть уходит в ячейку, дробная — в
+ * сдвиг, и он не выходит за полклетки.
+ */
+export function withPivot(t: Transform2D, pivot: Point): Transform2D {
+  const m = transformMatrix(t);
+  const ddx = t.px - pivot.x;
+  const ddy = t.py - pivot.y;
+  // Без поворота и масштаба поправка ровно ноль: целая позиция остаётся целой.
+  const hx = t.x + t.dx + (ddx - (m.a * ddx + m.c * ddy));
+  const hy = t.y + t.dy + (ddy - (m.b * ddx + m.d * ddy));
+  const x = Math.round(hx);
+  const y = Math.round(hy);
+  return normalizeTransform({ ...t, px: pivot.x, py: pivot.y, x, y, dx: hx - x, dy: hy - y });
 }
 
 /** Правка без единого поля, отличного от «как есть», правкой не считается. */

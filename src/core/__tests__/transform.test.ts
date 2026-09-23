@@ -41,6 +41,11 @@ describe('Transform2D', () => {
     expect(t).toMatchObject({ x: 3, dx: MAX_SHIFT, dy: 0, sx: MIN_SCALE, sy: MAX_SCALE });
   });
 
+  it('двоичные хвосты сложения не попадают ни в инспектор, ни в файл', () => {
+    const t = normalizeTransform({ ...createTransform(0, 0, { x: 0, y: 0 }), rot: 89.1 + 15 });
+    expect(t.rot).toBe(104.1);
+  });
+
   it('позиция — это позиция: без поворота ячейка (0, 0) объекта встаёт в домашнюю', () => {
     const t = createTransform(5, -3, { x: 2.5, y: 1.5 });
     expect(isPlainTransform(t)).toBe(true);

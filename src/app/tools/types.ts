@@ -36,6 +36,8 @@ export interface ToolEnv {
   readonly selection: Selection | null;
   readonly textCursor: Point | null;
   readonly selectedObjectId: string | null;
+  /** Пикселей экрана на ячейку: ручки гизмо хватаются в пикселях, а не в ячейках. */
+  readonly zoom: number;
   setPreview: (edits: CellEdits | null) => void;
   commit: (edits: CellEdits, label: string) => void;
   setSelection: (selection: Selection | null) => void;
@@ -51,6 +53,8 @@ export interface ToolEnv {
 
 export interface PointerInfo {
   readonly cell: Point;
+  /** Та же точка дробно, в ячейках документа: для жестов, которым мало целой ячейки. */
+  readonly point: Point;
   /** 0 левая, 1 средняя, 2 правая. */
   readonly button: number;
   readonly shift: boolean;
@@ -75,6 +79,8 @@ export interface Tool {
   onPointerDown?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerMove?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerUp?: (env: ToolEnv, info: PointerInfo) => void;
+  /** Курсор над точкой без нажатой кнопки: подсказывает, что под указателем можно схватить. */
+  hoverCursor?: (env: ToolEnv, info: PointerInfo) => string | null;
   /** true, если событие обработано и глобальные хоткеи запускать не нужно. */
   onKeyDown?: (env: ToolEnv, event: KeyboardEvent) => boolean;
   cancel?: (env: ToolEnv) => void;

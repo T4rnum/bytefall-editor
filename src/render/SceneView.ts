@@ -7,6 +7,7 @@ import type { Selection } from '../core/selection';
 import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
 import { FrameMeshes } from './FrameMeshes';
+import type { GizmoMarks } from './gizmo';
 import { Overlay } from './Overlay';
 import {
   DEFAULT_POST,
@@ -61,6 +62,7 @@ export class SceneView {
     });
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
     this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+    this.overlay.setPixelRatio(this.renderer.getPixelRatio());
     this.renderer.domElement.style.display = 'block';
     this.renderer.domElement.style.width = '100%';
     this.renderer.domElement.style.height = '100%';
@@ -122,6 +124,11 @@ export class SceneView {
 
   setSelection(selection: Selection | null): void {
     this.overlay.setSelection(selection);
+    this.requestRender();
+  }
+
+  setGizmo(marks: GizmoMarks | null): void {
+    this.overlay.setGizmo(marks);
     this.requestRender();
   }
 

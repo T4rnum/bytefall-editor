@@ -13,10 +13,8 @@ import {
   removeObjectProp,
   setObjectProp,
   shiftObjectOrder,
-  transformObject,
   updateObject,
 } from '../../core/object';
-import type { Transform2D } from '../../core/transform';
 import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
@@ -31,7 +29,7 @@ export function selectedObject(): SceneObject | undefined {
 }
 
 /** Выбранный объект, если его и его слой можно менять; иначе сообщение и undefined. */
-function editableSelectedObject(): SceneObject | undefined {
+export function editableSelectedObject(): SceneObject | undefined {
   const obj = selectedObject();
   if (!obj) return undefined;
   if (obj.locked || !canEditLayer(findLayer(docState().doc, obj.layerId))) {
@@ -168,16 +166,6 @@ export function updateObjectAction(
 ): void {
   const { doc, commitStructural } = docState();
   commitStructural(label, updateObject(doc, id, patch));
-}
-
-export function transformObjectAction(
-  id: string,
-  patch: Partial<Transform2D>,
-  label: string,
-  mergeKey?: string,
-): void {
-  const { doc, commitStructural } = docState();
-  commitStructural(label, transformObject(doc, id, patch), mergeKey);
 }
 
 export function setObjectPropAction(id: string, key: string, value: PropValue): void {

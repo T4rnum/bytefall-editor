@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import type { Point } from '../core/geometry';
 import { type Checker, createChecker } from './checker';
+import { type GizmoLayer, type GizmoMarks, createGizmoLayer } from './gizmo';
 import { RENDER_ORDER } from './order';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
 
 export const ACCENT_COLOR = '#ffb347';
 export const OBJECT_COLOR = '#4fd1ff';
+/** Заливка ручек гизмо: тёмная, чтобы ручка читалась и на светлом, и на тёмном рисунке. */
+const HANDLE_FILL_COLOR = '#101418';
 
 type Plane = THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
 type Outline = THREE.LineLoop<THREE.BufferGeometry, THREE.LineBasicMaterial>;
@@ -59,6 +62,7 @@ export class Overlay {
   private readonly cursor: Outline;
   private readonly selection: SelectionLayer;
   private readonly objectOutline: Outline;
+  private readonly gizmo: GizmoLayer;
   private gridLines: Lines | null = null;
   private width = 0;
   private height = 0;
@@ -70,6 +74,7 @@ export class Overlay {
   private cursorCell: Point | null = null;
   private hasSelection = false;
   private hasObject = false;
+  private hasGizmo = false;
 
   constructor() {
     this.background = new THREE.Mesh(unitPlane(), planeMaterial('#000000', 1));
@@ -82,11 +87,17 @@ export class Overlay {
     this.objectOutline.frustumCulled = false;
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = RENDER_ORDER.cursor;
+    this.gizmo = createGizmoLayer({
+      color: OBJECT_COLOR,
+      accent: ACCENT_COLOR,
+      fill: HANDLE_FILL_COLOR,
+    });
     this.group.add(
       this.background,
       this.checker.mesh,
       this.selection.mesh,
       this.objectOutline,
+      this.gizmo.group,
       this.cursor,
     );
     this.setSelection(null);
@@ -148,6 +159,18 @@ export class Overlay {
     this.applyVisibility();
   }
 
+  /** Ручки трансформа выбранного объекта. null — гизмо не показывается. */
+  setGizmo(marks: GizmoMarks | null): void {
+    this.hasGizmo = marks !== null;
+    if (marks) this.gizmo.update(marks);
+    this.applyVisibility();
+  }
+
+  /** Ручки гизмо задаются в пикселях экрана и пересчитываются под плотность экрана. */
+  setPixelRatio(ratio: number): void {
+    this.gizmo.setPixelRatio(ratio);
+  }
+
   /** Скрывает служебную графику, например на время экспорта. */
   setChromeVisible(visible: boolean): void {
     this.chromeVisible = visible;
@@ -162,6 +185,7 @@ export class Overlay {
     this.cursor.visible = chrome && this.cursorCell !== null;
     this.selection.mesh.visible = chrome && this.hasSelection;
     this.objectOutline.visible = chrome && this.hasObject;
+    this.gizmo.group.visible = chrome && this.hasGizmo;
   }
 
   private rebuildGrid(): void {
@@ -187,6 +211,7 @@ export class Overlay {
     }
     this.selection.dispose();
     this.checker.dispose();
+    this.gizmo.dispose();
     if (this.gridLines) disposeObject(this.gridLines);
   }
 }

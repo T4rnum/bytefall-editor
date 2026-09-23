@@ -1,57 +1,151 @@
-import { canEditLayer, findLayer } from '../../core/document';
+import type { Affine } from '../../core/affine';
+import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import { type SceneObject, findObject, moveObject, removeObject } from '../../core/object';
-import { objectAt } from '../../core/placement';
-import type { Tool, ToolEnv } from './types';
+import { findObject, moveObject, removeObject, transformObject } from '../../core/object';
+import { objectAt, objectMatrix } from '../../core/placement';
+import type { Transform2D } from '../../core/transform';
+import {
+  type ScaleHandle,
+  pivotByGesture,
+  pivotInDocument,
+  rotateByGesture,
+  scaleByGesture,
+} from '../../core/transformGesture';
+import { canTransform, gizmoLayout, handleCursor, hitGizmo } from './gizmo';
+import type { PointerInfo, Tool, ToolEnv } from './types';
 
 const NUDGE_FAST = 10;
+/** Shift при повороте ведёт угол шагами по 15°. */
+const ROTATE_SNAP = 15;
 
-function isMovable(env: ToolEnv, obj: SceneObject): boolean {
-  return !obj.locked && canEditLayer(findLayer(env.doc, obj.layerId));
+/** Жест, который сейчас идёт. Трансформ и матрица — на момент нажатия. */
+type Gesture =
+  | { readonly kind: 'move'; readonly id: string; readonly anchor: Point; moved: boolean }
+  | {
+      readonly kind: 'rotate' | 'pivot';
+      readonly id: string;
+      readonly start: Transform2D;
+      readonly world: Affine;
+      readonly from: Point;
+    }
+  | {
+      readonly kind: 'scale';
+      readonly id: string;
+      readonly start: Transform2D;
+      readonly world: Affine;
+      readonly from: Point;
+      readonly handle: ScaleHandle;
+    };
+
+const LABELS: Readonly<Record<Gesture['kind'], string>> = {
+  move: 'Move object',
+  rotate: 'Rotate object',
+  scale: 'Scale object',
+  pivot: 'Move pivot',
+};
+
+/**
+ * Жест за гизмо выбранного объекта: ручка под указателем, а с Alt — перенос опоры в любую точку,
+ * хоть за пределы объекта: так объект крутят вокруг внешней оси.
+ */
+function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
+  const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
+  if (!obj || !canTransform(env.doc, obj)) return null;
+  const world = objectMatrix(env.doc, obj);
+  const base = { id: obj.id, start: obj.transform, world, from: info.point };
+  if (info.alt) return { kind: 'pivot', ...base };
+  const handle = hitGizmo(gizmoLayout(obj, world, env.zoom), info.point, env.zoom);
+  if (!handle) return null;
+  return handle.kind === 'scale'
+    ? { kind: 'scale', handle: handle.handle, ...base }
+    : { kind: handle.kind, ...base };
+}
+
+/** Документ, каким он станет, если отпустить кнопку здесь. null — ничего не изменилось. */
+function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | null {
+  switch (g.kind) {
+    case 'move': {
+      const dx = info.cell.x - g.anchor.x;
+      const dy = info.cell.y - g.anchor.y;
+      if (dx === 0 && dy === 0 && !g.moved) return null;
+      g.moved = true;
+      return moveObject(env.doc, g.id, dx, dy);
+    }
+    case 'rotate': {
+      const pivot = pivotInDocument(g.start, g.world);
+      const snap = info.shift ? ROTATE_SNAP : null;
+      const rot = rotateByGesture(g.start, pivot, g.from, info.point, snap);
+      return transformObject(env.doc, g.id, { rot });
+    }
+    case 'scale':
+      return transformObject(
+        env.doc,
+        g.id,
+        scaleByGesture(g.start, g.world, g.handle, g.from, info.point, info.shift),
+      );
+    case 'pivot':
+      return transformObject(env.doc, g.id, pivotByGesture(g.start, g.world, info.point));
+  }
 }
 
 /**
- * Выбор и перенос объектов. Клик выбирает верхний объект под курсором, клик по пустому месту
- * снимает выбор, перетаскивание показывается через черновик документа и коммитится на отпускании.
+ * Выбор, перенос и трансформ объектов. Клик выбирает верхний объект под курсором, клик по
+ * пустому месту снимает выбор. У выбранного объекта гизмо: угловые и боковые ручки масштабируют
+ * (с Shift — пропорционально), кружок над рамкой поворачивает (с Shift — шагами по 15°).
+ * Alt с нажатием ставит опору — точку, вокруг которой идут поворот и масштаб, — под указатель.
+ * Всё показывается черновиком документа и коммитится на отпускании.
  */
 export function createObjectTool(): Tool {
-  let dragId: string | null = null;
-  let anchor: Point = { x: 0, y: 0 };
-  let moved = false;
+  let gesture: Gesture | null = null;
+
+  const stop = (env: ToolEnv): void => {
+    gesture = null;
+    env.setDraft(null);
+  };
 
   return {
     id: 'object',
     label: 'Объект',
     hotkey: 'v',
     cursor: 'default',
+    // Alt здесь переносит опору: объектам пипетка не нужна, у неё есть свой инструмент.
+    ownsAlt: true,
     onPointerDown(env, info) {
       if (info.button !== 0) return;
+      gesture = grabHandle(env, info);
+      if (gesture) {
+        // Опора прыгает под указатель сразу, не дожидаясь движения.
+        const next = gesture.kind === 'pivot' ? gestureResult(env, gesture, info) : null;
+        if (next) env.setDraft(next);
+        return;
+      }
       const hit = objectAt(env.doc, info.cell.x, info.cell.y);
       env.setSelectedObject(hit ? hit.id : null);
-      if (!hit || !isMovable(env, hit)) return;
-      dragId = hit.id;
-      anchor = info.cell;
-      moved = false;
+      if (hit && canTransform(env.doc, hit)) {
+        gesture = { kind: 'move', id: hit.id, anchor: info.cell, moved: false };
+      }
     },
     onPointerMove(env, info) {
-      if (!dragId) return;
-      const dx = info.cell.x - anchor.x;
-      const dy = info.cell.y - anchor.y;
-      if (dx === 0 && dy === 0 && !moved) return;
-      moved = true;
-      // Черновик строится от закоммиченного документа: смещение считается от начала жеста.
-      env.setDraft(moveObject(env.doc, dragId, dx, dy));
+      if (!gesture) return;
+      const next = gestureResult(env, gesture, info);
+      if (next) env.setDraft(next);
     },
     onPointerUp(env, info) {
-      if (!dragId) return;
-      const id = dragId;
-      dragId = null;
-      const dx = info.cell.x - anchor.x;
-      const dy = info.cell.y - anchor.y;
-      env.setDraft(null);
-      if (moved && (dx !== 0 || dy !== 0)) {
-        env.commitDocument('Move object', moveObject(env.doc, id, dx, dy));
+      if (!gesture) return;
+      const finished = gesture;
+      const next = gestureResult(env, finished, info);
+      stop(env);
+      if (next && next !== env.doc) env.commitDocument(LABELS[finished.kind], next);
+    },
+    hoverCursor(env, info) {
+      const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
+      if (obj && canTransform(env.doc, obj)) {
+        if (info.alt) return 'crosshair';
+        const layout = gizmoLayout(obj, objectMatrix(env.doc, obj), env.zoom);
+        const handle = hitGizmo(layout, info.point, env.zoom);
+        if (handle) return handleCursor(layout, handle);
       }
+      return objectAt(env.doc, info.cell.x, info.cell.y) ? 'move' : null;
     },
     onKeyDown(env, event) {
       const id = env.selectedObjectId;
@@ -60,8 +154,9 @@ export function createObjectTool(): Tool {
       if (!obj) return false;
       const step = event.shiftKey ? NUDGE_FAST : 1;
       const nudge = (dx: number, dy: number): boolean => {
-        if (isMovable(env, obj))
+        if (canTransform(env.doc, obj)) {
           env.commitDocument('Nudge object', moveObject(env.doc, id, dx, dy));
+        }
         return true;
       };
       switch (event.key) {
@@ -75,28 +170,22 @@ export function createObjectTool(): Tool {
           return nudge(0, step);
         case 'Delete':
         case 'Backspace':
-          if (isMovable(env, obj)) {
+          if (canTransform(env.doc, obj)) {
             env.commitDocument('Delete object', removeObject(env.doc, id));
             env.setSelectedObject(null);
           }
           return true;
         case 'Escape':
-          if (dragId) {
-            // Отмена перетаскивания: объект остаётся выбранным, черновик сбрасывается.
-            dragId = null;
-            moved = false;
-            env.setDraft(null);
-          } else {
-            env.setSelectedObject(null);
-          }
+          // Отмена жеста: объект остаётся выбранным, черновик сбрасывается.
+          if (gesture) stop(env);
+          else env.setSelectedObject(null);
           return true;
         default:
           return false;
       }
     },
     cancel(env) {
-      dragId = null;
-      env.setDraft(null);
+      stop(env);
     },
   };
 }

@@ -32,6 +32,7 @@ export function buildToolEnv(): ToolEnv {
     selection: editor.selection,
     textCursor: editor.textCursor,
     selectedObjectId: editor.selectedObjectId,
+    zoom: editor.camera.zoom,
     setPreview: (edits) =>
       editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null),
     commit: (edits, label) => {

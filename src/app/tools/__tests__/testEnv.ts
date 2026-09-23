@@ -27,6 +27,7 @@ export interface TestEnvOptions {
   readonly selection?: Selection | null;
   readonly textCursor?: Point | null;
   readonly selectedObjectId?: string | null;
+  readonly zoom?: number;
 }
 
 const DEFAULT_BRUSHES: readonly [Cell | null, Cell | null] = [makeCell('#'), null];
@@ -47,6 +48,7 @@ export function makeToolEnv(
     selection = null,
     textCursor = null,
     selectedObjectId = null,
+    zoom = 16,
   } = options;
 
   const calls: ToolCalls = {
@@ -70,6 +72,7 @@ export function makeToolEnv(
     selection,
     textCursor,
     selectedObjectId,
+    zoom,
     setPreview: (edits) => calls.previews.push(edits),
     commit: (edits, label) => calls.commits.push({ label, edits }),
     setSelection: (rect) => calls.selections.push(rect),
@@ -89,10 +92,20 @@ export function makeToolEnv(
 export const lastPreview = (calls: ToolCalls): CellEdits | null =>
   calls.previews.length > 0 ? calls.previews[calls.previews.length - 1] : null;
 
-/** Указатель. По умолчанию — левая кнопка без модификаторов. */
+/** Указатель в центре ячейки. По умолчанию — левая кнопка без модификаторов. */
 export const at = (x: number, y: number, button = 0, shift = false, alt = false) => ({
   cell: { x, y },
+  point: { x: x + 0.5, y: y + 0.5 },
   button,
   shift,
   alt,
+});
+
+/** Указатель в дробной точке документа: для ручек гизмо, которые не совпадают с ячейками. */
+export const atPoint = (x: number, y: number, keys: { shift?: boolean; alt?: boolean } = {}) => ({
+  cell: { x: Math.floor(x), y: Math.floor(y) },
+  point: { x, y },
+  button: 0,
+  shift: keys.shift ?? false,
+  alt: keys.alt ?? false,
 });

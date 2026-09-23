@@ -1,20 +1,20 @@
 import { parseAttrValue } from '../../core/cell';
-import { MAX_DIMENSION, canEditLayer } from '../../core/document';
+import { canEditLayer } from '../../core/document';
 import type { SceneObject } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import {
   moveSelectedObjectToLayerAction,
   removeObjectPropAction,
   setObjectPropAction,
-  transformObjectAction,
 } from '../store/objectActions';
-import { Field, NumberField, PropertyEditor, Select, plural, valueTypeName } from '../ui';
+import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
+import { TransformFields } from './TransformFields';
 
 interface Props {
   readonly object: SceneObject;
 }
 
-/** Позиция и произвольные свойства выбранного объекта. */
+/** Слой, трансформ и произвольные свойства выбранного объекта. */
 export function ObjectInspector({ object }: Props) {
   const layers = useDocumentStore((s) => s.doc.layers);
   // Сверху вниз, как в панели слоёв. Запертый или скрытый слой объект не примет.
@@ -23,11 +23,6 @@ export function ObjectInspector({ object }: Props) {
     label: layer.name,
     disabled: layer.id !== object.layerId && !canEditLayer(layer),
   }));
-  const move = (axis: 'x' | 'y', value: number): void => {
-    if (value !== object.transform[axis]) {
-      transformObjectAction(object.id, { [axis]: value }, 'Move object');
-    }
-  };
 
   const rows = Object.entries(object.props).map(([key, value]) => ({
     key,
@@ -52,24 +47,7 @@ export function ObjectInspector({ object }: Props) {
           onChange={moveSelectedObjectToLayerAction}
         />
       </Field>
-      <Field label="Положение">
-        <NumberField
-          label="X"
-          value={object.transform.x}
-          min={-MAX_DIMENSION}
-          max={MAX_DIMENSION}
-          onChange={(value) => move('x', value)}
-          width="var(--field-w-sm)"
-        />
-        <NumberField
-          label="Y"
-          value={object.transform.y}
-          min={-MAX_DIMENSION}
-          max={MAX_DIMENSION}
-          onChange={(value) => move('y', value)}
-          width="var(--field-w-sm)"
-        />
-      </Field>
+      <TransformFields object={object} />
       <span className="dim">
         {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
       </span>

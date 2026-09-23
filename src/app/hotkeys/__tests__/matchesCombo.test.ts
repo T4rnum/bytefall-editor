@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { type KeyChord, findHotkey, matchesCombo } from '../registry';
+import { type KeyChord, matchesCombo } from '../match';
+import { findHotkey } from '../registry';
 
 /** Событие клавиатуры по умолчанию без модификаторов. */
 const chord = (partial: Partial<KeyChord> & Pick<KeyChord, 'key' | 'code'>): KeyChord => ({
@@ -107,6 +108,31 @@ describe('знаки препинания', () => {
     // На русской раскладке запятая это Shift и та же клавиша, что точка.
     expect(matchesCombo(',', chord({ key: ',', code: 'Period', shiftKey: true }))).toBe(true);
     expect(matchesCombo('.', chord({ key: '.', code: 'Period' }))).toBe(true);
+  });
+});
+
+describe('скобки поворачивают объект', () => {
+  const right = (mods: Partial<KeyChord> & { key: string }) =>
+    chord({ code: 'BracketRight', ...mods });
+
+  it('«]» без Shift и «Shift+]» — разные сочетания', () => {
+    expect(matchesCombo(']', right({ key: ']' }))).toBe(true);
+    expect(matchesCombo(']', right({ key: '}', shiftKey: true }))).toBe(false);
+    expect(matchesCombo('Shift+]', right({ key: '}', shiftKey: true }))).toBe(true);
+    expect(matchesCombo('Shift+]', right({ key: ']' }))).toBe(false);
+  });
+
+  it('на русской раскладке та же клавиша печатает «ъ» и всё равно совпадает', () => {
+    expect(matchesCombo(']', right({ key: 'ъ' }))).toBe(true);
+    expect(matchesCombo('Shift+]', right({ key: 'Ъ', shiftKey: true }))).toBe(true);
+  });
+
+  it('с Alt скобка переносит объект между слоями, без Alt — поворачивает', () => {
+    expect(findHotkey(right({ key: ']', altKey: true }))?.label).toBe('Перенести на слой выше');
+    expect(findHotkey(right({ key: ']' }))?.label).toBe('Повернуть на 15° по часовой');
+    expect(findHotkey(right({ key: '}', shiftKey: true }))?.label).toBe(
+      'Повернуть на 90° по часовой',
+    );
   });
 });
 

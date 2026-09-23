@@ -15,6 +15,7 @@ import { type EditorState, useEditorStore } from '../store/editorStore';
 import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
+import { canTransform, gizmoLayout } from '../tools/gizmo';
 
 type Drag =
   | { readonly kind: 'tool'; readonly pointerId: number }
@@ -101,11 +102,18 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       return [...tiles];
     };
 
+    /** Рамка выбранного объекта, а у инструмента объектов — ещё и ручки трансформа. */
     const syncObjectOutline = (): void => {
-      const { selectedObjectId } = useEditorStore.getState();
+      const { selectedObjectId, tool, camera } = useEditorStore.getState();
       const doc = currentDoc();
       const obj = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
-      view.setObjectOutline(obj ? objectQuad(obj, objectMatrix(doc, obj)) : null);
+      const world = obj ? objectMatrix(doc, obj) : null;
+      view.setObjectOutline(obj && world ? objectQuad(obj, world) : null);
+      const gizmo =
+        obj && world && tool === 'object' && canTransform(doc, obj)
+          ? gizmoLayout(obj, world, camera.zoom)
+          : null;
+      view.setGizmo(gizmo && { ...gizmo, handles: gizmo.scale.map((s) => s.at) });
     };
 
     let lastEpoch = -1;
@@ -171,7 +179,13 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         }
         recomposite(dirtyFromPreview(state, prev) ?? undefined);
       }
-      if (!prev || state.draft !== prev.draft || state.selectedObjectId !== prev.selectedObjectId) {
+      if (
+        !prev ||
+        state.draft !== prev.draft ||
+        state.selectedObjectId !== prev.selectedObjectId ||
+        state.tool !== prev.tool ||
+        state.camera.zoom !== prev.camera.zoom
+      ) {
         syncObjectOutline();
       }
       if (!prev || state.camera !== prev.camera) view.setCamera(state.camera);
@@ -238,8 +252,11 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const container = containerRef.current;
     if (!view || !container) return null;
     const rect = container.getBoundingClientRect();
-    const cell = view.screenToCell(event.clientX - rect.left, event.clientY - rect.top);
-    return { cell, button: event.button, shift: event.shiftKey, alt: event.altKey };
+    const world = view.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+    // Мир смотрит осью Y вверх, документ — вниз.
+    const point = { x: world.x, y: -world.y };
+    const cell = { x: Math.floor(point.x), y: Math.floor(point.y) };
+    return { cell, point, button: event.button, shift: event.shiftKey, alt: event.altKey };
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -282,7 +299,14 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     );
 
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag) {
+      // Без нажатой кнопки инструмент подсказывает курсором, что под указателем можно схватить.
+      const current = getTool(editor.tool);
+      const hover = current.hoverCursor?.(buildToolEnv(), info) ?? null;
+      event.currentTarget.style.cursor = hover ?? current.cursor;
+      return;
+    }
+    if (drag.pointerId !== event.pointerId) return;
     if (drag.kind === 'pan') {
       // Панорамирование ведёт камеру само: начатый кнопкой переход надо оборвать.
       cancelCameraTween();
