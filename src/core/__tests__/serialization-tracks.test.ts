@@ -4,7 +4,13 @@ import { updateLayer } from '../document';
 import { createEffect } from '../effects';
 import { EASE_BACK } from '../easing';
 import { updateObject } from '../object';
-import { DocumentFormatError, deserialize, serialize, toFileObject } from '../serialization';
+import {
+  DocumentFormatError,
+  FORMAT_VERSION,
+  deserialize,
+  serialize,
+  toFileObject,
+} from '../serialization';
 import { setKey, setKeysInterpolation, trackKey } from '../tracks';
 import { BALL, rollingBall } from './helpers/ballScene';
 
@@ -29,7 +35,7 @@ describe('треки в файле', () => {
     tracks = setKey(tracks, { node: 'layer', id: layerId, property: 'opacity' }, 900, [0.5]);
     const saved = { ...anim, tracks, fps: 30, duration: 1500 };
     const file = toFileObject(saved);
-    expect(file.version).toBe(6);
+    expect(file.version).toBe(FORMAT_VERSION);
     expect(file.tracks?.[0].keys[0]).toEqual({ t: 0, v: [1, 1], i: 'bezier', e: [...EASE_BACK] });
     // Линейная интерполяция по умолчанию в файл не пишется.
     expect(file.tracks?.[0].keys[1]).toEqual({ t: 1000, v: [5, 1] });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { normalizeHex } from '../color';
+import { deformersSchema } from './deformers';
 import type { Layer } from '../document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from '../grid';
 import type { SceneObject } from '../object';
@@ -76,6 +77,8 @@ export const objectSchema = z.object({
   tint: hex.optional(),
   cells: z.array(cellSchema).max(MAX_CELLS_PER_LAYER),
   overrides: z.array(overrideSchema).max(MAX_CELLS_PER_LAYER).optional(),
+  /** Версия 7. */
+  deformers: deformersSchema.optional(),
   props: attrs.optional(),
 });
 
@@ -104,6 +107,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     ...(obj.tint !== null ? { tint: obj.tint } : {}),
     cells: cellsToFile(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
+    ...(obj.deformers.length > 0 ? { deformers: [...obj.deformers] } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
   }));
 }
@@ -126,6 +130,13 @@ function overridesFromFile(overrides: readonly OverrideFile[], cells: CellGrid):
     if (override && cells.has(key)) out.set(key, override);
   }
   return out;
+}
+
+function uniqueDeformers<T extends { readonly id: string }>(objectId: string, list: T[]): T[] {
+  if (new Set(list.map((d) => d.id)).size !== list.length) {
+    throw new DocumentFormatError(`Duplicate deformer id in object ${objectId}`);
+  }
+  return list;
 }
 
 /** Родитель обязан быть в том же кадре, и цепочка родителей не должна замыкаться. */
@@ -168,7 +179,7 @@ export function objectsFromFile(
       tint: obj.tint === undefined ? null : normalizeHex(obj.tint),
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
-      deformers: [],
+      deformers: uniqueDeformers(obj.id, obj.deformers ?? []),
       props: obj.props ?? {},
     };
   });

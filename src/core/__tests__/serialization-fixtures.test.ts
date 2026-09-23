@@ -15,6 +15,7 @@ import v4bytefall from './fixtures/v4-bytefall.bp.json?raw';
 import v4 from './fixtures/v4-effects.bp.json?raw';
 import v5 from './fixtures/v5-transforms.bp.json?raw';
 import v6 from './fixtures/v6-tracks.bp.json?raw';
+import v7 from './fixtures/v7-deformers.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -32,6 +33,7 @@ const FIXTURES = {
   'v4-bytefall': v4bytefall,
   'v5-transforms': v5,
   'v6-tracks': v6,
+  'v7-deformers': v7,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -143,6 +145,17 @@ describe('фикстуры формата', () => {
       tintChannels('#ff004d00'),
       tintChannels('#ff004d'),
     ]);
+  });
+
+  it('v7: деформеры объекта читаются по порядку, с флагом и параметрами', () => {
+    const [flag] = frameDocument(deserialize(v7), 0).objects;
+    expect(flag.deformers.map((d) => [d.kind, d.enabled])).toEqual([
+      ['wave', true],
+      ['colorRamp', false],
+    ]);
+    expect(flag.deformers[0]).toMatchObject({ axis: 'y', amplitude: 0.5, wavelength: 4 });
+    // До v7 деформеров не было: у объектов старых версий стек пустой.
+    expect(frameDocument(deserialize(v6), 0).objects[0].deformers).toEqual([]);
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {
