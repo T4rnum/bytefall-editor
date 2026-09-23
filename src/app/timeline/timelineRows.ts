@@ -1,7 +1,9 @@
 import type { Animation } from '../../core/animation';
 import type { Document } from '../../core/document';
+import type { DeformerKind } from '../../core/deformers';
 import { EFFECT_KINDS } from '../../core/effects';
 import {
+  type DeformerParam,
   type EffectParam,
   OBJECT_PROPERTIES,
   type ObjectProperty,
@@ -44,6 +46,27 @@ const EFFECT_LABELS: Readonly<Record<EffectParam, string>> = {
   height: 'Высота',
 };
 
+const DEFORMER_LABELS: Readonly<Record<DeformerParam, string>> = {
+  amplitude: 'Размах',
+  wavelength: 'Длина волны',
+  period: 'Период',
+  angle: 'Угол',
+  strength: 'Сила',
+  radius: 'Радиус',
+  inner: 'Размер в центре',
+  outer: 'Размер на краю',
+  length: 'Длина градиента',
+  amount: 'Сила цвета',
+};
+
+const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
+  wave: 'Волна',
+  jitter: 'Дрожание',
+  twist: 'Вихрь',
+  scaleFalloff: 'Размер от центра',
+  colorRamp: 'Градиент',
+};
+
 function labelOf(target: TrackTarget): string {
   switch (target.node) {
     case 'object':
@@ -52,6 +75,8 @@ function labelOf(target: TrackTarget): string {
       return 'Непрозрачность слоя';
     case 'effect':
       return EFFECT_LABELS[target.property];
+    case 'deformer':
+      return DEFORMER_LABELS[target.property];
   }
 }
 
@@ -81,6 +106,13 @@ function objectName(anim: Animation, doc: Document, id: string): string {
 function nodeLabel(anim: Animation, doc: Document, track: Track): string {
   if (track.node === 'object') return objectName(anim, doc, track.id);
   if (track.node === 'layer') return doc.layers.find((l) => l.id === track.id)?.name ?? track.id;
+  if (track.node === 'deformer') {
+    for (const obj of doc.objects) {
+      const deformer = obj.deformers.find((d) => d.id === track.id);
+      if (deformer) return `${DEFORMER_KINDS[deformer.kind]} · ${obj.name}`;
+    }
+    return track.id;
+  }
   for (const layer of doc.layers) {
     const effect = layer.effects.find((e) => e.id === track.id);
     if (!effect) continue;

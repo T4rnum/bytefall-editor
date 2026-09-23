@@ -2,13 +2,16 @@ import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { Deformer, DeformerKind } from '../../core/deformers';
 import type { SceneObject } from '../../core/object';
+import { DEFORMER_PARAMS, type DeformerParam } from '../../core/tracks';
+import { useKeyState } from '../hooks/useKeyState';
+import { toggleKeyAction } from '../store/keyActions';
 import {
   addDeformerAction,
   moveDeformerAction,
   removeDeformerAction,
   updateDeformerAction,
 } from '../store/deformerActions';
-import { Button, Checkbox, ColorField, Field, NumberField, Select } from '../ui';
+import { Button, Checkbox, ColorField, Field, KeyButton, NumberField, Select } from '../ui';
 
 const KINDS: readonly { readonly value: DeformerKind; readonly label: string }[] = [
   { value: 'wave', label: 'Волна' },
@@ -146,7 +149,25 @@ function ParamField({
         }}
         width="var(--field-w)"
       />
+      <ParamKey deformer={deformer} param={param} />
     </Field>
+  );
+}
+
+/** Ромб ключа у числового параметра; у зерна дрожания ключей нет — там пустое место. */
+function ParamKey({ deformer, param }: { deformer: Deformer; param: Param }) {
+  const animatable = (DEFORMER_PARAMS as readonly string[]).includes(param.key);
+  const target = animatable
+    ? { node: 'deformer' as const, id: deformer.id, property: param.key as DeformerParam }
+    : null;
+  const state = useKeyState(target);
+  if (!target) return <span className="key-spacer" aria-hidden="true" />;
+  return (
+    <KeyButton
+      state={state}
+      subject={param.label.toLowerCase()}
+      onClick={() => toggleKeyAction(target)}
+    />
   );
 }
 

@@ -1,7 +1,9 @@
 import {
+  readDeformerValue,
   readEffectValue,
   readLayerValue,
   readObjectValue,
+  writeDeformerValue,
   writeEffectValue,
   writeLayerValue,
   writeObjectValue,
@@ -29,10 +31,7 @@ export function evaluate(anim: Animation, time: number): Document {
 export function applyTracks(doc: Document, tracks: readonly Track[], time: number): Document {
   if (tracks.length === 0) return doc;
   const index = tracksByNode(tracks);
-  const objects = patchAll(doc.objects, (obj) => {
-    const own = index.get(nodeKey('object', obj.id));
-    return own ? patchObject(obj, own, time) : obj;
-  });
+  const objects = patchAll(doc.objects, (obj) => patchObject(obj, index, time));
   const layers = patchAll(doc.layers, (layer) => patchLayer(layer, index, time));
   return objects === doc.objects && layers === doc.layers ? doc : { ...doc, objects, layers };
 }
@@ -47,12 +46,25 @@ function patchAll<T>(items: readonly T[], patch: (item: T) => T): readonly T[] {
   return out ?? items;
 }
 
-function patchObject(obj: SceneObject, tracks: readonly Track[], time: number): SceneObject {
+function patchObject(
+  obj: SceneObject,
+  index: ReadonlyMap<string, readonly Track[]>,
+  time: number,
+): SceneObject {
   let out = obj;
-  for (const track of tracks) {
+  for (const track of index.get(nodeKey('object', obj.id)) ?? []) {
     if (track.node === 'object') out = writeObjectValue(out, track.property, valueAt(track, time));
   }
-  return out;
+  const deformers = patchAll(obj.deformers, (deformer) => {
+    let next = deformer;
+    for (const track of index.get(nodeKey('deformer', deformer.id)) ?? []) {
+      if (track.node === 'deformer') {
+        next = writeDeformerValue(next, track.property, valueAt(track, time));
+      }
+    }
+    return next;
+  });
+  return deformers === obj.deformers ? out : { ...out, deformers };
 }
 
 function patchLayer(
@@ -116,6 +128,13 @@ export function readTarget(doc: Document, target: TrackTarget): number[] | null 
     case 'effect': {
       const found = findEffect(doc, target.id);
       return found ? readEffectValue(found.effect, target.property) : null;
+    }
+    case 'deformer': {
+      for (const obj of doc.objects) {
+        const deformer = obj.deformers.find((d) => d.id === target.id);
+        if (deformer) return readDeformerValue(deformer, target.property);
+      }
+      return null;
     }
   }
 }

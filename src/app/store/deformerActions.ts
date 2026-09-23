@@ -1,11 +1,13 @@
-import { mapFrames } from '../../core/animation';
+import { type Animation, mapFrames } from '../../core/animation';
 import {
   type Deformer,
   type DeformerKind,
   MAX_DEFORMERS_PER_OBJECT,
   createDeformer,
 } from '../../core/deformers';
+import { setTargetValue } from '../../core/keyframes';
 import { findObject, updateObject } from '../../core/object';
+import { DEFORMER_PARAMS, type TrackTarget, findTrack } from '../../core/tracks';
 import { plural } from '../ui/plural';
 import { useDocumentStore } from './documentStore';
 import { notify } from './notifyStore';
@@ -14,20 +16,26 @@ import { notify } from './notifyStore';
  * Деформеры — модификаторы объекта, а не рисунок кадра: правка стека идёт во все кадры, где
  * объект есть, иначе волна пропадала бы при смене кадра.
  */
-function editStack(
+function withStack(
+  anim: Animation,
   objectId: string,
-  label: string,
   fn: (stack: readonly Deformer[]) => readonly Deformer[],
-  mergeKey?: string,
-): void {
-  const { animation, commitAnimation } = useDocumentStore.getState();
-  const next = mapFrames(animation, (doc) => {
+): Animation {
+  return mapFrames(anim, (doc) => {
     const obj = findObject(doc, objectId);
     if (!obj) return doc;
     const deformers = fn(obj.deformers);
     return deformers === obj.deformers ? doc : updateObject(doc, objectId, { deformers });
   });
-  commitAnimation(label, next, undefined, mergeKey);
+}
+
+function editStack(
+  objectId: string,
+  label: string,
+  fn: (stack: readonly Deformer[]) => readonly Deformer[],
+): void {
+  const { animation, commitAnimation } = useDocumentStore.getState();
+  commitAnimation(label, withStack(animation, objectId, fn));
 }
 
 export function addDeformerAction(objectId: string, kind: DeformerKind): void {
@@ -63,17 +71,35 @@ export function moveDeformerAction(objectId: string, deformerId: string, delta: 
   });
 }
 
-/** Меняет параметры деформера. `mergeKey` склеивает записи одного перетаскивания поля. */
+const isParam = (key: string): boolean => (DEFORMER_PARAMS as readonly string[]).includes(key);
+
+/**
+ * Меняет параметры деформера. Числовой параметр, который ведут ключи, получает ключ в текущий
+ * момент; остальное меняется во всех кадрах объекта. Список деформеров берётся из кадров, а не
+ * из вычисленной сцены: иначе значения ключей на этот момент осели бы в кадре.
+ * `mergeKey` склеивает записи одного перетаскивания поля.
+ */
 export function updateDeformerAction(
   objectId: string,
   deformerId: string,
   patch: Readonly<Record<string, unknown>>,
   mergeKey?: string,
 ): void {
-  editStack(
-    objectId,
-    'Deformer settings',
-    (stack) => stack.map((d) => (d.id === deformerId ? { ...d, ...patch } : d)),
-    mergeKey,
-  );
+  const { animation, time, commitAnimation } = useDocumentStore.getState();
+  let next = animation;
+  const plain: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    const target = { node: 'deformer', id: deformerId, property: key } as TrackTarget;
+    if (typeof value === 'number' && isParam(key) && findTrack(next.tracks, target)) {
+      next = setTargetValue(next, target, time, [value]);
+    } else {
+      plain[key] = value;
+    }
+  }
+  if (Object.keys(plain).length > 0) {
+    next = withStack(next, objectId, (stack) =>
+      stack.map((d) => (d.id === deformerId ? { ...d, ...plain } : d)),
+    );
+  }
+  commitAnimation('Deformer settings', next, undefined, mergeKey);
 }

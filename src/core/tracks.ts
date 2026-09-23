@@ -22,6 +22,32 @@ export type LayerProperty = 'opacity';
 export type EffectParam =
   'period' | 'amplitude' | 'spread' | 'wavelength' | 'density' | 'dx' | 'dy' | 'height';
 
+/** Числовые параметры деформеров: их можно вести ключами. Зерно дрожания — нет. */
+export type DeformerParam =
+  | 'amplitude'
+  | 'wavelength'
+  | 'period'
+  | 'angle'
+  | 'strength'
+  | 'radius'
+  | 'inner'
+  | 'outer'
+  | 'length'
+  | 'amount';
+
+export const DEFORMER_PARAMS: readonly DeformerParam[] = [
+  'amplitude',
+  'wavelength',
+  'period',
+  'angle',
+  'strength',
+  'radius',
+  'inner',
+  'outer',
+  'length',
+  'amount',
+];
+
 export const OBJECT_PROPERTIES: readonly ObjectProperty[] = [
   'position',
   'rotation',
@@ -47,7 +73,8 @@ export const EFFECT_PARAMS: readonly EffectParam[] = [
 export type TrackTarget =
   | { readonly node: 'object'; readonly id: string; readonly property: ObjectProperty }
   | { readonly node: 'layer'; readonly id: string; readonly property: LayerProperty }
-  | { readonly node: 'effect'; readonly id: string; readonly property: EffectParam };
+  | { readonly node: 'effect'; readonly id: string; readonly property: EffectParam }
+  | { readonly node: 'deformer'; readonly id: string; readonly property: DeformerParam };
 
 export type TrackNode = TrackTarget['node'];
 

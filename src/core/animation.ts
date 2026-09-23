@@ -240,7 +240,10 @@ export function duplicateAnimationLayer(
 export function aliveNodes(frames: readonly Frame[]): Set<string> {
   const alive = new Set<string>();
   for (const frame of frames) {
-    for (const obj of frame.objects) alive.add(nodeKey('object', obj.id));
+    for (const obj of frame.objects) {
+      alive.add(nodeKey('object', obj.id));
+      for (const deformer of obj.deformers) alive.add(nodeKey('deformer', deformer.id));
+    }
     for (const layer of frame.layers) {
       alive.add(nodeKey('layer', layer.id));
       for (const effect of layer.effects) alive.add(nodeKey('effect', effect.id));

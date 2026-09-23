@@ -4,6 +4,8 @@ import { toHex } from '../color';
 import { EASE_IN_OUT, MAX_EASING_OVERSHOOT } from '../easing';
 import { MAX_SCENE_DURATION } from '../time';
 import {
+  DEFORMER_PARAMS,
+  type DeformerParam,
   EFFECT_PARAMS,
   type EffectParam,
   type Key,
@@ -35,7 +37,7 @@ const keySchema = z.object({
 });
 
 const trackSchema = z.object({
-  node: z.enum(['object', 'layer', 'effect']),
+  node: z.enum(['object', 'layer', 'effect', 'deformer']),
   id,
   property: z.string().max(32),
   keys: z.array(keySchema).min(1).max(MAX_KEYS_PER_TRACK),
@@ -55,6 +57,9 @@ function targetFromFile(track: TrackFile): TrackTarget {
   if (node === 'layer' && property === 'opacity') return { node, id: target, property };
   if (node === 'effect' && EFFECT_PARAMS.includes(property as EffectParam)) {
     return { node, id: target, property: property as EffectParam };
+  }
+  if (node === 'deformer' && DEFORMER_PARAMS.includes(property as DeformerParam)) {
+    return { node, id: target, property: property as DeformerParam };
   }
   throw new DocumentFormatError(`Unknown ${node} property: ${property}`);
 }

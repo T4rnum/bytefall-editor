@@ -1,9 +1,10 @@
 import { clamp01, parseHex, toHex } from './color';
 import { type Layer, MAX_DIMENSION } from './document';
+import { DEFORMER_PARAM_SPECS, type Deformer } from './deformers';
 import { EFFECT_PARAM_SPECS, type LayerEffect, limitParam } from './effects';
 import type { SceneObject } from './object';
 import { MAX_ROTATION, MAX_SCALE, MAX_SHIFT, MIN_SCALE, normalizeTransform } from './transform';
-import type { EffectParam, ObjectProperty, TrackTarget } from './tracks';
+import type { DeformerParam, EffectParam, ObjectProperty, TrackTarget } from './tracks';
 
 /**
  * Чтение и запись анимируемых свойств узлов как каналов чисел. Ключи, интерполяция и правка
@@ -95,6 +96,34 @@ export function writeEffectValue(
   return spec ? { ...effect, [param]: limitParam(spec, value[0]) } : effect;
 }
 
+/** Параметр деформера или null, если у деформера этого вида такого параметра нет. */
+export function readDeformerValue(deformer: Deformer, param: DeformerParam): number[] | null {
+  if (!DEFORMER_PARAM_SPECS[deformer.kind][param]) return null;
+  return [(deformer as unknown as Readonly<Record<string, number>>)[param]];
+}
+
+export function writeDeformerValue(
+  deformer: Deformer,
+  param: DeformerParam,
+  value: readonly number[],
+): Deformer {
+  const spec = DEFORMER_PARAM_SPECS[deformer.kind][param];
+  return spec ? { ...deformer, [param]: round6(clamp(value[0], spec.min, spec.max)) } : deformer;
+}
+
+/** Самые широкие пределы параметра деформера среди всех видов. */
+function deformerLimits(param: DeformerParam): { min: number; max: number } {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const specs of Object.values(DEFORMER_PARAM_SPECS)) {
+    const spec = specs[param];
+    if (!spec) continue;
+    min = Math.min(min, spec.min);
+    max = Math.max(max, spec.max);
+  }
+  return { min, max };
+}
+
 /** Самые широкие пределы параметра среди всех эффектов: так проверяются ключи в файле. */
 function paramLimits(param: EffectParam): { min: number; max: number } {
   let min = Infinity;
@@ -118,6 +147,10 @@ export function normalizeValue(target: TrackTarget, value: readonly number[]): n
     const { min, max } = paramLimits(target.property);
     return [round6(clamp(value[0], min, max))];
   }
+  if (target.node === 'deformer') {
+    const { min, max } = deformerLimits(target.property);
+    return [round6(clamp(value[0], min, max))];
+  }
   switch (target.property) {
     case 'position':
       return value.slice(0, 2).map((v) => round6(clamp(v, -MAX_POSITION, MAX_POSITION)));
@@ -136,6 +169,7 @@ export function normalizeValue(target: TrackTarget, value: readonly number[]): n
 export function valueLimits(target: TrackTarget): { min: number; max: number } {
   if (target.node === 'layer') return { min: 0, max: 1 };
   if (target.node === 'effect') return paramLimits(target.property);
+  if (target.node === 'deformer') return deformerLimits(target.property);
   switch (target.property) {
     case 'position':
       return { min: -MAX_POSITION, max: MAX_POSITION };

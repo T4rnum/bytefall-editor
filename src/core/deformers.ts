@@ -2,6 +2,8 @@ import type { Rgba } from './color';
 import { applyDeformer } from './deformerKinds';
 import { newId } from './document';
 import type { CellKey } from './grid';
+import { MAX_SCALE, MIN_SCALE } from './transform';
+import type { DeformerParam } from './tracks';
 
 /**
  * Деформеры (DESIGN.md, раздел 4.3): функции «символы объекта → символы объекта» с несколькими
@@ -80,6 +82,26 @@ export interface DeformerByKind {
 }
 
 export const MAX_DEFORMERS_PER_OBJECT = 8;
+
+export interface DeformerParamSpec {
+  readonly min: number;
+  readonly max: number;
+}
+
+const PERIOD: DeformerParamSpec = { min: 10, max: 600000 };
+const LENGTH: DeformerParamSpec = { min: 0.5, max: 2048 };
+const SCALE: DeformerParamSpec = { min: MIN_SCALE, max: MAX_SCALE };
+
+/** Числовые параметры каждого вида с пределами: по ним ограничиваются ключи и поля. */
+export const DEFORMER_PARAM_SPECS: {
+  readonly [K in DeformerKind]: Readonly<Partial<Record<DeformerParam, DeformerParamSpec>>>;
+} = {
+  wave: { amplitude: { min: 0, max: 64 }, wavelength: LENGTH, period: PERIOD },
+  jitter: { amplitude: { min: 0, max: 8 }, angle: { min: 0, max: 360 }, period: PERIOD },
+  twist: { strength: { min: -360, max: 360 } },
+  scaleFalloff: { radius: LENGTH, inner: SCALE, outer: SCALE },
+  colorRamp: { length: LENGTH, period: { min: 0, max: 600000 }, amount: { min: 0, max: 1 } },
+};
 
 const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K] } = {
   wave: (id) => ({
