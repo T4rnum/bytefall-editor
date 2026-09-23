@@ -10,7 +10,8 @@ import type { DeformerParam } from './tracks';
  * параметрами. Лежат на объекте списком, порядок важен, как модификаторы в Blender. Работают в
  * координатах объекта, поэтому волна идёт вдоль его осей и едет вместе с ним.
  */
-export type DeformerKind = 'wave' | 'jitter' | 'twist' | 'scaleFalloff' | 'colorRamp';
+export type DeformerKind =
+  'wave' | 'jitter' | 'twist' | 'scaleFalloff' | 'colorRamp' | 'bend' | 'explode' | 'glyphRamp';
 
 interface DeformerCommon {
   readonly id: string;
@@ -70,8 +71,38 @@ export interface ColorRampDeformer extends DeformerCommon {
   readonly amount: number;
 }
 
+/** Изгиб: строка объекта ложится на дугу, символы встают поперёк неё. */
+export interface BendDeformer extends DeformerCommon {
+  readonly kind: 'bend';
+  /** Градусы поворота дуги на ячейку; больше нуля — концы уходят вниз. */
+  readonly strength: number;
+}
+
+/** Разлёт: символы уходят от центра, каждый ещё и крутится по шуму. */
+export interface ExplodeDeformer extends DeformerCommon {
+  readonly kind: 'explode';
+  /** 0 — на месте, 1 — вдвое дальше от центра. */
+  readonly amount: number;
+  /** Наибольший поворот при разлёте на единицу, градусы. */
+  readonly angle: number;
+  readonly seed: number;
+}
+
+/** Символ по яркости своего цвета: тёмный берёт начало ряда, светлый — конец. */
+export interface GlyphRampDeformer extends DeformerCommon {
+  readonly kind: 'glyphRamp';
+  readonly glyphs: string;
+}
+
 export type Deformer =
-  WaveDeformer | JitterDeformer | TwistDeformer | ScaleFalloffDeformer | ColorRampDeformer;
+  | WaveDeformer
+  | JitterDeformer
+  | TwistDeformer
+  | ScaleFalloffDeformer
+  | ColorRampDeformer
+  | BendDeformer
+  | ExplodeDeformer
+  | GlyphRampDeformer;
 
 export interface DeformerByKind {
   readonly wave: WaveDeformer;
@@ -79,6 +110,9 @@ export interface DeformerByKind {
   readonly twist: TwistDeformer;
   readonly scaleFalloff: ScaleFalloffDeformer;
   readonly colorRamp: ColorRampDeformer;
+  readonly bend: BendDeformer;
+  readonly explode: ExplodeDeformer;
+  readonly glyphRamp: GlyphRampDeformer;
 }
 
 export const MAX_DEFORMERS_PER_OBJECT = 8;
@@ -101,6 +135,9 @@ export const DEFORMER_PARAM_SPECS: {
   twist: { strength: { min: -360, max: 360 } },
   scaleFalloff: { radius: LENGTH, inner: SCALE, outer: SCALE },
   colorRamp: { length: LENGTH, period: { min: 0, max: 600000 }, amount: { min: 0, max: 1 } },
+  bend: { strength: { min: -90, max: 90 } },
+  explode: { amount: { min: 0, max: 16 }, angle: { min: 0, max: 720 } },
+  glyphRamp: {},
 };
 
 const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K] } = {
@@ -131,6 +168,9 @@ const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K
     inner: 1.5,
     outer: 0.5,
   }),
+  bend: (id) => ({ id, kind: 'bend', enabled: true, strength: 10 }),
+  explode: (id) => ({ id, kind: 'explode', enabled: true, amount: 0.5, angle: 90, seed: 1 }),
+  glyphRamp: (id) => ({ id, kind: 'glyphRamp', enabled: true, glyphs: '.:-=+*#%@' }),
   colorRamp: (id) => ({
     id,
     kind: 'colorRamp',
@@ -173,7 +213,7 @@ export const hasActiveDeformers = (deformers: readonly Deformer[]): boolean =>
  */
 export interface GlyphPose {
   readonly key: CellKey;
-  readonly glyph: string;
+  glyph: string;
   x: number;
   y: number;
   rot: number;

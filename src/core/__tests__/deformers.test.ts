@@ -102,3 +102,32 @@ describe('деформеры', () => {
     expect(hasActiveDeformers([twist])).toBe(true);
   });
 });
+
+describe('изгиб, разлёт и символы по яркости', () => {
+  it('изгиб кладёт строку на дугу и поворачивает символы поперёк неё', () => {
+    const bend = { ...createDeformer('bend', 'b'), strength: 90 };
+    const [center, side] = run([pose(0, 0), pose(1, 0)], [bend]);
+    expect(center.x).toBe(0.5);
+    expect(center.y).toBeCloseTo(0.5, 12);
+    expect(center.rot).toBe(0);
+    // Четверть оборота на ячейку: соседний символ уходит вниз по дуге радиусом 2/π.
+    expect(side.x).toBeCloseTo(0.5 + 2 / Math.PI, 6);
+    expect(side.y).toBeCloseTo(0.5 + 2 / Math.PI, 6);
+    expect(side.rot).toBeCloseTo(90, 6);
+    expect(run(row(3), [{ ...bend, strength: 0 }])).toEqual(row(3));
+  });
+
+  it('разлёт уводит символы от центра пропорционально силе', () => {
+    const explode = { ...createDeformer('explode', 'e'), amount: 1, angle: 0 };
+    const [c, far] = run([pose(0, 0), pose(2, 0)], [explode]);
+    expect([c.x, far.x]).toEqual([0.5, 4.5]);
+    expect(run(row(2), [{ ...explode, amount: 0 }])).toEqual(row(2));
+  });
+
+  it('символ по яркости цвета: тёмный — начало ряда, светлый — конец', () => {
+    const ramp = { ...createDeformer('glyphRamp', 'g'), glyphs: '.o@' };
+    const dark = { ...pose(0, 0), fg: { r: 0, g: 0, b: 0, a: 1 } };
+    const mid = { ...pose(1, 0), fg: { r: 0.5, g: 0.5, b: 0.5, a: 1 } };
+    expect(run([dark, mid, pose(2, 0)], [ramp]).map((p) => p.glyph)).toEqual(['.', 'o', '@']);
+  });
+});

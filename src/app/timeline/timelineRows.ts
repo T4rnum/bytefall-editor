@@ -65,6 +65,9 @@ const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
   twist: 'Вихрь',
   scaleFalloff: 'Размер от центра',
   colorRamp: 'Градиент',
+  bend: 'Изгиб',
+  explode: 'Разлёт',
+  glyphRamp: 'Символы по яркости',
 };
 
 function labelOf(target: TrackTarget): string {

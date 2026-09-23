@@ -57,6 +57,7 @@ export function rasterizeDeformed(
     if (x < clip.x || y < clip.y || x >= clip.x + clip.w || y >= clip.y + clip.h) continue;
     const source = obj.cells.get(p.key) as Cell;
     const fg = toHex(p.fg);
-    visit(x, y, fg === source.fg ? source : { ...source, fg });
+    const same = fg === source.fg && p.glyph === source.glyph;
+    visit(x, y, same ? source : { ...source, glyph: p.glyph, fg });
   }
 }

@@ -1,9 +1,12 @@
 import { colorOf } from './cellBuffer';
 import type {
+  BendDeformer,
   ColorRampDeformer,
   DeformContext,
   Deformer,
+  ExplodeDeformer,
   GlyphPose,
+  GlyphRampDeformer,
   JitterDeformer,
   ScaleFalloffDeformer,
   TwistDeformer,
@@ -87,6 +90,41 @@ function colorRamp(poses: GlyphPose[], d: ColorRampDeformer, ctx: DeformContext)
   }
 }
 
+function bend(poses: GlyphPose[], d: BendDeformer, ctx: DeformContext): void {
+  const k = (d.strength * Math.PI) / 180;
+  if (Math.abs(k) < 1e-9) return;
+  const r = 1 / k;
+  const { x: cx, y: cy } = ctx.center;
+  for (const p of poses) {
+    // Центр дуги на радиус ниже центра объекта; символ ниже средней линии — ближе к нему.
+    const theta = k * (p.x - cx);
+    const reach = r - (p.y - cy);
+    p.x = cx + reach * Math.sin(theta);
+    p.y = cy + r - reach * Math.cos(theta);
+    p.rot += (theta * 180) / Math.PI;
+  }
+}
+
+function explode(poses: GlyphPose[], d: ExplodeDeformer, ctx: DeformContext): void {
+  const salt = Math.imul(d.seed | 0, 7919);
+  const { x: cx, y: cy } = ctx.center;
+  for (const p of poses) {
+    p.x = cx + (p.x - cx) * (1 + d.amount);
+    p.y = cy + (p.y - cy) * (1 + d.amount);
+    p.rot += d.angle * d.amount * (hashNoise(xOf(p.key), yOf(p.key), salt) * 2 - 1);
+  }
+}
+
+function glyphRamp(poses: GlyphPose[], d: GlyphRampDeformer): void {
+  const glyphs = [...d.glyphs];
+  if (glyphs.length === 0) return;
+  for (const p of poses) {
+    if (p.glyph === '') continue;
+    const light = 0.2126 * p.fg.r + 0.7152 * p.fg.g + 0.0722 * p.fg.b;
+    p.glyph = glyphs[Math.min(glyphs.length - 1, Math.floor(light * glyphs.length))];
+  }
+}
+
 export function applyDeformer(poses: GlyphPose[], deformer: Deformer, ctx: DeformContext): void {
   switch (deformer.kind) {
     case 'wave':
@@ -99,5 +137,11 @@ export function applyDeformer(poses: GlyphPose[], deformer: Deformer, ctx: Defor
       return scaleFalloff(poses, deformer, ctx);
     case 'colorRamp':
       return colorRamp(poses, deformer, ctx);
+    case 'bend':
+      return bend(poses, deformer, ctx);
+    case 'explode':
+      return explode(poses, deformer, ctx);
+    case 'glyphRamp':
+      return glyphRamp(poses, deformer);
   }
 }

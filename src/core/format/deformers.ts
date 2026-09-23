@@ -34,6 +34,15 @@ export const deformerSchema = z.discriminatedUnion('kind', [
     inner: scale,
     outer: scale,
   }),
+  z.object({ ...base, kind: z.literal('bend'), strength: z.number().min(-90).max(90) }),
+  z.object({
+    ...base,
+    kind: z.literal('explode'),
+    amount: z.number().min(0).max(16),
+    angle: z.number().min(0).max(720),
+    seed: z.number().int().min(0).max(2147483647),
+  }),
+  z.object({ ...base, kind: z.literal('glyphRamp'), glyphs: z.string().min(1).max(64) }),
   z.object({
     ...base,
     kind: z.literal('colorRamp'),

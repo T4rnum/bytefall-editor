@@ -11,7 +11,16 @@ import {
   removeDeformerAction,
   updateDeformerAction,
 } from '../store/deformerActions';
-import { Button, Checkbox, ColorField, Field, KeyButton, NumberField, Select } from '../ui';
+import {
+  Button,
+  Checkbox,
+  ColorField,
+  Field,
+  KeyButton,
+  NumberField,
+  Select,
+  TextField,
+} from '../ui';
 
 const KINDS: readonly { readonly value: DeformerKind; readonly label: string }[] = [
   { value: 'wave', label: 'Волна' },
@@ -19,6 +28,9 @@ const KINDS: readonly { readonly value: DeformerKind; readonly label: string }[]
   { value: 'twist', label: 'Вихрь' },
   { value: 'scaleFalloff', label: 'Размер от центра' },
   { value: 'colorRamp', label: 'Градиент' },
+  { value: 'bend', label: 'Изгиб' },
+  { value: 'explode', label: 'Разлёт' },
+  { value: 'glyphRamp', label: 'Символы по яркости' },
 ];
 
 type Param =
@@ -31,6 +43,7 @@ type Param =
       readonly step: number;
     }
   | { readonly key: string; readonly label: string; readonly type: 'color' }
+  | { readonly key: string; readonly label: string; readonly type: 'text' }
   | {
       readonly key: string;
       readonly label: string;
@@ -90,6 +103,13 @@ const PARAMS: { readonly [K in DeformerKind]: readonly Param[] } = {
     num('period', 'Период, мс', 0, 600000, 50),
     num('amount', 'Сила', 0, 1, 0.05),
   ],
+  bend: [num('strength', 'Сила, °/ячейку', -90, 90, 1)],
+  explode: [
+    num('amount', 'Разлёт', 0, 16, 0.05),
+    num('angle', 'Вращение, °', 0, 720, 5),
+    num('seed', 'Зерно', 0, 2147483647, 1),
+  ],
+  glyphRamp: [{ key: 'glyphs', label: 'Ряд от тёмного к светлому', type: 'text' }],
 };
 
 function ParamField({
@@ -120,6 +140,19 @@ function ParamField({
           gesture.current += 1;
         }}
       />
+    );
+  }
+  if (param.type === 'text') {
+    return (
+      <Field label={param.label}>
+        <TextField
+          value={String(value)}
+          size="sm"
+          pixel
+          ariaLabel={param.label}
+          onCommit={(text) => text.length > 0 && set(text)}
+        />
+      </Field>
     );
   }
   if (param.type === 'select') {
