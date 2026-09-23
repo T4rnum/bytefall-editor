@@ -6,6 +6,7 @@ import {
   pivotByGesture,
   rotateByGesture,
   scaleByGesture,
+  turnAround,
 } from '../transformGesture';
 
 const origin = { x: 0, y: 0 };
@@ -14,21 +15,24 @@ const plain = createTransform(0, 0, origin);
 describe('rotateByGesture', () => {
   it('указатель, прошедший четверть круга по часовой, поворачивает на 90°', () => {
     // Ось Y вниз: из «справа» в «снизу» — это по часовой стрелке.
-    expect(rotateByGesture(plain, origin, { x: 1, y: 0 }, { x: 0, y: 1 })).toBe(90);
-    expect(rotateByGesture(plain, origin, { x: 1, y: 0 }, { x: 0, y: -1 })).toBe(-90);
+    expect(turnAround(origin, { x: 1, y: 0 }, { x: 0, y: 1 })).toBe(90);
+    expect(turnAround(origin, { x: 1, y: 0 }, { x: 0, y: -1 })).toBe(-90);
+    // Через край полуоборота — кратчайшим путём, а не почти полным кругом назад.
+    expect(turnAround(origin, { x: -1, y: 0.01 }, { x: -1, y: -0.01 })).toBeCloseTo(1.15, 2);
   });
 
-  it('угол прибавляется к начальному и держится в пределах полуоборота', () => {
+  it('угол прибавляется к начальному и не сворачивается: ключу нужен путь, а не положение', () => {
     const start = { ...plain, rot: 170 };
-    expect(rotateByGesture(start, origin, { x: 1, y: 0 }, { x: 0, y: 1 })).toBe(-100);
+    expect(rotateByGesture(start, 90)).toBe(260);
+    expect(rotateByGesture(start, 720)).toBe(890);
     expect(normalizeAngle(540)).toBe(180);
     expect(normalizeAngle(-190)).toBe(170);
   });
 
   it('с шагом угол прилипает, без шага округляется до десятой доли градуса', () => {
-    const to = { x: Math.cos(0.65), y: Math.sin(0.65) };
-    expect(rotateByGesture(plain, origin, { x: 1, y: 0 }, to, 15)).toBe(30);
-    expect(rotateByGesture(plain, origin, { x: 1, y: 0 }, to)).toBe(37.2);
+    const turned = turnAround(origin, { x: 1, y: 0 }, { x: Math.cos(0.65), y: Math.sin(0.65) });
+    expect(rotateByGesture(plain, turned, 15)).toBe(30);
+    expect(rotateByGesture(plain, turned)).toBe(37.2);
   });
 });
 

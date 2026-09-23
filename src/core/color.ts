@@ -54,6 +54,21 @@ export function over(top: Rgba, bottom: Rgba): Rgba {
   return { r: mix(top.r, bottom.r), g: mix(top.g, bottom.g), b: mix(top.b, bottom.b), a: outA };
 }
 
+/**
+ * Цвет под оттенком: смешивание к цвету оттенка с его силой, которая лежит в альфе оттенка.
+ * Альфа самого цвета не меняется: оттенок перекрашивает, но не проявляет прозрачное.
+ */
+export function tintColor(color: Rgba, tint: Rgba | null): Rgba {
+  if (!tint || tint.a <= 0) return color;
+  const k = clamp01(tint.a);
+  return {
+    r: color.r + (tint.r - color.r) * k,
+    g: color.g + (tint.g - color.g) * k,
+    b: color.b + (tint.b - color.b) * k,
+    a: color.a,
+  };
+}
+
 /** Умножает альфу цвета на коэффициент, например на непрозрачность слоя. */
 export function withAlpha(color: Rgba, factor: number): Rgba {
   return { r: color.r, g: color.g, b: color.b, a: clamp01(color.a * factor) };

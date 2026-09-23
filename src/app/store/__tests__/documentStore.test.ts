@@ -40,7 +40,8 @@ describe('document store frames and history', () => {
     anim = useDocumentStore.getState().animation;
     const lastId = anim.frames[2].id;
 
-    useDocumentStore.getState().commitAnimation('Delete frame', removeFrame(anim, 2));
+    // Указатель остаётся на месте, если кадр не назван: соседний кадр выбирает действие.
+    useDocumentStore.getState().commitAnimation('Delete frame', removeFrame(anim, 2), 1);
     expect(useDocumentStore.getState().frameIndex).toBe(1);
     useDocumentStore.getState().undo();
     const restored = useDocumentStore.getState();

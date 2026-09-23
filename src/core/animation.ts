@@ -1,6 +1,16 @@
-import { type Document, type Layer, type ResizeAnchor, newId, resizeDocument } from './document';
+import {
+  type Document,
+  type Layer,
+  type ResizeAnchor,
+  duplicateLayer,
+  newId,
+  resizeDocument,
+  resizeOffset,
+} from './document';
 import { emptyGrid } from './grid';
 import type { SceneObject } from './object';
+import { DEFAULT_FPS } from './time';
+import { type Track, copyTracks, nodeKey, shiftPositionKeys } from './tracks';
 
 /** Кадр: собственный растр слоёв и собственные объекты. Метаданные слоёв общие для всех кадров. */
 export interface Frame {
@@ -12,8 +22,12 @@ export interface Frame {
 }
 
 /**
- * Анимация: заголовок документа плюс кадры. Кадр это тот же Document, поэтому инструменты,
- * композитор и объекты работают с текущим кадром, ничего не зная про анимацию.
+ * Анимация: заголовок документа, кадры и треки ключей. Кадр — это тот же Document, поэтому
+ * инструменты, композитор и объекты работают с кадром, ничего не зная про анимацию.
+ *
+ * Время сцены — миллисекунды. Кадры образуют спрайт-трек (`core/timeline.ts`): кадр держится
+ * свою длительность. Треки (`core/tracks.ts`) ведут свойства узлов между ключами, а что видно в
+ * момент `t`, считает `evaluate` из `core/evaluate.ts`.
  */
 export interface Animation {
   readonly name: string;
@@ -23,6 +37,11 @@ export interface Animation {
   readonly background: string | null;
   readonly palette: readonly string[];
   readonly frames: readonly Frame[];
+  /** Частота кадров сцены: с ней проигрывается и экспортируется движение. */
+  readonly fps: number;
+  /** Длина сцены в миллисекундах; null — по кадрам и ключам, см. `sceneDuration`. */
+  readonly duration: number | null;
+  readonly tracks: readonly Track[];
 }
 
 export const DEFAULT_FRAME_DURATION = 100;
@@ -48,6 +67,9 @@ export function createAnimation(doc: Document): Animation {
     background: doc.background,
     palette: doc.palette,
     frames: [createFrame(doc.layers, doc.objects)],
+    fps: DEFAULT_FPS,
+    duration: null,
+    tracks: [],
   };
 }
 
@@ -110,17 +132,31 @@ export function resizeAnimation(
     const resized = resizeDocument(frameDocument(anim, index), width, height, anchor);
     return { ...frame, layers: resized.layers, objects: resized.objects };
   });
-  return { ...anim, width, height, frames };
+  // Ключи положения объектов в корне едут вместе с объектами, иначе анимированный объект
+  // остался бы на прежнем месте относительно нового края холста.
+  const offset = resizeOffset(anim, width, height, anchor);
+  const roots = new Set<string>();
+  for (const frame of anim.frames) {
+    for (const obj of frame.objects) if (obj.parentId === null) roots.add(obj.id);
+  }
+  const tracks = shiftPositionKeys(anim.tracks, roots, offset.x, offset.y);
+  return { ...anim, width, height, frames, tracks };
 }
 
-/** Применяет операцию над документом к каждому кадру: так слои остаются одинаковыми во всех кадрах. */
+/**
+ * Применяет операцию над документом к каждому кадру: так слои остаются одинаковыми во всех
+ * кадрах. Кадр, который операция вернула без изменений, остаётся тем же объектом: по ссылке на
+ * кадр узнают, какую миниатюру пересчитать.
+ */
 export function mapFrames(
   anim: Animation,
   fn: (doc: Document, index: number) => Document,
 ): Animation {
   let next = anim;
   for (let i = 0; i < anim.frames.length; i++) {
-    next = withFrameDocument(next, i, fn(frameDocument(next, i), i));
+    const doc = frameDocument(next, i);
+    const out = fn(doc, i);
+    if (out !== doc) next = withFrameDocument(next, i, out);
   }
   return next;
 }
@@ -172,6 +208,45 @@ export function setFrameDuration(anim: Animation, index: number, duration: numbe
   const frames = anim.frames.slice();
   frames[index] = { ...frame, duration: clamped };
   return { ...anim, frames };
+}
+
+/**
+ * Копия слоя во всех кадрах. Объекты и эффекты копии получают новые идентификаторы, одни на все
+ * кадры: объект, который есть в нескольких кадрах, остаётся в копии одним объектом. Ключи
+ * оригинала копируются, и копия двигается так же.
+ */
+export function duplicateAnimationLayer(
+  anim: Animation,
+  layerId: string,
+  copyId: string = newId('layer'),
+): Animation {
+  const layer = anim.frames[0].layers.find((l) => l.id === layerId);
+  if (!layer) return anim;
+  const objects = new Map<string, string>();
+  for (const frame of anim.frames) {
+    for (const obj of frame.objects) {
+      if (obj.layerId === layerId && !objects.has(obj.id)) objects.set(obj.id, newId('object'));
+    }
+  }
+  const effects = new Map(layer.effects.map((e) => [e.id, newId('fx')]));
+  const next = mapFrames(anim, (doc) => duplicateLayer(doc, layerId, copyId, { objects, effects }));
+  let tracks = copyTracks(next.tracks, 'object', objects);
+  tracks = copyTracks(tracks, 'effect', effects);
+  tracks = copyTracks(tracks, 'layer', new Map([[layerId, copyId]]));
+  return { ...next, tracks };
+}
+
+/** Узлы, на которые могут ссылаться треки: объекты всех кадров, слои и их эффекты. */
+export function aliveNodes(frames: readonly Frame[]): Set<string> {
+  const alive = new Set<string>();
+  for (const frame of frames) {
+    for (const obj of frame.objects) alive.add(nodeKey('object', obj.id));
+    for (const layer of frame.layers) {
+      alive.add(nodeKey('layer', layer.id));
+      for (const effect of layer.effects) alive.add(nodeKey('effect', effect.id));
+    }
+  }
+  return alive;
 }
 
 export function animationDuration(anim: Animation): number {

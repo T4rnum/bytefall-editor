@@ -144,7 +144,7 @@ export function topCellAt(doc: Document, x: number, y: number): Cell | undefined
     if (!isLayerShown(layer)) continue;
     const objects = layerDrawOrder(layer, groups.get(layer.id) ?? [], matrices);
     for (let j = objects.length - 1; j >= 0; j--) {
-      if (!objects[j].visible) continue;
+      if (!objects[j].visible || objects[j].opacity <= 0) continue;
       const cell = objectCellAt(objects[j], matrices.get(objects[j].id) as Affine, x, y);
       if (cell) return cell;
     }

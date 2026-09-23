@@ -34,6 +34,7 @@ export function copyAction(): void {
   else copyCells();
 }
 
+/** Delete без выделенных ключей и без выбранного объекта: очищает выделенные ячейки. */
 export function deleteSelectionAction(): void {
   const { selection } = useEditorStore.getState();
   const docState = useDocumentStore.getState();

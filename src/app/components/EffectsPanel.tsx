@@ -1,5 +1,5 @@
 import { Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { findLayer } from '../../core/document';
 import {
   EFFECT_KINDS,
@@ -7,13 +7,17 @@ import {
   type EffectKind,
   type LayerEffect,
 } from '../../core/effects';
+import type { EffectParam } from '../../core/tracks';
+import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
 import { addEffectAction, removeEffectAction, updateEffectAction } from '../store/effectActions';
+import { toggleKeyAction } from '../store/keyActions';
 import {
   Button,
   Checkbox,
   Field,
   FieldGroup,
+  KeyButton,
   NumberField,
   Panel,
   Select,
@@ -101,6 +105,52 @@ const FIELDS: FieldsByKind = {
 const kindLabel = (kind: EffectKind): string =>
   EFFECT_KINDS.find((k) => k.kind === kind)?.label ?? kind;
 
+/**
+ * Числовой параметр эффекта с ромбом ключа. Перетаскивание поля пишет на каждое движение, а
+ * записи одного жеста склеиваются: отменяется жест целиком.
+ */
+function NumberParam({
+  effect,
+  field,
+}: {
+  readonly effect: LayerEffect;
+  readonly field: Extract<EffectField, { type: 'number' }>;
+}) {
+  const gesture = useRef(0);
+  const value = (effect as unknown as Record<string, number>)[field.key];
+  const target = { node: 'effect', id: effect.id, property: field.key as EffectParam } as const;
+  const state = useKeyState(target);
+  const change = (next: number): void => {
+    if (next === value) return;
+    updateEffectAction(
+      effect,
+      { [field.key]: next },
+      `fx:${effect.id}:${field.key}:${gesture.current}`,
+    );
+  };
+  return (
+    <Field label={field.label}>
+      <NumberField
+        value={value}
+        min={field.min}
+        max={field.max}
+        step={field.step}
+        onChange={change}
+        onCommit={(next) => {
+          change(next);
+          gesture.current += 1;
+        }}
+        width="var(--field-w-sm)"
+      />
+      <KeyButton
+        state={state}
+        subject={field.label.toLowerCase()}
+        onClick={() => toggleKeyAction(target)}
+      />
+    </Field>
+  );
+}
+
 function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectField }) {
   const values = effect as unknown as Record<string, string | number | boolean>;
   const value = values[field.key];
@@ -108,6 +158,7 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
     if (next === value) return;
     updateEffectAction(effect, { [field.key]: next });
   };
+  if (field.type === 'number') return <NumberParam effect={effect} field={field} />;
 
   if (field.type === 'boolean') {
     return (
@@ -142,19 +193,7 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
       </Field>
     );
   }
-  return (
-    <Field label={field.label}>
-      <NumberField
-        value={Number(value)}
-        min={field.min}
-        max={field.max}
-        step={field.step}
-        onCommit={commit}
-        onChange={commit}
-        width="var(--field-w-sm)"
-      />
-    </Field>
-  );
+  return null;
 }
 
 /** Эффекты активного слоя: список с параметрами и добавление нового. */

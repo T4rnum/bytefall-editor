@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { type Animation, DEFAULT_FRAME_DURATION, MAX_FRAMES, createFrame } from '../animation';
+import {
+  type Animation,
+  DEFAULT_FRAME_DURATION,
+  MAX_FRAMES,
+  createAnimation,
+  createFrame,
+} from '../animation';
 import { type Cell, makeCell } from '../cell';
 import { isHexColor } from '../color';
 import {
@@ -116,6 +122,5 @@ export function parsePrototype(raw: unknown, name: string): Animation {
     width: Math.min(MAX_DIMENSION, extent.w),
     height: Math.min(MAX_DIMENSION, extent.h),
   });
-  const { width, height, font, background, palette } = base;
-  return { name, width, height, font, background, palette, frames };
+  return { ...createAnimation(base), frames };
 }

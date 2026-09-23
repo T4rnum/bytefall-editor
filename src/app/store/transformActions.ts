@@ -48,13 +48,9 @@ export function rotateSelectedAction(delta: number): void {
     );
     return;
   }
+  // Угол объекта не сворачивается в полуоборот: ключ анимации повёл бы его назад по кругу.
   const obj = editableSelectedObject();
-  if (obj)
-    transformObjectAction(
-      obj.id,
-      { rot: normalizeAngle(obj.transform.rot + delta) },
-      'Rotate object',
-    );
+  if (obj) transformObjectAction(obj.id, { rot: obj.transform.rot + delta }, 'Rotate object');
 }
 
 /** Снимает поворот с выделенных символов или с объекта, как Alt+R в Blender. */

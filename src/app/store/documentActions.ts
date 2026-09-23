@@ -1,4 +1,4 @@
-import { mapFrames, resizeAnimation } from '../../core/animation';
+import { duplicateAnimationLayer, mapFrames, resizeAnimation } from '../../core/animation';
 import { removeLayerKeepingChildren } from '../../core/hierarchy';
 import {
   type Layer,
@@ -6,12 +6,12 @@ import {
   type ResizeAnchor,
   addLayer,
   createLayer,
-  duplicateLayer,
   layerIndex,
   moveLayer,
   newId,
   updateLayer,
 } from '../../core/document';
+import { setTargetValue } from '../../core/keyframes';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
@@ -51,7 +51,7 @@ export function duplicateActiveLayerAction(): void {
   const { doc, animation, activeLayerId, commitAnimation, setActiveLayer } = state();
   if (!hasRoomForLayer(doc.layers.length)) return;
   const copyId = newId('layer');
-  const next = mapFrames(animation, (d) => duplicateLayer(d, activeLayerId, copyId));
+  const next = duplicateAnimationLayer(animation, activeLayerId, copyId);
   if (next === animation) return;
   commitAnimation('Duplicate layer', next);
   setActiveLayer(copyId);
@@ -67,20 +67,25 @@ export function moveActiveLayerAction(delta: number): void {
   );
 }
 
+/**
+ * Меняет свойства слоя во всех кадрах. Анимированная непрозрачность получает ключ в текущий
+ * момент, а не новое значение: иначе поле перезаписало бы то, что ведут ключи.
+ */
 export function updateLayerAction(
   id: string,
-  patch: Partial<Omit<Layer, 'id' | 'cells'>>,
+  patch: Partial<Omit<Layer, 'id' | 'cells' | 'effects'>>,
   label: string,
   /** Ключ серии: непрерывное перетаскивание ползунка должно стать одной записью истории. */
   mergeKey?: string,
 ): void {
-  const { animation, commitAnimation } = state();
-  commitAnimation(
-    label,
-    mapFrames(animation, (d) => updateLayer(d, id, patch)),
-    undefined,
-    mergeKey,
-  );
+  const { animation, time, commitAnimation } = state();
+  const { opacity, ...rest } = patch;
+  let next = animation;
+  if (opacity !== undefined) {
+    next = setTargetValue(next, { node: 'layer', id, property: 'opacity' }, time, [opacity]);
+  }
+  if (Object.keys(rest).length > 0) next = mapFrames(next, (d) => updateLayer(d, id, rest));
+  commitAnimation(label, next, undefined, mergeKey);
 }
 
 /** `mergeKey` склеивает правки одного жеста по палитре в одну запись истории. */

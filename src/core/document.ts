@@ -159,22 +159,31 @@ export function moveLayer(doc: Document, id: string, toIndex: number): Document 
   return { ...doc, layers };
 }
 
+/** Новые идентификаторы объектов и эффектов копии слоя: общие для всех кадров анимации. */
+export interface CopyIds {
+  readonly objects?: ReadonlyMap<string, string>;
+  readonly effects?: ReadonlyMap<string, string>;
+}
+
 /**
- * Дублирует слой вместе с его объектами: копии получают новые идентификаторы. Идентификатор
- * копии можно задать снаружи, чтобы он совпадал во всех кадрах анимации.
+ * Дублирует слой вместе с его объектами и эффектами: копии получают новые идентификаторы.
+ * Идентификаторы можно задать снаружи, чтобы они совпадали во всех кадрах анимации: объект с
+ * одним id в разных кадрах — это один объект, и ключи ведут его сквозь кадры.
  */
 export function duplicateLayer(
   doc: Document,
   id: string,
   copyId: string = newId('layer'),
+  ids: CopyIds = {},
 ): Document {
   const index = layerIndex(doc, id);
   if (index === -1) return doc;
   const source = doc.layers[index];
-  const copy: Layer = { ...source, id: copyId, name: `${source.name} copy` };
+  const effects = source.effects.map((e) => ({ ...e, id: ids.effects?.get(e.id) ?? newId('fx') }));
+  const copy: Layer = { ...source, id: copyId, name: `${source.name} copy`, effects };
   const withLayer = addLayer(doc, copy, index + 1);
   const sources = doc.objects.filter((o) => o.layerId === id);
-  const renamed = new Map(sources.map((o) => [o.id, newId('object')]));
+  const renamed = new Map(sources.map((o) => [o.id, ids.objects?.get(o.id) ?? newId('object')]));
   // Родитель, скопированный вместе с ребёнком, остаётся его родителем и в копии.
   const copies = sources.map((o) => ({
     ...o,

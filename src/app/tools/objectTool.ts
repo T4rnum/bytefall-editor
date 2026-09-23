@@ -11,6 +11,7 @@ import {
   pivotInDocument,
   rotateByGesture,
   scaleByGesture,
+  turnAround,
 } from '../../core/transformGesture';
 import { gizmoLayout, handleCursor, hitGizmo } from './gizmo';
 import type { PointerInfo, Tool, ToolEnv } from './types';
@@ -23,7 +24,17 @@ const ROTATE_SNAP = 15;
 type Gesture =
   | { readonly kind: 'move'; readonly id: string; readonly anchor: Point; moved: boolean }
   | {
-      readonly kind: 'rotate' | 'pivot';
+      readonly kind: 'rotate';
+      readonly id: string;
+      readonly start: Transform2D;
+      readonly world: Affine;
+      readonly from: Point;
+      /** Где указатель был на прошлом шаге и сколько градусов прошёл с начала жеста. */
+      last: Point;
+      turned: number;
+    }
+  | {
+      readonly kind: 'pivot';
       readonly id: string;
       readonly start: Transform2D;
       readonly world: Affine;
@@ -59,7 +70,7 @@ function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
   if (!handle) return null;
   return handle.kind === 'scale'
     ? { kind: 'scale', handle: handle.handle, ...base }
-    : { kind: handle.kind, ...base };
+    : { kind: 'rotate', ...base, last: info.point, turned: 0 };
 }
 
 /** Документ, каким он станет, если отпустить кнопку здесь. null — ничего не изменилось. */
@@ -73,9 +84,10 @@ function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | 
       return moveInDocument(env.doc, g.id, dx, dy);
     }
     case 'rotate': {
-      const pivot = pivotInDocument(g.start, g.world);
-      const snap = info.shift ? ROTATE_SNAP : null;
-      const rot = rotateByGesture(g.start, pivot, g.from, info.point, snap);
+      // Угол копится по шагам: так жест проходит и полный оборот, и несколько.
+      g.turned += turnAround(pivotInDocument(g.start, g.world), g.last, info.point);
+      g.last = info.point;
+      const rot = rotateByGesture(g.start, g.turned, info.shift ? ROTATE_SNAP : null);
       return transformObject(env.doc, g.id, { rot });
     }
     case 'scale':

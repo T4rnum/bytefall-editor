@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeHex } from '../color';
 import type { Layer } from '../document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from '../grid';
 import type { SceneObject } from '../object';
@@ -24,6 +25,7 @@ import {
   cellsFromFile,
   cellsToFile,
   coordinate,
+  hex,
   id,
   position,
 } from './primitives';
@@ -69,6 +71,9 @@ export const objectSchema = z.object({
   transform: transformSchema.optional(),
   visible: z.boolean(),
   locked: z.boolean(),
+  /** Версия 6: вид объекта целиком. */
+  opacity: z.number().min(0).max(1).optional(),
+  tint: hex.optional(),
   cells: z.array(cellSchema).max(MAX_CELLS_PER_LAYER),
   overrides: z.array(overrideSchema).max(MAX_CELLS_PER_LAYER).optional(),
   props: attrs.optional(),
@@ -95,6 +100,8 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     transform: { ...obj.transform },
     visible: obj.visible,
     locked: obj.locked,
+    ...(obj.opacity !== 1 ? { opacity: obj.opacity } : {}),
+    ...(obj.tint !== null ? { tint: obj.tint } : {}),
     cells: cellsToFile(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
@@ -157,6 +164,8 @@ export function objectsFromFile(
       transform: transformFromFile(obj, cells),
       visible: obj.visible,
       locked: obj.locked,
+      opacity: obj.opacity ?? 1,
+      tint: obj.tint === undefined ? null : normalizeHex(obj.tint),
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
       props: obj.props ?? {},

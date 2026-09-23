@@ -5,12 +5,22 @@ import {
   MAX_FRAMES,
   MAX_FRAME_DURATION,
   MIN_FRAME_DURATION,
+  aliveNodes,
   createFrame,
 } from './animation';
-import { type Layer, MAX_DIMENSION, MAX_LAYERS, MAX_PALETTE, MIN_DIMENSION } from './document';
+import {
+  type Layer,
+  MAX_DIMENSION,
+  MAX_LAYERS,
+  MAX_PALETTE,
+  MIN_DIMENSION,
+  newId,
+} from './document';
 import { MAX_EFFECTS_PER_LAYER } from './effects';
 import { effectSchema } from './format/effects';
 import { objectSchema, objectsFromFile, objectsToFile } from './format/objects';
+import { tracksFromFile, tracksSchema, tracksToFile } from './format/tracks';
+import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION } from './time';
 import {
   DocumentFormatError,
   MAX_CELLS_PER_LAYER,
@@ -39,9 +49,11 @@ export const FORMAT_NAME = 'bytefall';
 export const LEGACY_FORMAT_NAMES = ['blendphoto'] as const;
 /**
  * Версия 2 добавила объекты, 3 кадры, 4 эффекты слоёв, 5 трансформ объектов, правки символов
- * и родителей. Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
+ * и родителей, 6 — время: частоту и длину сцены, треки ключей, непрозрачность и оттенок
+ * объекта. Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
+ * Кадры старых файлов без изменений становятся спрайт-треком: у них уже были длительности.
  */
-export const FORMAT_VERSION = 5;
+export const FORMAT_VERSION = 6;
 /** bp — bytefall project. Расширение осталось от прототипа, чтобы старые файлы открывались. */
 export const FILE_EXTENSION = '.bp.json';
 
@@ -67,7 +79,14 @@ const frameSchema = z.object({
 
 const documentSchema = z.object({
   format: z.enum([FORMAT_NAME, ...LEGACY_FORMAT_NAMES]),
-  version: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+  version: z.union([
+    z.literal(1),
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+    z.literal(5),
+    z.literal(6),
+  ]),
   name: z.string().max(MAX_NAME_LENGTH),
   width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
   height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
@@ -79,6 +98,10 @@ const documentSchema = z.object({
   objects: objectsSchema.optional(),
   /** Версия 3. */
   frames: z.array(frameSchema).min(1).max(MAX_FRAMES).optional(),
+  /** Версия 6. Без длины сцена длится по кадрам и ключам. */
+  fps: z.number().int().min(MIN_FPS).max(MAX_FPS).optional(),
+  duration: z.number().min(MIN_SCENE_DURATION).max(MAX_SCENE_DURATION).optional(),
+  tracks: tracksSchema.optional(),
 });
 
 export type DocumentFile = z.infer<typeof documentSchema>;
@@ -113,6 +136,9 @@ export function toFileObject(anim: Animation): DocumentFile {
       layers: layersToFile(frame.layers),
       objects: objectsToFile(frame.objects),
     })),
+    fps: anim.fps,
+    ...(anim.duration !== null ? { duration: anim.duration } : {}),
+    ...(anim.tracks.length > 0 ? { tracks: tracksToFile(anim.tracks) } : {}),
   };
 }
 
@@ -157,6 +183,39 @@ function assertSharedLayers(frames: readonly Frame[]): void {
   });
 }
 
+/**
+ * Эффекты слоя общие для всех кадров, а ключи находят эффект по идентификатору, поэтому он
+ * обязан быть единственным в документе. Копия слоя из старых версий делила идентификаторы
+ * эффектов с оригиналом: такие копии получают новые, одинаковые во всех кадрах.
+ */
+function uniqueEffectIds(frames: readonly Frame[]): Frame[] {
+  const seen = new Set<string>();
+  const renames = new Map<string, string>();
+  for (const layer of frames[0].layers) {
+    for (const effect of layer.effects) {
+      if (seen.has(effect.id))
+        renames.set(
+          `${layer.id}
+${effect.id}`,
+          newId('fx'),
+        );
+      else seen.add(effect.id);
+    }
+  }
+  if (renames.size === 0) return [...frames];
+  return frames.map((frame) => ({
+    ...frame,
+    layers: frame.layers.map((layer) => ({
+      ...layer,
+      effects: layer.effects.map((e) => {
+        const id = renames.get(`${layer.id}
+${e.id}`);
+        return id ? { ...e, id } : e;
+      }),
+    })),
+  }));
+}
+
 export function fromFileObject(file: DocumentFile): Animation {
   const size = { width: file.width, height: file.height };
   let frames: Frame[];
@@ -180,6 +239,7 @@ export function fromFileObject(file: DocumentFile): Animation {
   } else {
     throw new DocumentFormatError('Document has neither frames nor layers');
   }
+  frames = uniqueEffectIds(frames);
   return {
     name: file.name,
     width: file.width,
@@ -188,6 +248,9 @@ export function fromFileObject(file: DocumentFile): Animation {
     background: file.background,
     palette: file.palette,
     frames,
+    fps: file.fps ?? DEFAULT_FPS,
+    duration: file.duration ?? null,
+    tracks: tracksFromFile(file.tracks ?? [], aliveNodes(frames)),
   };
 }
 

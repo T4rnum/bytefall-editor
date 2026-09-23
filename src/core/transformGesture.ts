@@ -32,18 +32,25 @@ export function pivotInDocument(t: Transform2D, world: Affine): Point {
 }
 
 /**
- * Поворот жестом: объект доворачивается на угол, который указатель прошёл вокруг опоры.
- * `snap` — шаг в градусах, например 15 с зажатым Shift.
+ * На сколько градусов указатель повернулся вокруг опоры между двумя точками: кратчайший угол.
+ * Жест складывает такие шаги, поэтому может сделать и несколько оборотов подряд.
+ */
+export function turnAround(pivot: Point, from: Point, to: Point): number {
+  return normalizeAngle(angleOf(pivot, to) - angleOf(pivot, from));
+}
+
+/**
+ * Поворот жестом: к углу в начале жеста прибавляется угол, пройденный указателем. Результат не
+ * сворачивается в полуоборот: 170° и ещё 90° — это 260°, а не −100°, иначе ключ анимации повёл
+ * бы объект назад через всю окружность. `snap` — шаг в градусах, например 15 с Shift.
  */
 export function rotateByGesture(
   start: Transform2D,
-  pivot: Point,
-  from: Point,
-  to: Point,
+  turned: number,
   snap: number | null = null,
 ): number {
-  const rot = normalizeAngle(start.rot + angleOf(pivot, to) - angleOf(pivot, from));
-  return snap ? normalizeAngle(roundTo(rot, snap)) : roundTo(rot, ANGLE_STEP);
+  const rot = start.rot + turned;
+  return snap ? roundTo(rot, snap) : roundTo(rot, ANGLE_STEP);
 }
 
 /** Какие оси тянет ручка: боковые — одну, угловые — обе. */

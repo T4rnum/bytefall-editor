@@ -14,6 +14,10 @@ import v3 from './fixtures/v3-frames.bp.json?raw';
 import v4bytefall from './fixtures/v4-bytefall.bp.json?raw';
 import v4 from './fixtures/v4-effects.bp.json?raw';
 import v5 from './fixtures/v5-transforms.bp.json?raw';
+import v6 from './fixtures/v6-tracks.bp.json?raw';
+import { tintChannels } from '../animated';
+import { EASE_IN_OUT } from '../easing';
+import { sceneDuration } from '../timeline';
 
 /**
  * Файлы в fixtures/ записаны руками и заморожены: они не пересобираются текущим кодом, поэтому
@@ -27,6 +31,7 @@ const FIXTURES = {
   'v4-effects': v4,
   'v4-bytefall': v4bytefall,
   'v5-transforms': v5,
+  'v6-tracks': v6,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -107,6 +112,47 @@ describe('фикстуры формата', () => {
     ]);
     expect(hand.parentId).toBe('object-arm');
     expect(hand.props).toEqual({ grip: true });
+  });
+
+  it('v6: частота, длина сцены, треки и вид объекта читаются как записаны', () => {
+    const anim = deserialize(v6);
+    expect(anim.fps).toBe(25);
+    expect(anim.duration).toBe(1000);
+    expect(anim.frames.map((f) => f.duration)).toEqual([200, 300]);
+    const ball = frameDocument(anim, 0).objects[0];
+    expect(ball).toMatchObject({ opacity: 0.75, tint: '#ff004d80' });
+    // Во втором кадре вид не записан: значения по умолчанию.
+    expect(frameDocument(anim, 1).objects[0]).toMatchObject({ opacity: 1, tint: null });
+
+    expect(anim.tracks.map((t) => `${t.node}:${t.property}`)).toEqual([
+      'object:position',
+      'object:rotation',
+      'object:opacity',
+      'object:tint',
+      'layer:opacity',
+      'effect:height',
+    ]);
+    const [position, rotation, opacity, tint] = anim.tracks;
+    expect(position.keys.map((k) => [k.time, k.value, k.interpolation])).toEqual([
+      [0, [1, 1], 'linear'],
+      [800, [7.5, 2], 'linear'],
+    ]);
+    expect(rotation.keys[0]).toMatchObject({ interpolation: 'bezier', easing: EASE_IN_OUT });
+    expect(opacity.keys[0].interpolation).toBe('step');
+    expect(tint.keys.map((k) => k.value)).toEqual([
+      tintChannels('#ff004d00'),
+      tintChannels('#ff004d'),
+    ]);
+  });
+
+  it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {
+    const anim = deserialize(v3);
+    expect(anim.fps).toBe(20);
+    expect(anim.duration).toBeNull();
+    expect(anim.tracks).toEqual([]);
+    // Кадры — это спрайт-трек: сцена длится ровно столько, сколько шли кадры.
+    expect(sceneDuration(anim)).toBe(370);
+    expect(frameDocument(anim, 0).objects[0]).toMatchObject({ opacity: 1, tint: null });
   });
 
   it('до v5: позиция становится трансформом без поворота с опорой в центре содержимого', () => {

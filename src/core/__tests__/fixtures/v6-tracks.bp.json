@@ -1,0 +1,164 @@
+{
+  "format": "bytefall",
+  "version": 6,
+  "name": "Fixture v6",
+  "width": 10,
+  "height": 6,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff", "#ff004d"],
+  "frames": [
+    {
+      "id": "frame-a",
+      "duration": 200,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [{ "x": 0, "y": 5, "g": "=", "f": "#ffffff" }],
+          "effects": [
+            {
+              "id": "fx-fire",
+              "enabled": true,
+              "kind": "fire",
+              "height": 2,
+              "period": 90,
+              "palette": "fire",
+              "glyphs": ".:*"
+            }
+          ]
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-ball",
+          "name": "Ball",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 1,
+            "y": 1,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 0.5,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "opacity": 0.75,
+          "tint": "#ff004d80",
+          "cells": [{ "x": 0, "y": 0, "g": "O", "f": "#ffffff" }]
+        }
+      ]
+    },
+    {
+      "id": "frame-b",
+      "duration": 300,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [{ "x": 1, "y": 5, "g": "=", "f": "#ffffff" }],
+          "effects": [
+            {
+              "id": "fx-fire",
+              "enabled": true,
+              "kind": "fire",
+              "height": 2,
+              "period": 90,
+              "palette": "fire",
+              "glyphs": ".:*"
+            }
+          ]
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-ball",
+          "name": "Ball",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 1,
+            "y": 1,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 0.5,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [{ "x": 0, "y": 0, "g": "o", "f": "#ffffff" }]
+        }
+      ]
+    }
+  ],
+  "fps": 25,
+  "duration": 1000,
+  "tracks": [
+    {
+      "node": "object",
+      "id": "object-ball",
+      "property": "position",
+      "keys": [
+        { "t": 0, "v": [1, 1] },
+        { "t": 800, "v": [7.5, 2] }
+      ]
+    },
+    {
+      "node": "object",
+      "id": "object-ball",
+      "property": "rotation",
+      "keys": [
+        { "t": 0, "v": 0, "i": "bezier", "e": [0.42, 0, 0.58, 1] },
+        { "t": 800, "v": 180 }
+      ]
+    },
+    {
+      "node": "object",
+      "id": "object-ball",
+      "property": "opacity",
+      "keys": [
+        { "t": 0, "v": 1, "i": "step" },
+        { "t": 400, "v": 0.5 }
+      ]
+    },
+    {
+      "node": "object",
+      "id": "object-ball",
+      "property": "tint",
+      "keys": [
+        { "t": 0, "v": "#ff004d00" },
+        { "t": 800, "v": "#ff004d" }
+      ]
+    },
+    {
+      "node": "layer",
+      "id": "layer-base",
+      "property": "opacity",
+      "keys": [
+        { "t": 0, "v": 1 },
+        { "t": 1000, "v": 0.2 }
+      ]
+    },
+    {
+      "node": "effect",
+      "id": "fx-fire",
+      "property": "height",
+      "keys": [
+        { "t": 0, "v": 1 },
+        { "t": 1000, "v": 4 }
+      ]
+    }
+  ]
+}

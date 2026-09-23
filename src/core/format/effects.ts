@@ -1,46 +1,58 @@
 import { z } from 'zod';
-import { MAX_DIMENSION } from '../document';
+import { EFFECT_PARAM_SPECS, type EffectKind } from '../effects';
+import type { EffectParam } from '../tracks';
 import { id } from './primitives';
 
-const periodMs = z.number().min(10).max(600000);
-const unit = z.number().min(0).max(1);
+/** Числовой параметр эффекта с пределами из ядра: панель, ключи и файл сходятся в одном месте. */
+function param(kind: EffectKind, key: EffectParam) {
+  const spec = EFFECT_PARAM_SPECS[kind][key];
+  if (!spec) throw new Error(`Effect ${kind} has no parameter ${key}`);
+  const n = z.number().min(spec.min).max(spec.max);
+  return spec.integer ? n.int() : n;
+}
+
 const effectBase = { id, enabled: z.boolean() };
 /** Эффекты слоя: вид и его параметры с пределами, файл недоверенный. */
 export const effectSchema = z.discriminatedUnion('kind', [
   z.object({
     ...effectBase,
     kind: z.literal('pulse'),
-    period: periodMs,
-    amplitude: unit,
-    spread: z.number().min(-10).max(10),
+    period: param('pulse', 'period'),
+    amplitude: param('pulse', 'amplitude'),
+    spread: param('pulse', 'spread'),
   }),
   z.object({
     ...effectBase,
     kind: z.literal('wave'),
-    period: periodMs,
-    amplitude: z.number().min(0).max(64),
-    wavelength: z.number().min(1).max(MAX_DIMENSION),
+    period: param('wave', 'period'),
+    amplitude: param('wave', 'amplitude'),
+    wavelength: param('wave', 'wavelength'),
   }),
-  z.object({ ...effectBase, kind: z.literal('flicker'), period: periodMs, density: unit }),
+  z.object({
+    ...effectBase,
+    kind: z.literal('flicker'),
+    period: param('flicker', 'period'),
+    density: param('flicker', 'density'),
+  }),
   z.object({
     ...effectBase,
     kind: z.literal('scroll'),
-    dx: z.number().min(-1000).max(1000),
-    dy: z.number().min(-1000).max(1000),
+    dx: param('scroll', 'dx'),
+    dy: param('scroll', 'dy'),
     wrap: z.boolean(),
   }),
   z.object({
     ...effectBase,
     kind: z.literal('cycle'),
     glyphs: z.string().max(64),
-    period: periodMs,
-    spread: z.number().min(-10).max(10),
+    period: param('cycle', 'period'),
+    spread: param('cycle', 'spread'),
   }),
   z.object({
     ...effectBase,
     kind: z.literal('fire'),
-    height: z.number().int().min(1).max(64),
-    period: periodMs,
+    height: param('fire', 'height'),
+    period: param('fire', 'period'),
     palette: z.enum(['fire', 'ice', 'toxic']),
     glyphs: z.string().min(1).max(32),
   }),

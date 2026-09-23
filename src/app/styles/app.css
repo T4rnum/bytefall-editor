@@ -53,7 +53,7 @@ select {
   display: grid;
   /* Колонка auto растянулась бы по самому широкому потомку и утащила сайдбар за экран. */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   height: 100%;
 }
 
@@ -116,8 +116,7 @@ select {
 }
 
 /** Группы кнопок не сжимаются: лучше прокрутка, чем расплющенные иконки. */
-.topbar-group,
-.timeline-controls {
+.topbar-group {
   flex: none;
 }
 
@@ -777,103 +776,6 @@ select {
 .recovery-details {
   color: var(--text-dim);
   font-size: var(--text-xs);
-}
-
-/* ── Таймлайн ──────────────────────────────────────────────────────────── */
-.timeline {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  min-width: 0;
-  min-height: 44px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding: var(--space-2) var(--space-5);
-  background: var(--panel);
-  border-top: 1px solid var(--border);
-}
-
-.timeline-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.frame-strip {
-  display: flex;
-  flex: 1;
-  gap: var(--space-2);
-  min-width: 0;
-  margin: 0;
-  padding: var(--space-1) 0;
-  overflow-x: auto;
-  list-style: none;
-}
-
-/** Кадр в таймлайне — его миниатюра с номером в углу. */
-.frame-chip {
-  position: relative;
-  display: grid;
-  flex: none;
-  place-items: center;
-  min-width: 40px;
-  padding: 2px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.frame-chip:hover {
-  border-color: var(--border-strong);
-}
-
-/** Активный кадр обводится, а не заливается: заливка закрыла бы саму миниатюру. */
-.frame-chip.is-active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-/** Под миниатюрой шахматка: у прозрачного холста видно, где пусто, как и на самом холсте. */
-.frame-thumb {
-  display: block;
-  image-rendering: pixelated;
-  background:
-    linear-gradient(
-        45deg,
-        var(--border-strong) 25%,
-        transparent 25%,
-        transparent 75%,
-        var(--border-strong) 75%
-      )
-      0 0 / 8px 8px,
-    linear-gradient(
-        45deg,
-        var(--border-strong) 25%,
-        transparent 25%,
-        transparent 75%,
-        var(--border-strong) 75%
-      )
-      4px 4px / 8px 8px,
-    var(--panel-raised);
-}
-
-.frame-num {
-  position: absolute;
-  bottom: 3px;
-  left: 3px;
-  padding: 1px 3px;
-  background: var(--scrim);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-family: var(--font-pixel);
-  font-size: 7px;
-  line-height: 1;
-}
-
-.frame-chip.is-active .frame-num {
-  background: var(--accent);
-  color: var(--accent-text);
 }
 
 /* ── Инспектор объекта ─────────────────────────────────────────────────── */

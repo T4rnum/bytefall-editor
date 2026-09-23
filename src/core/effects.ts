@@ -1,7 +1,8 @@
 import type { Cell } from './cell';
 import { clamp01, parseHex, toHex } from './color';
-import { newId } from './document';
+import { MAX_DIMENSION, newId } from './document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from './grid';
+import type { EffectParam } from './tracks';
 
 /**
  * Эффекты уровня ячеек: чистые функции «сетка ячеек и время → сетка ячеек». Живут на слое,
@@ -75,6 +76,40 @@ export interface EffectContext {
 }
 
 export const MAX_EFFECTS_PER_LAYER = 8;
+
+/** Пределы числового параметра эффекта. По ним проверяется файл и ограничиваются ключи. */
+export interface EffectParamSpec {
+  readonly min: number;
+  readonly max: number;
+  readonly integer?: boolean;
+}
+
+const PERIOD: EffectParamSpec = { min: 10, max: 600000 };
+const SPREAD: EffectParamSpec = { min: -10, max: 10 };
+const UNIT: EffectParamSpec = { min: 0, max: 1 };
+const SPEED: EffectParamSpec = { min: -1000, max: 1000 };
+
+/** Числовые параметры каждого эффекта: только их можно анимировать ключами. */
+export const EFFECT_PARAM_SPECS: {
+  readonly [K in EffectKind]: Readonly<Partial<Record<EffectParam, EffectParamSpec>>>;
+} = {
+  pulse: { period: PERIOD, amplitude: UNIT, spread: SPREAD },
+  wave: {
+    period: PERIOD,
+    amplitude: { min: 0, max: 64 },
+    wavelength: { min: 1, max: MAX_DIMENSION },
+  },
+  flicker: { period: PERIOD, density: UNIT },
+  scroll: { dx: SPEED, dy: SPEED },
+  cycle: { period: PERIOD, spread: SPREAD },
+  fire: { height: { min: 1, max: 64, integer: true }, period: PERIOD },
+};
+
+/** Значение параметра в его пределах; целый параметр округляется. */
+export function limitParam(spec: EffectParamSpec, value: number): number {
+  const v = Math.min(spec.max, Math.max(spec.min, Number.isFinite(value) ? value : spec.min));
+  return spec.integer ? Math.round(v) : Math.round(v * 1e6) / 1e6;
+}
 
 export const EFFECT_KINDS: readonly { readonly kind: EffectKind; readonly label: string }[] = [
   { kind: 'pulse', label: 'Пульс' },

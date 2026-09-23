@@ -526,3 +526,39 @@
     opacity: 0;
   }
 }
+
+/* ── Кнопка ключа ──────────────────────────────────────────────────────── */
+.key-glyph {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--text-faint);
+  transform: rotate(45deg);
+}
+
+.key-btn--animated .key-glyph {
+  border-color: var(--accent);
+}
+
+.key-btn--key .key-glyph {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/** Место ромба в строке без анимации: столбцы полей не съезжают. */
+.key-spacer {
+  flex: none;
+  width: var(--control-h-sm);
+}
+
+/** Поле и ромб ключа в одну строку: поле тянется, ромб справа. */
+.keyed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.keyed > :first-child {
+  flex: 1;
+  min-width: 0;
+}

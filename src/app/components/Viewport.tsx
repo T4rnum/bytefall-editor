@@ -1,11 +1,12 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
-import { frameDocument } from '../../core/animation';
 import { type Ghost, effectsSignature } from '../../core/compositor';
+import { evaluate } from '../../core/evaluate';
 import { type ComposedFrame, composeFrame } from '../../core/frame';
 import { inBounds } from '../../core/geometry';
 import { canEditObject, findObject } from '../../core/object';
 import { objectMatrix, objectQuad } from '../../core/placement';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
+import { spriteTiming } from '../../core/timeline';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
 import { isEditableTarget } from '../hooks/useHotkeys';
@@ -47,19 +48,33 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     /** Черновик (перетаскивание объекта) имеет приоритет над закоммиченным документом. */
     const currentDoc = () => useEditorStore.getState().draft ?? useDocumentStore.getState().doc;
 
-    /** Соседние кадры полупрозрачно под текущим. Во время проигрывания не показываются. */
+    /**
+     * Соседние кадры спрайт-трека полупрозрачно под текущим: сцена в момент их начала на том же
+     * круге, так что и объекты стоят там, где будут. Во время проигрывания не показываются.
+     */
     const ghostFrames = (): Ghost[] => {
       const editor = useEditorStore.getState();
       if (!editor.onionSkin || editor.isPlaying) return [];
-      const { animation, frameIndex } = useDocumentStore.getState();
+      const { animation, frameIndex, time } = useDocumentStore.getState();
+      const { starts, length } = spriteTiming(animation.frames);
+      const loop = Math.floor(time / length) * length;
       const ghosts: Ghost[] = [];
       if (frameIndex > 0) {
-        ghosts.push({ doc: frameDocument(animation, frameIndex - 1), opacity: 0.35 });
+        ghosts.push({ doc: evaluate(animation, loop + starts[frameIndex - 1]), opacity: 0.35 });
       }
       if (frameIndex < animation.frames.length - 1) {
-        ghosts.push({ doc: frameDocument(animation, frameIndex + 1), opacity: 0.2 });
+        ghosts.push({ doc: evaluate(animation, loop + starts[frameIndex + 1]), opacity: 0.2 });
       }
       return ghosts;
+    };
+
+    /**
+     * Момент для эффектов. При проигрывании и на паузе без живых эффектов — время сцены, как в
+     * экспорте. Живые эффекты на паузе идут по своим часам: огонь горит, пока рисуешь.
+     */
+    const effectsTime = (): number => {
+      const { isPlaying, effectsLive, effectTime } = useEditorStore.getState();
+      return !isPlaying && effectsLive ? effectTime : useDocumentStore.getState().time;
     };
 
     /**
@@ -68,15 +83,20 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
      * `composeFrame`, а кадр несёт его решение в `dirty` до самой заливки.
      */
     const recomposite = (dirty?: Iterable<number>): void => {
-      const { preview, effectTime } = useEditorStore.getState();
+      const { preview } = useEditorStore.getState();
       const doc = currentDoc();
       const ghosts = ghostFrames();
-      frameRef.current = composeFrame(doc, preview, frameRef.current, ghosts, effectTime, dirty);
+      const time = effectsTime();
+      frameRef.current = composeFrame(doc, preview, frameRef.current, ghosts, time, dirty);
       // Запоминаем при каждой пересборке, а не только на тиках: так проверка ниже не зависит
       // от того, в каком порядке пришли события.
-      lastEffects = effectsSignature(doc, effectTime, ghosts);
+      lastEffects = effectsSignature(doc, time, ghosts);
       view.setFrame(frameRef.current);
     };
+
+    /** Время шло, а картинка эффектов та же: пересобирать кадр незачем. */
+    const effectsUnchanged = (): boolean =>
+      effectsSignature(currentDoc(), effectsTime(), ghostFrames()) === lastEffects;
 
     /**
      * Тайлы, задетые сменой превью: и старым штрихом, и новым. Старый нужен обязательно, иначе
@@ -142,6 +162,9 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
           editor.setSelectedObject(null);
         }
         syncObjectOutline();
+      } else if (state.time !== prev.time && !effectsUnchanged()) {
+        // Сцена та же, но момент другой: эффекты могли смениться.
+        recomposite();
       }
       if (state.epoch !== lastEpoch) {
         lastEpoch = state.epoch;
@@ -158,6 +181,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         editor.setPreview(null);
         editor.setDraft(null);
         editor.setSelectedObject(null);
+        editor.setSelectedKeys([]);
       }
     };
 
@@ -180,12 +204,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       ) {
         // Часы идут чаще, чем меняется картинка эффектов: тик, который ничего не меняет,
         // не стоит превращать в полную пересборку кадра.
-        if (
-          onlyClockTicked &&
-          effectsSignature(currentDoc(), state.effectTime, ghostFrames()) === lastEffects
-        ) {
-          return;
-        }
+        if (onlyClockTicked && effectsUnchanged()) return;
         recomposite(dirtyFromPreview(state, prev) ?? undefined);
       }
       if (prev && state.draft !== prev.draft) syncCanvas();
@@ -271,8 +290,11 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (dragRef.current) return;
-    // Любое действие на холсте останавливает проигрывание.
-    if (useEditorStore.getState().isPlaying) useEditorStore.getState().setPlaying(false);
+    // Любое действие на холсте останавливает проигрывание и снимает выделение ключей: Delete
+    // снова относится к холсту.
+    const editorState = useEditorStore.getState();
+    if (editorState.isPlaying) editorState.setPlaying(false);
+    if (editorState.selectedKeys.length > 0) editorState.setSelectedKeys([]);
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {

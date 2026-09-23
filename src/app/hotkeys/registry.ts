@@ -11,6 +11,8 @@ import { useEditorStore } from '../store/editorStore';
 import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
 import { importImageAction } from '../store/importActions';
 import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
+import { deleteSelectedKeysAction, keySelectedObjectAction } from '../store/keyActions';
+import { goToStartAction, stepKeyAction } from '../store/timeActions';
 import {
   duplicateSelectedObjectAction,
   addEmptyObjectAction,
@@ -31,7 +33,7 @@ import { TOOLS, getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
 import { type KeyChord, MatchQuality, matchQuality } from './match';
 
-export type HotkeyGroup = 'Файл' | 'Правка' | 'Объекты' | 'Кадры' | 'Вид' | 'Инструменты';
+export type HotkeyGroup = 'Файл' | 'Правка' | 'Объекты' | 'Анимация' | 'Вид' | 'Инструменты';
 
 export interface Hotkey {
   readonly group: HotkeyGroup;
@@ -40,10 +42,16 @@ export interface Hotkey {
   readonly keys: string;
   /** Показывать ли в справке: дубли вроде Ctrl+Y её только засоряют. */
   readonly hidden?: boolean;
+  /**
+   * Сочетание действует, только пока верно условие, и тогда оно важнее инструмента: Delete при
+   * выделенных ключах удаляет ключи, а не объект, выбранный инструментом.
+   */
+  readonly when?: () => boolean;
   readonly run: () => void;
 }
 
 const editor = () => useEditorStore.getState();
+const hasSelectedKeys = (): boolean => editor().selectedKeys.length > 0;
 
 /** Отмена текущего действия: снимает всё, что можно снять, не трогая документ. */
 function cancelEverything(): void {
@@ -52,6 +60,7 @@ function cancelEverything(): void {
   state.setSelection(null);
   state.setTextCursor(null);
   state.setSelectedObject(null);
+  state.setSelectedKeys([]);
   state.setPlaying(false);
   useUiStore.getState().setHotkeysOpen(false);
 }
@@ -172,9 +181,33 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
   },
   { group: 'Объекты', label: 'Сбросить масштаб', keys: 'Alt+S', run: resetSelectedScaleAction },
 
-  { group: 'Кадры', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },
-  { group: 'Кадры', label: 'Предыдущий кадр', keys: ',', run: () => stepFrameAction(-1) },
-  { group: 'Кадры', label: 'Следующий кадр', keys: '.', run: () => stepFrameAction(1) },
+  { group: 'Анимация', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },
+  { group: 'Анимация', label: 'Предыдущий кадр', keys: ',', run: () => stepFrameAction(-1) },
+  { group: 'Анимация', label: 'Следующий кадр', keys: '.', run: () => stepFrameAction(1) },
+  { group: 'Анимация', label: 'Предыдущий ключ', keys: 'Shift+,', run: () => stepKeyAction(-1) },
+  { group: 'Анимация', label: 'Следующий ключ', keys: 'Shift+.', run: () => stepKeyAction(1) },
+  { group: 'Анимация', label: 'В начало сцены', keys: 'Home', run: goToStartAction },
+  {
+    group: 'Анимация',
+    label: 'Ключ положения, поворота и масштаба объекта',
+    keys: 'K',
+    run: keySelectedObjectAction,
+  },
+  {
+    group: 'Анимация',
+    label: 'Удалить выделенные ключи',
+    keys: 'Delete',
+    when: hasSelectedKeys,
+    run: () => void deleteSelectedKeysAction(),
+  },
+  {
+    group: 'Анимация',
+    label: 'Удалить выделенные ключи',
+    keys: 'Backspace',
+    hidden: true,
+    when: hasSelectedKeys,
+    run: () => void deleteSelectedKeysAction(),
+  },
 
   { group: 'Вид', label: 'Приблизить', keys: '+', run: () => zoomByAction(1.25) },
   { group: 'Вид', label: 'Приблизить', keys: '=', hidden: true, run: () => zoomByAction(1.25) },
@@ -239,11 +272,15 @@ export const HOTKEYS: readonly Hotkey[] = [...STATIC_HOTKEYS, ...TOOL_HOTKEYS];
 /**
  * Самое уверенное совпадение. Порядок объявления решает только при равной уверенности, поэтому
  * добавление новой записи не может втихую перехватить чужое сочетание.
+ *
+ * `contextual` — искать среди сочетаний с условием, чьё условие сейчас верно: они проверяются
+ * раньше инструмента. Без него — среди обычных.
  */
-export function findHotkey(event: KeyChord): Hotkey | null {
+export function findHotkey(event: KeyChord, contextual = false): Hotkey | null {
   let best: Hotkey | null = null;
   let bestQuality: MatchQuality = MatchQuality.None;
   for (const hotkey of HOTKEYS) {
+    if (contextual ? !hotkey.when?.() : hotkey.when) continue;
     const quality = matchQuality(hotkey.keys, event);
     if (quality > bestQuality) {
       best = hotkey;
@@ -258,7 +295,7 @@ export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [
   'Инструменты',
   'Правка',
   'Объекты',
-  'Кадры',
+  'Анимация',
   'Вид',
   'Файл',
 ];

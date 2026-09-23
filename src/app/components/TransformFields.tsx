@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { MAX_DIMENSION } from '../../core/document';
 import type { SceneObject } from '../../core/object';
+import type { ObjectProperty } from '../../core/tracks';
 import {
   MAX_PIVOT,
   MAX_ROTATION,
@@ -15,7 +16,9 @@ import {
   setObjectPivotAction,
   transformObjectAction,
 } from '../store/transformActions';
-import { Button, Field, NumberField } from '../ui';
+import { toggleKeyAction } from '../store/keyActions';
+import { useKeyState } from '../hooks/useKeyState';
+import { Button, Field, KeyButton, NumberField } from '../ui';
 
 type Key = keyof Transform2D;
 
@@ -34,6 +37,8 @@ interface Row {
   readonly suffix?: string;
   /** Метка записи истории. */
   readonly history: string;
+  /** Анимируемое свойство за строкой и как его назвать в подсказке ромба. */
+  readonly keyed?: { readonly property: ObjectProperty; readonly subject: string };
 }
 
 const XY = (x: Key, y: Key): readonly Axis[] => [
@@ -50,6 +55,7 @@ const ROWS: readonly Row[] = [
     max: MAX_DIMENSION,
     step: 1,
     history: 'Move object',
+    keyed: { property: 'position', subject: 'положение' },
   },
   {
     label: 'Поворот',
@@ -60,6 +66,7 @@ const ROWS: readonly Row[] = [
     step: 1,
     suffix: '°',
     history: 'Rotate object',
+    keyed: { property: 'rotation', subject: 'поворот' },
   },
   {
     label: 'Масштаб',
@@ -69,6 +76,7 @@ const ROWS: readonly Row[] = [
     max: MAX_SCALE,
     step: 0.05,
     history: 'Scale object',
+    keyed: { property: 'scale', subject: 'масштаб' },
   },
   {
     label: 'Смещение',
@@ -91,9 +99,22 @@ const ROWS: readonly Row[] = [
   },
 ];
 
+/** Ромб ключа у строки трансформа; у строк без анимации — пустое место того же размера. */
+function RowKey({ object, row }: { readonly object: SceneObject; readonly row: Row }) {
+  const target = row.keyed
+    ? { node: 'object' as const, id: object.id, property: row.keyed.property }
+    : null;
+  const state = useKeyState(target);
+  if (!target || !row.keyed) return <span className="key-spacer" aria-hidden="true" />;
+  return (
+    <KeyButton state={state} subject={row.keyed.subject} onClick={() => toggleKeyAction(target)} />
+  );
+}
+
 /**
  * Трансформ выбранного объекта. Поле пишет в документ на каждое движение, чтобы холст менялся
- * живьём, а записи одного жеста склеиваются общим ключом: жест отменяется целиком.
+ * живьём, а записи одного жеста склеиваются общим ключом: жест отменяется целиком. У
+ * анимированного свойства правка становится ключом в текущий момент, см. `applyEdit`.
  */
 export function TransformFields({ object }: { readonly object: SceneObject }) {
   const gesture = useRef(0);
@@ -133,6 +154,7 @@ export function TransformFields({ object }: { readonly object: SceneObject }) {
               width={row.axes.length === 1 ? 'var(--field-w)' : 'var(--field-w-sm)'}
             />
           ))}
+          <RowKey object={object} row={row} />
         </Field>
       ))}
       <Button

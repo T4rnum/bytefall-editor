@@ -1,4 +1,4 @@
-import { frameDocument } from '../../core/animation';
+import { evaluate } from '../../core/evaluate';
 import { type ConvertedImage, addImageLayer } from '../../core/imageLayer';
 import { decodeImage, imageName } from '../io/image';
 import { openImageFile } from '../io/files';
@@ -33,10 +33,11 @@ export async function importImageAction(): Promise<void> {
  * будет вставлено, настоящим рендером, а не приблизительной картинкой в окне.
  */
 export function previewImageImport(converted: ConvertedImage, fitCanvas: boolean): void {
-  const { animation, frameIndex } = useDocumentStore.getState();
+  const { animation, frameIndex, time } = useDocumentStore.getState();
   try {
     const next = addImageLayer(animation, frameIndex, converted, fitCanvas).animation;
-    useEditorStore.getState().setDraft(frameDocument(next, frameIndex));
+    // Черновик — та же сцена в тот же момент: анимированные объекты стоят там, где их видно.
+    useEditorStore.getState().setDraft(evaluate(next, time));
   } catch (error) {
     notify(errorMessage(error), 'error');
   }

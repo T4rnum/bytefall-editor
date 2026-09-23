@@ -6,9 +6,13 @@ import { useEditorStore } from '../store/editorStore';
 /** Эффекты пересобирают кадр целиком, поэтому часы ограничены 30 тиками в секунду. */
 const MIN_TICK_MS = 1000 / 30;
 
-/** Часы эффектов: идут по requestAnimationFrame, пока эффекты включены и хоть один есть в документе. */
+/**
+ * Часы живых эффектов на паузе: идут по requestAnimationFrame, пока живые эффекты включены,
+ * сцена стоит и хоть один эффект есть в документе. При проигрывании эффекты идут по времени
+ * сцены, как в экспорте, и эти часы не нужны.
+ */
 export function useEffectClock(): void {
-  const live = useEditorStore((s) => s.effectsLive);
+  const live = useEditorStore((s) => s.effectsLive && !s.isPlaying);
   const hasEffects = useDocumentStore((s) =>
     s.animation.frames.some((frame) =>
       frame.layers.some((layer) => hasActiveEffects(layer.effects)),

@@ -11,10 +11,18 @@ export interface ImageImportSource {
 const MIN_SIDEBAR = 220;
 const MAX_SIDEBAR = 520;
 const DEFAULT_SIDEBAR = 300;
+const MIN_TIMELINE = 120;
+const MAX_TIMELINE = 520;
+const DEFAULT_TIMELINE = 200;
+
+const clampTimeline = (height: number): number =>
+  Math.min(MAX_TIMELINE, Math.max(MIN_TIMELINE, Math.round(height)));
 
 interface UiState {
   /** Ширина правого сайдбара в пикселях. */
   readonly sidebarWidth: number;
+  /** Высота таймлайна в пикселях. */
+  readonly timelineHeight: number;
   readonly hotkeysOpen: boolean;
   readonly resizeOpen: boolean;
   /** Открыт ли диалог импорта и с какой картинкой. */
@@ -24,6 +32,7 @@ interface UiState {
   /** Автосохранение не смогло записать: хранилище браузера недоступно или переполнено. */
   readonly autosaveFailed: boolean;
   setSidebarWidth: (width: number) => void;
+  setTimelineHeight: (height: number) => void;
   setHotkeysOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
   setImageImport: (source: ImageImportSource | null) => void;
@@ -39,6 +48,7 @@ export const useUiStore = create<UiState>((set) => ({
     MAX_SIDEBAR,
     Math.max(MIN_SIDEBAR, readSetting('sidebarWidth', DEFAULT_SIDEBAR)),
   ),
+  timelineHeight: clampTimeline(readSetting('timelineHeight', DEFAULT_TIMELINE)),
   hotkeysOpen: false,
   resizeOpen: false,
   imageImport: null,
@@ -48,6 +58,11 @@ export const useUiStore = create<UiState>((set) => ({
     const clamped = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, Math.round(width)));
     writeSetting('sidebarWidth', clamped);
     set({ sidebarWidth: clamped });
+  },
+  setTimelineHeight: (height) => {
+    const clamped = clampTimeline(height);
+    writeSetting('timelineHeight', clamped);
+    set({ timelineHeight: clamped });
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),

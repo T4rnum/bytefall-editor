@@ -3,6 +3,7 @@ import { isBlankCell } from './cell';
 import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
+import { lookCell, tintOf } from './look';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -21,6 +22,12 @@ export interface Ghost {
   readonly doc: Document;
   readonly opacity: number;
 }
+
+/**
+ * Рисуется ли объект. Совсем прозрачный пропускается, как и прозрачный слой: иначе его символ
+ * заменил бы символ снизу невидимым. Выбрать мышью его при этом можно — он на месте.
+ */
+const isDrawn = (obj: SceneObject): boolean => obj.visible && obj.opacity > 0;
 
 /**
  * Растр слоя с превью инструмента и объектами в одной сетке: нужно только слоям с эффектами.
@@ -42,10 +49,11 @@ function layerContent(
     }
   }
   for (const obj of objects) {
-    if (!obj.visible) continue;
+    if (!isDrawn(obj)) continue;
+    const tint = tintOf(obj);
     rasterizeObject(obj, matrices.get(obj.id) as Affine, canvas, (x, y, cell) => {
       const target = keyOf(x, y);
-      out.set(target, stackCell(out.get(target), cell));
+      out.set(target, stackCell(out.get(target), lookCell(cell, tint, obj.opacity)));
     });
   }
   return out;
@@ -80,8 +88,11 @@ export function blendObject(
   wanted: CellFilter,
 ): void {
   const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
+  const alpha = opacity * obj.opacity;
+  const tint = tintOf(obj);
+  // Оттенок бывает только у объектов: смешивание растра, горячий путь, о нём не знает.
   rasterizeObject(obj, matrix, canvas, (x, y, cell) => {
-    if (wanted(x, y)) blendAt(buf, x, y, cell, opacity);
+    if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
   });
 }
 
@@ -158,7 +169,7 @@ export function drawDocument(
         blendCell(buf, key, cell, opacity);
       }
       for (const obj of objects) {
-        if (obj.visible && isFreeObject(obj, matrixOf(obj)))
+        if (isDrawn(obj) && isFreeObject(obj, matrixOf(obj)))
           target.free(obj, matrixOf(obj), opacity);
       }
       continue;
@@ -166,7 +177,7 @@ export function drawDocument(
 
     drawRaster(target.cells(), layer, edits, opacity, layout, tiles);
     for (const obj of objects) {
-      if (!obj.visible) continue;
+      if (!isDrawn(obj)) continue;
       const matrix = matrixOf(obj);
       if (isFreeObject(obj, matrix)) target.free(obj, matrix, opacity);
       else blendObject(target.cells(), obj, matrix, opacity, wanted);

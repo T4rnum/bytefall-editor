@@ -25,14 +25,21 @@ function insideModal(target: EventTarget | null): boolean {
 }
 
 /**
- * Глобальные горячие клавиши. Активный инструмент получает клавиши первым: он может съесть
- * стрелки и Escape, пока ведёт своё взаимодействие. Всё остальное разбирается по реестру
- * из hotkeys/registry.ts, который же рисует справку.
+ * Глобальные горячие клавиши. Первыми идут сочетания с условием, пока оно верно: они про то,
+ * с чем пользователь работал последним. Потом активный инструмент: он может съесть стрелки и
+ * Escape, пока ведёт своё взаимодействие. Всё остальное разбирается по реестру из
+ * hotkeys/registry.ts, который же рисует справку.
  */
 export function useHotkeys(): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (isEditableTarget(event.target) || insideModal(event.target)) return;
+      const contextual = findHotkey(event, true);
+      if (contextual) {
+        event.preventDefault();
+        contextual.run();
+        return;
+      }
       const tool = getTool(useEditorStore.getState().tool);
       if (tool.onKeyDown?.(buildToolEnv(), event)) {
         event.preventDefault();

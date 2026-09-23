@@ -5,6 +5,7 @@ import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import type { SceneObject } from '../../core/object';
 import type { Clip, Selection } from '../../core/selection';
+import type { KeyRef } from '../../core/tracks';
 import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import type { CameraState } from '../../render/SceneView';
 import type { ToolId } from '../tools/types';
@@ -50,11 +51,16 @@ export interface EditorState {
   /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
   readonly draft: Document | null;
   readonly isPlaying: boolean;
+  /** Выделенные ключи в таймлайне. Delete удаляет их, пока они выделены. */
+  readonly selectedKeys: readonly KeyRef[];
   /** Показывать соседние кадры полупрозрачно. */
   readonly onionSkin: boolean;
-  /** Крутить ли часы эффектов в редакторе. */
+  /**
+   * Крутить ли эффекты, пока сцена стоит. Тогда у эффектов свои часы, а при проигрывании и в
+   * экспорте они идут по времени сцены.
+   */
   readonly effectsLive: boolean;
-  /** Время эффектов в миллисекундах. */
+  /** Часы эффектов на паузе, миллисекунды. */
   readonly effectTime: number;
   /** Постэффекты уровня пикселей: свечение и CRT. */
   readonly post: PostSettings;
@@ -80,6 +86,7 @@ export interface EditorState {
   setSelectedObject: (id: string | null) => void;
   setDraft: (doc: Document | null) => void;
   setPlaying: (playing: boolean) => void;
+  setSelectedKeys: (keys: readonly KeyRef[]) => void;
   setOnionSkin: (enabled: boolean) => void;
   setEffectsLive: (live: boolean) => void;
   setEffectTime: (time: number) => void;
@@ -125,6 +132,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   selectedObjectId: null,
   draft: null,
   isPlaying: false,
+  selectedKeys: [],
   onionSkin: false,
   effectsLive: true,
   effectTime: 0,
@@ -154,6 +162,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSelectedObject: (selectedObjectId) => set({ selectedObjectId }),
   setDraft: (draft) => set({ draft }),
   setPlaying: (isPlaying) => set({ isPlaying }),
+  setSelectedKeys: (selectedKeys) => set({ selectedKeys }),
   setOnionSkin: (onionSkin) => set({ onionSkin }),
   setEffectsLive: (effectsLive) => set({ effectsLive }),
   setEffectTime: (effectTime) => set({ effectTime }),

@@ -5,6 +5,7 @@ import {
   removeFrame,
   setFrameDuration,
 } from '../../core/animation';
+import { adjacentFrameTime, hasMotion } from '../../core/timeline';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
@@ -33,11 +34,13 @@ export function addFrameAction(mode: 'duplicate' | 'empty'): void {
   commitAnimation(label, addFrame(animation, frameIndex, mode), frameIndex + 1);
 }
 
+/** Удаляет текущий кадр; указатель встаёт на соседний, а у последнего — на предыдущий. */
 export function removeFrameAction(): void {
   stopPlayback();
   const { animation, frameIndex, commitAnimation } = state();
   if (animation.frames.length <= 1) return;
-  commitAnimation('Delete frame', removeFrame(animation, frameIndex));
+  const next = Math.min(frameIndex, animation.frames.length - 2);
+  commitAnimation('Delete frame', removeFrame(animation, frameIndex), next);
 }
 
 /** Переставляет текущий кадр на delta позиций и следует за ним. */
@@ -57,18 +60,18 @@ export function setFrameDurationAction(durationMs: number): void {
   commitAnimation('Frame duration', setFrameDuration(animation, frameIndex, durationMs));
 }
 
-/** Шаг по кадрам с переходом через край. */
-export function stepFrameAction(delta: number): void {
+/** Шаг к началу соседнего кадра спрайт-трека, с переходом через край сцены. */
+export function stepFrameAction(direction: 1 | -1): void {
   stopPlayback();
-  const { animation, frameIndex, setFrameIndex } = state();
-  const count = animation.frames.length;
-  setFrameIndex((((frameIndex + delta) % count) + count) % count);
+  const { animation, time, setTime } = state();
+  setTime(adjacentFrameTime(animation, time, direction));
 }
 
 export function togglePlaybackAction(): void {
   const editor = useEditorStore.getState();
-  if (!editor.isPlaying && state().animation.frames.length < 2) {
-    notify('Чтобы проиграть анимацию, добавьте второй кадр');
+  const { animation } = state();
+  if (!editor.isPlaying && animation.frames.length < 2 && !hasMotion(animation)) {
+    notify('Чтобы проиграть анимацию, добавьте второй кадр или ключи');
     return;
   }
   editor.setPlaying(!editor.isPlaying);

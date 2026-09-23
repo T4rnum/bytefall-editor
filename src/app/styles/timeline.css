@@ -1,0 +1,321 @@
+/**
+ * Таймлайн: шкала времени, спрайт-трек и ключи свойств. Колонка подписей прилипает к левому
+ * краю, линейка — к верхнему, всё остальное прокручивается вместе.
+ */
+.timeline {
+  --tl-label-w: 176px;
+  --tl-row-h: 22px;
+  --tl-ruler-h: 22px;
+  --tl-sprite-h: 44px;
+
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.timeline-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.timeline-time {
+  min-width: 96px;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.timeline-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--tl-label-w) var(--tl-content-w);
+  /* Линейка и спрайт-трек — свои высоты, дальше строки свойств одной высоты. */
+  grid-template-rows: var(--tl-ruler-h) var(--tl-sprite-h);
+  grid-auto-rows: var(--tl-row-h);
+  width: max-content;
+  min-width: 100%;
+  user-select: none;
+}
+
+/* ── Подписи ───────────────────────────────────────────────────────────── */
+/*
+ * Порядок слоёв: дорожки, над ними линейка и указатель времени, над всем — колонка подписей,
+ * иначе при прокрутке указатель проезжал бы поверх названий.
+ */
+.tl-corner,
+.tl-label {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.tl-corner {
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-6);
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.tl-label-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-label--node {
+  padding-left: var(--space-4);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tl-label--sprite {
+  padding-left: var(--space-4);
+  color: var(--text);
+}
+
+/* ── Дорожки ───────────────────────────────────────────────────────────── */
+.tl-lane {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-lane--node {
+  background: var(--panel-raised);
+}
+
+.tl-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: var(--tl-ruler-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  cursor: ew-resize;
+}
+
+.tl-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  background: var(--border-strong);
+}
+
+.tl-tick--major {
+  height: 9px;
+  background: var(--text-faint);
+}
+
+.tl-tick-label {
+  position: absolute;
+  bottom: 9px;
+  left: 3px;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* ── Кадры спрайт-трека ────────────────────────────────────────────────── */
+.tl-frame {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  display: grid;
+  place-items: center start;
+  min-width: 2px;
+  padding: 0 2px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.tl-frame:hover {
+  border-color: var(--border-strong);
+}
+
+/** Активный кадр обводится, а не заливается: заливка закрыла бы саму миниатюру. */
+.tl-frame.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/** Повторы кадров по кругу бледнее: это те же кадры, а не новые. */
+.tl-frame.is-repeat {
+  opacity: 0.45;
+}
+
+.tl-frame-num {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  padding: 1px 3px;
+  background: var(--scrim);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  line-height: 1;
+}
+
+.tl-frame.is-active .tl-frame-num {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/** Под миниатюрой шахматка: у прозрачного холста видно, где пусто, как и на самом холсте. */
+.frame-thumb {
+  display: block;
+  image-rendering: pixelated;
+  background:
+    linear-gradient(
+        45deg,
+        var(--border-strong) 25%,
+        transparent 25%,
+        transparent 75%,
+        var(--border-strong) 75%
+      )
+      0 0 / 8px 8px,
+    linear-gradient(
+        45deg,
+        var(--border-strong) 25%,
+        transparent 25%,
+        transparent 75%,
+        var(--border-strong) 75%
+      )
+      4px 4px / 8px 8px,
+    var(--panel-raised);
+}
+
+/* ── Ключи ─────────────────────────────────────────────────────────────── */
+.tl-key {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  background: var(--panel-overlay);
+  border: 1.5px solid var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+  cursor: grab;
+}
+
+.tl-key:hover {
+  background: var(--accent-hover);
+}
+
+.tl-key.is-selected {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--state-selected);
+}
+
+/** Отрезок между ключами: равномерно — сплошной, по кривой — с утолщениями к ключам. */
+.tl-seg {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  background: var(--border-strong);
+  transform: translateY(-50%);
+}
+
+.tl-seg--bezier {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    var(--border-strong) 30%,
+    var(--border-strong) 70%,
+    var(--accent) 100%
+  );
+  opacity: 0.6;
+}
+
+/* ── Поверх всех строк ─────────────────────────────────────────────────── */
+/**
+ * Слой поверх дорожек. Позиционируется абсолютно, а не ячейкой сетки: ячейка, растянутая на все
+ * строки, заняла бы место, куда сетка раскладывает дорожки, и сдвинула бы их.
+ */
+.tl-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--tl-label-w);
+  z-index: 3;
+  width: var(--tl-content-w);
+  pointer-events: none;
+}
+
+.tl-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--accent);
+}
+
+.tl-playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.tl-after-end {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--scrim);
+  opacity: 0.5;
+}
+
+.tl-box {
+  position: absolute;
+  z-index: 3;
+  background: var(--state-selected);
+  border: 1px solid var(--accent);
+  pointer-events: none;
+}
+
+.tl-hint {
+  margin: var(--space-4) var(--space-6);
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}

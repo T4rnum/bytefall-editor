@@ -13,7 +13,7 @@ import { LookPanel } from './components/LookPanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
 import { RecoveryDialog } from './components/RecoveryDialog';
 import { StatusBar } from './components/StatusBar';
-import { TimelinePanel } from './components/TimelinePanel';
+import { TimelinePanel } from './components/timeline/TimelinePanel';
 import { ToolBar } from './components/ToolBar';
 import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
@@ -34,6 +34,8 @@ export function App() {
   const [atlas, setAtlas] = useState<GlyphAtlas | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sidebarWidth = useUiStore((s) => s.sidebarWidth);
+  const timelineHeight = useUiStore((s) => s.timelineHeight);
+  const setTimelineHeight = useUiStore((s) => s.setTimelineHeight);
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
   const hotkeysOpen = useUiStore((s) => s.hotkeysOpen);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
@@ -84,6 +86,14 @@ export function App() {
           <GlyphPanel />
         </aside>
       </div>
+      {/* Таймлайн растёт при движении вверх, поэтому знак смещения отрицательный. */}
+      <Resizer
+        value={timelineHeight}
+        onChange={setTimelineHeight}
+        direction="horizontal"
+        sign={-1}
+        ariaLabel="Высота таймлайна"
+      />
       <TimelinePanel atlas={atlas} />
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />

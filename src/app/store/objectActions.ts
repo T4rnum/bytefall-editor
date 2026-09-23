@@ -1,4 +1,6 @@
 import { canEditLayer, findLayer, layerIndex } from '../../core/document';
+import { applyEdit } from '../../core/keyframes';
+import { copyTracks, shiftPositionKeys } from '../../core/tracks';
 import { groupSelection, ungroupObject } from '../../core/grouping';
 import { canSetParent, detachedCopy, removeObject, setParent } from '../../core/hierarchy';
 import { objectMatrix } from '../../core/placement';
@@ -89,13 +91,21 @@ export function deleteSelectedObjectAction(): void {
   editor().setSelectedObject(null);
 }
 
+/**
+ * Копия выбранного объекта на клетку правее и ниже. Анимация копируется вместе с ним и сдвинута
+ * так же: копия двигается рядом с оригиналом, а не сливается с ним на ключах.
+ */
 export function duplicateSelectedObjectAction(): void {
   const obj = selectedObject();
   if (!obj || !hasRoomForObject()) return;
-  const { doc, commitStructural } = docState();
+  const { doc, animation, time, commitAnimation } = docState();
   const next = duplicateObject(doc, obj.id);
-  commitStructural('Duplicate object', next);
-  editor().setSelectedObject(next.objects[objectIndex(doc, obj.id) + 1].id);
+  const copyId = next.objects[objectIndex(doc, obj.id) + 1].id;
+  const edited = applyEdit(animation, time, doc, next);
+  const copied = copyTracks(edited.tracks, 'object', new Map([[obj.id, copyId]]));
+  const tracks = shiftPositionKeys(copied, new Set([copyId]), 1, 1);
+  commitAnimation('Duplicate object', { ...edited, tracks });
+  editor().setSelectedObject(copyId);
 }
 
 /**

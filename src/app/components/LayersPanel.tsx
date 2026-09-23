@@ -18,8 +18,10 @@ import {
   removeActiveLayerAction,
   updateLayerAction,
 } from '../store/documentActions';
+import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
-import { Button, Panel, Slider, TextField } from '../ui';
+import { toggleKeyAction } from '../store/keyActions';
+import { Button, KeyButton, Panel, Slider, TextField } from '../ui';
 
 function LayerRow({
   layer,
@@ -105,6 +107,10 @@ export function LayersPanel() {
   const gesture = useRef(0);
   // Без округления: округление здесь съедало бы мелкий шаг, которым тянут с зажатым Shift.
   const opacity = (active?.opacity ?? 1) * 100;
+  const opacityTarget = active
+    ? ({ node: 'layer', id: active.id, property: 'opacity' } as const)
+    : null;
+  const opacityKey = useKeyState(opacityTarget);
 
   const setOpacity = (value: number): void => {
     if (!active || value === opacity) return;
@@ -158,20 +164,28 @@ export function LayersPanel() {
           />
         ))}
       </ul>
-      <Slider
-        label="Непрозрачность"
-        value={opacity}
-        min={0}
-        max={100}
-        suffix="%"
-        disabled={!active}
-        onChange={setOpacity}
-        onCommit={(value) => {
-          setOpacity(value);
-          // Отпускание указателя завершает серию: следующий жест станет отдельной отменой.
-          gesture.current += 1;
-        }}
-      />
+      <div className="keyed">
+        <Slider
+          label="Непрозрачность"
+          value={opacity}
+          min={0}
+          max={100}
+          suffix="%"
+          disabled={!active}
+          onChange={setOpacity}
+          onCommit={(value) => {
+            setOpacity(value);
+            // Отпускание указателя завершает серию: следующий жест станет отдельной отменой.
+            gesture.current += 1;
+          }}
+        />
+        <KeyButton
+          state={opacityKey}
+          subject="непрозрачность слоя"
+          disabled={!active}
+          onClick={() => opacityTarget && toggleKeyAction(opacityTarget)}
+        />
+      </div>
     </Panel>
   );
 }

@@ -1,11 +1,11 @@
-import { type Animation, createAnimation, frameDocument } from '../../core/animation';
+import { type Animation, createAnimation } from '../../core/animation';
 import { composite } from '../../core/compositor';
-import { composeFrame } from '../../core/frame';
+import { type ComposedFrame, composeAt } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
-import { hasActiveEffects } from '../../core/effects';
 import { safeFileName } from '../../core/filename';
+import { exportSamples, sceneDuration } from '../../core/timeline';
 import { bufferToText } from '../../core/text';
-import { type RenderedFrame, buildSpriteSheet, encodeGif } from '../io/animationExport';
+import { type RenderedFrame, buildSpriteSheet, encodeGif, gifTimings } from '../io/animationExport';
 import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
@@ -85,10 +85,11 @@ export async function exportPngAction(pixelsPerCell: number): Promise<void> {
   }
 }
 
+/** Текст сцены в момент указателя: эффекты — на тот же момент, что и треки. */
 export async function exportTextAction(): Promise<void> {
-  const { doc } = useDocumentStore.getState();
+  const { doc, time } = useDocumentStore.getState();
   try {
-    const text = bufferToText(composite(doc));
+    const text = bufferToText(composite(doc, null, undefined, [], time));
     // Тип без параметров: диалог сохранения отвергает MIME с charset.
     const blob = new Blob([text], { type: 'text/plain' });
     if (await saveBlobFile(blob, `${safeFileName(doc.name)}.txt`, '.txt', 'Текст')) {
@@ -99,54 +100,36 @@ export async function exportTextAction(): Promise<void> {
   }
 }
 
-const EFFECT_LOOP_SAMPLES = 20;
-const EFFECT_LOOP_STEP = 100;
-
-interface ExportSample {
-  readonly frameIndex: number;
+interface Moment {
   readonly time: number;
   readonly delay: number;
 }
 
 /**
- * Что рендерить: каждый кадр в момент его начала. Один кадр с эффектами превращается
- * в короткую петлю, иначе эффекты в GIF не увидеть.
+ * Рендерит моменты сцены без служебной графики в пиксели. Кадр в момент считает `composeAt`
+ * — тот же `evaluate` и тот же композитор, что у экрана, поэтому экспорт совпадает с ним.
  */
-function exportSamples(animation: Animation): ExportSample[] {
-  const hasEffects = animation.frames.some((f) =>
-    f.layers.some((l) => hasActiveEffects(l.effects)),
-  );
-  if (animation.frames.length === 1 && hasEffects) {
-    return Array.from({ length: EFFECT_LOOP_SAMPLES }, (_, i) => ({
-      frameIndex: 0,
-      time: i * EFFECT_LOOP_STEP,
-      delay: EFFECT_LOOP_STEP,
-    }));
-  }
-  let time = 0;
-  return animation.frames.map((frame, frameIndex) => {
-    const sample = { frameIndex, time, delay: frame.duration };
-    time += frame.duration;
-    return sample;
-  });
-}
-
-/** Рендерит каждый кадр без служебной графики в пиксели, эффекты берутся на момент кадра. */
-function renderFrames(pixelsPerCell: number): RenderedFrame[] {
+function renderMoments(
+  animation: Animation,
+  moments: readonly Moment[],
+  ppc: number,
+): RenderedFrame[] {
   const view = getActiveView();
   if (!view) throw new Error('холст ещё не готов');
-  const { animation } = useDocumentStore.getState();
-  return exportSamples(animation).map((sample) => {
-    const doc = frameDocument(animation, sample.frameIndex);
-    const frame = composeFrame(doc, null, null, [], sample.time);
-    return { ...view.renderPixels(frame, pixelsPerCell), delay: sample.delay };
+  let previous: ComposedFrame | null = null;
+  return moments.map(({ time, delay }) => {
+    const frame: ComposedFrame = composeAt(animation, time, previous);
+    previous = frame;
+    return { ...view.renderPixels(frame, ppc), delay };
   });
 }
 
 export async function exportGifAction(pixelsPerCell: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   try {
-    const bytes = encodeGif(renderFrames(pixelsPerCell), animation.background === null);
+    const moments = gifTimings(exportSamples(animation), sceneDuration(animation));
+    const frames = renderMoments(animation, moments, pixelsPerCell);
+    const bytes = encodeGif(frames, animation.background === null);
     const blob = new Blob([bytes.slice()], { type: 'image/gif' });
     if (await saveBlobFile(blob, `${safeFileName(animation.name)}.gif`, '.gif', 'Анимация GIF')) {
       notify('GIF сохранён');
@@ -159,7 +142,8 @@ export async function exportGifAction(pixelsPerCell: number): Promise<void> {
 export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   try {
-    const blob = await buildSpriteSheet(renderFrames(pixelsPerCell));
+    const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
+    const blob = await buildSpriteSheet(frames);
     const name = `${safeFileName(animation.name)}-sheet.png`;
     if (await saveBlobFile(blob, name, '.png', 'Лист спрайтов PNG'))
       notify('Лист спрайтов сохранён');

@@ -30,6 +30,13 @@ export interface SceneObject {
   readonly transform: Transform2D;
   readonly visible: boolean;
   readonly locked: boolean;
+  /** Непрозрачность всего объекта, 0..1. Умножается на непрозрачность слоя. */
+  readonly opacity: number;
+  /**
+   * Оттенок: цвет, к которому смешиваются цвета символов, сила — в альфе (`#rrggbbaa`).
+   * null — без оттенка. Непрозрачность и оттенок детям не передаются, как и в Blender.
+   */
+  readonly tint: string | null;
   /** Ячейки в локальных координатах от (0, 0). */
   readonly cells: CellGrid;
   /** Поворот, размер и сдвиг отдельных символов. Разреженные: только то, что правили руками. */
@@ -60,6 +67,8 @@ export function createObject(init: CreateObjectInit): SceneObject {
     transform: createTransform(init.x, init.y, centerPivot(cells)),
     visible: true,
     locked: false,
+    opacity: 1,
+    tint: null,
     cells,
     overrides: emptyOverrides(),
     props: init.props ?? {},

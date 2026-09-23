@@ -1,4 +1,5 @@
 import { GIFEncoder, applyPalette, quantize } from 'gifenc';
+import type { TimeSample } from '../../core/timeline';
 
 /** Кадр в пикселях RGBA сверху вниз, как его отдаёт SceneView.renderPixels. */
 export interface RenderedFrame {
@@ -10,6 +11,35 @@ export interface RenderedFrame {
 }
 
 const MAX_GIF_COLORS = 256;
+/** GIF хранит задержку в сотых секунды. */
+const GIF_TICK = 10;
+/** Кадр короче двух сотых браузеры показывают как десять: такие кадры склеиваются. */
+const GIF_MIN_DELAY = 20;
+
+/**
+ * Моменты экспорта в задержки GIF. Округляется до сотых начало каждого кадра, а не каждая
+ * задержка: ошибка не копится, и петля длится столько же, сколько сцена. Кадр, который после
+ * округления вышел короче двух сотых, отдаёт своё время соседу.
+ */
+export function gifTimings(
+  samples: readonly TimeSample[],
+  end: number,
+): { time: number; delay: number }[] {
+  const at = (t: number): number => Math.round(t / GIF_TICK) * GIF_TICK;
+  const finish = at(end);
+  const kept: { time: number; start: number }[] = [];
+  for (const { time } of samples) {
+    const start = at(time);
+    const last = kept[kept.length - 1];
+    if (last && start - last.start < GIF_MIN_DELAY) continue;
+    if (finish - start < GIF_MIN_DELAY && kept.length > 0) continue;
+    kept.push({ time, start });
+  }
+  return kept.map((k, i) => ({
+    time: k.time,
+    delay: Math.max(GIF_MIN_DELAY, (kept[i + 1]?.start ?? finish) - k.start),
+  }));
+}
 
 /** Кодирует кадры в зацикленный GIF. Прозрачный холст даёт прозрачный фон. */
 export function encodeGif(frames: readonly RenderedFrame[], transparent: boolean): Uint8Array {

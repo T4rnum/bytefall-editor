@@ -1,4 +1,5 @@
 import type { Affine } from './affine';
+import type { Animation } from './animation';
 import { type CellBuffer, createCellBuffer } from './cellBuffer';
 import {
   type DrawTarget,
@@ -9,6 +10,7 @@ import {
   drawDocument,
 } from './compositor';
 import type { Document } from './document';
+import { evaluate } from './evaluate';
 import { type GlyphBatch, GlyphBatchBuilder, pushObjectGlyphs } from './instances';
 import type { SceneObject } from './object';
 import { type TileLayout, tileLayout, tileRect } from './tiles';
@@ -158,4 +160,16 @@ export function composeFrame(
   const frame = drawFrame(doc, preview, ghosts, time, reuse, tiles);
   if (tiles === null || (previous && sameShape(frame.passes, previous.passes))) return frame;
   return drawFrame(doc, preview, ghosts, time, reuse, null);
+}
+
+/**
+ * Кадр сцены в момент `time` без служебного: без превью, кальки и черновика. Так рендерит
+ * экспорт; экран зовёт тот же `composeFrame` над тем же `evaluate`, добавляя только служебное.
+ */
+export function composeAt(
+  anim: Animation,
+  time: number,
+  previous: ComposedFrame | null = null,
+): ComposedFrame {
+  return composeFrame(evaluate(anim, time), null, previous, [], time);
 }

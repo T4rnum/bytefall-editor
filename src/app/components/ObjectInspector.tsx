@@ -12,6 +12,7 @@ import {
 } from '../store/objectActions';
 import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
 import { GlyphFields } from './GlyphFields';
+import { LookFields } from './LookFields';
 import { TransformFields } from './TransformFields';
 
 interface Props {
@@ -73,6 +74,8 @@ export function ObjectInspector({ object }: Props) {
         />
       </Field>
       <TransformFields object={object} />
+      <h4 className="inspector-heading">Вид</h4>
+      <LookFields object={object} />
       <span className="dim">
         {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
       </span>

@@ -1,8 +1,9 @@
 import { type Affine, decomposeAffine, multiply } from './affine';
 import { colorOf } from './cellBuffer';
 import type { Cell } from './cell';
-import { type Rgba, TRANSPARENT, withAlpha } from './color';
+import { type Rgba, TRANSPARENT, tintColor, withAlpha } from './color';
 import { type CellKey, xOf, yOf } from './grid';
+import { tintOf } from './look';
 import type { SceneObject } from './object';
 import { glyphMatrix } from './transform';
 
@@ -128,9 +129,11 @@ export function pushObjectGlyphs(
   opacity: number,
 ): void {
   const pose = decomposeAffine(world);
-  const fgOf = (cell: Cell): Rgba => withAlpha(colorOf(cell.fg), opacity);
-  const bgOf = (cell: Cell): Rgba =>
-    cell.bg === null ? TRANSPARENT : withAlpha(colorOf(cell.bg), opacity);
+  const alpha = opacity * obj.opacity;
+  const tint = tintOf(obj);
+  const paint = (hex: string): Rgba => withAlpha(tintColor(colorOf(hex), tint), alpha);
+  const fgOf = (cell: Cell): Rgba => paint(cell.fg);
+  const bgOf = (cell: Cell): Rgba => (cell.bg === null ? TRANSPARENT : paint(cell.bg));
   for (const [key, cell] of obj.cells) {
     if (obj.overrides.has(key)) continue;
     const cx = xOf(key) + 0.5;
