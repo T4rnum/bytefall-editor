@@ -21,6 +21,7 @@ export function deformedPoses(obj: SceneObject, time: number): GlyphPose[] {
     const o = obj.overrides.get(key);
     poses.push({
       key,
+      particle: null,
       glyph: cell.glyph,
       x: xOf(key) + 0.5 + (o?.dx ?? 0),
       y: yOf(key) + 0.5 + (o?.dy ?? 0),
@@ -55,8 +56,10 @@ export function rasterizeDeformed(
     const x = Math.floor(m.e);
     const y = Math.floor(m.f);
     if (x < clip.x || y < clip.y || x >= clip.x + clip.w || y >= clip.y + clip.h) continue;
-    const source = obj.cells.get(p.key) as Cell;
     const fg = toHex(p.fg);
+    // Частица родом не из ячейки: у неё только символ и цвет, фона нет.
+    const source: Cell =
+      p.particle === null ? (obj.cells.get(p.key) as Cell) : { glyph: p.glyph, fg, bg: null };
     const same = fg === source.fg && p.glyph === source.glyph;
     visit(x, y, same ? source : { ...source, glyph: p.glyph, fg });
   }

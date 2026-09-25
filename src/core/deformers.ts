@@ -2,6 +2,7 @@ import type { Rgba } from './color';
 import { applyDeformer } from './deformerKinds';
 import { newId } from './document';
 import type { CellKey } from './grid';
+import type { ParticlesDeformer } from './particles';
 import { MAX_SCALE, MIN_SCALE } from './transform';
 import type { DeformerParam } from './tracks';
 
@@ -11,9 +12,17 @@ import type { DeformerParam } from './tracks';
  * координатах объекта, поэтому волна идёт вдоль его осей и едет вместе с ним.
  */
 export type DeformerKind =
-  'wave' | 'jitter' | 'twist' | 'scaleFalloff' | 'colorRamp' | 'bend' | 'explode' | 'glyphRamp';
+  | 'wave'
+  | 'jitter'
+  | 'twist'
+  | 'scaleFalloff'
+  | 'colorRamp'
+  | 'bend'
+  | 'explode'
+  | 'glyphRamp'
+  | 'particles';
 
-interface DeformerCommon {
+export interface DeformerCommon {
   readonly id: string;
   readonly kind: DeformerKind;
   readonly enabled: boolean;
@@ -102,7 +111,8 @@ export type Deformer =
   | ColorRampDeformer
   | BendDeformer
   | ExplodeDeformer
-  | GlyphRampDeformer;
+  | GlyphRampDeformer
+  | ParticlesDeformer;
 
 export interface DeformerByKind {
   readonly wave: WaveDeformer;
@@ -113,6 +123,7 @@ export interface DeformerByKind {
   readonly bend: BendDeformer;
   readonly explode: ExplodeDeformer;
   readonly glyphRamp: GlyphRampDeformer;
+  readonly particles: ParticlesDeformer;
 }
 
 export const MAX_DEFORMERS_PER_OBJECT = 8;
@@ -138,6 +149,13 @@ export const DEFORMER_PARAM_SPECS: {
   bend: { strength: { min: -90, max: 90 } },
   explode: { amount: { min: 0, max: 16 }, angle: { min: 0, max: 720 } },
   glyphRamp: {},
+  particles: {
+    life: { min: 20, max: 10000 },
+    speed: { min: 0, max: 128 },
+    angle: { min: -360, max: 360 },
+    spread: { min: 0, max: 360 },
+    gravity: { min: -128, max: 128 },
+  },
 };
 
 const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K] } = {
@@ -171,6 +189,21 @@ const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K
   bend: (id) => ({ id, kind: 'bend', enabled: true, strength: 10 }),
   explode: (id) => ({ id, kind: 'explode', enabled: true, amount: 0.5, angle: 90, seed: 1 }),
   glyphRamp: (id) => ({ id, kind: 'glyphRamp', enabled: true, glyphs: '.:-=+*#%@' }),
+  particles: (id) => ({
+    id,
+    kind: 'particles',
+    enabled: true,
+    glyphs: '@*+.',
+    from: '#ffec27',
+    to: '#ff004d',
+    rate: 20,
+    life: 1500,
+    speed: 4,
+    angle: -90,
+    spread: 60,
+    gravity: 1,
+    seed: 1,
+  }),
   colorRamp: (id) => ({
     id,
     kind: 'colorRamp',
@@ -209,10 +242,12 @@ export const hasActiveDeformers = (deformers: readonly Deformer[]): boolean =>
 /**
  * Символ объекта по ходу стека: центр в ячейках объекта, поворот в градусах, масштаб, цвета.
  * `key` — ячейка, из которой символ родом: по ней шум и градиенты узнают символ, куда бы его
- * ни унесли деформеры раньше по стеку.
+ * ни унесли деформеры раньше по стеку. У частицы это ячейка, из которой она вылетела, а
+ * `particle` — её номер: по нему шум отличает искры одной ячейки. У символов объекта он null.
  */
 export interface GlyphPose {
   readonly key: CellKey;
+  readonly particle: number | null;
   glyph: string;
   x: number;
   y: number;

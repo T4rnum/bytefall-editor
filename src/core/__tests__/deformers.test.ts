@@ -15,6 +15,7 @@ const WHITE = { r: 1, g: 1, b: 1, a: 1 };
 function pose(x: number, y: number): GlyphPose {
   return {
     key: keyOf(x, y),
+    particle: null,
     glyph: '#',
     x: x + 0.5,
     y: y + 0.5,

@@ -33,7 +33,11 @@ export type DeformerParam =
   | 'inner'
   | 'outer'
   | 'length'
-  | 'amount';
+  | 'amount'
+  | 'life'
+  | 'speed'
+  | 'spread'
+  | 'gravity';
 
 export const DEFORMER_PARAMS: readonly DeformerParam[] = [
   'amplitude',
@@ -46,6 +50,10 @@ export const DEFORMER_PARAMS: readonly DeformerParam[] = [
   'outer',
   'length',
   'amount',
+  'life',
+  'speed',
+  'spread',
+  'gravity',
 ];
 
 export const OBJECT_PROPERTIES: readonly ObjectProperty[] = [

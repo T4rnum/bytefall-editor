@@ -14,8 +14,16 @@ import type {
 } from './deformers';
 import { hashNoise } from './effects';
 import { xOf, yOf } from './grid';
+import { emitParticles } from './particles';
 
 const TAU = Math.PI * 2;
+
+/**
+ * Шум символа по его исходной ячейке, куда бы его ни унесло раньше по стеку. Частица берёт свой
+ * номер, иначе все искры одной ячейки дрожали бы как одна; строки −1 у ячеек не бывает.
+ */
+const poseNoise = (p: GlyphPose, t: number): number =>
+  p.particle === null ? hashNoise(xOf(p.key), yOf(p.key), t) : hashNoise(p.particle, -1, t);
 
 function wave(poses: GlyphPose[], d: WaveDeformer, ctx: DeformContext): void {
   const phase = (TAU * ctx.time) / Math.max(1, d.period);
@@ -33,9 +41,7 @@ function jitter(poses: GlyphPose[], d: JitterDeformer, ctx: DeformContext): void
   const tick = Math.floor(ctx.time / Math.max(1, d.period));
   const salt = Math.imul(d.seed | 0, 7919);
   for (const p of poses) {
-    const x = xOf(p.key);
-    const y = yOf(p.key);
-    const noise = (n: number): number => hashNoise(x, y, tick * 3 + n + salt) * 2 - 1;
+    const noise = (n: number): number => poseNoise(p, tick * 3 + n + salt) * 2 - 1;
     p.x += d.amplitude * noise(0);
     p.y += d.amplitude * noise(1);
     p.rot += d.angle * noise(2);
@@ -111,7 +117,7 @@ function explode(poses: GlyphPose[], d: ExplodeDeformer, ctx: DeformContext): vo
   for (const p of poses) {
     p.x = cx + (p.x - cx) * (1 + d.amount);
     p.y = cy + (p.y - cy) * (1 + d.amount);
-    p.rot += d.angle * d.amount * (hashNoise(xOf(p.key), yOf(p.key), salt) * 2 - 1);
+    p.rot += d.angle * d.amount * (poseNoise(p, salt) * 2 - 1);
   }
 }
 
@@ -143,5 +149,7 @@ export function applyDeformer(poses: GlyphPose[], deformer: Deformer, ctx: Defor
       return explode(poses, deformer, ctx);
     case 'glyphRamp':
       return glyphRamp(poses, deformer);
+    case 'particles':
+      return emitParticles(poses, deformer, ctx);
   }
 }

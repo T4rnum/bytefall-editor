@@ -27,6 +27,7 @@ export * from './look';
 export * from './material';
 export * from './object';
 export * from './overrides';
+export * from './particles';
 export * from './placement';
 export * from './quantize';
 export * from './rasterize';

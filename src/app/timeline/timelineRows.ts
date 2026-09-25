@@ -57,6 +57,10 @@ const DEFORMER_LABELS: Readonly<Record<DeformerParam, string>> = {
   outer: 'Размер на краю',
   length: 'Длина градиента',
   amount: 'Сила цвета',
+  life: 'Жизнь частицы',
+  speed: 'Скорость',
+  spread: 'Разброс',
+  gravity: 'Тяжесть',
 };
 
 const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
@@ -68,6 +72,7 @@ const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
   bend: 'Изгиб',
   explode: 'Разлёт',
   glyphRamp: 'Символы по яркости',
+  particles: 'Частицы',
 };
 
 function labelOf(target: TrackTarget): string {

@@ -31,6 +31,7 @@ const KINDS: readonly { readonly value: DeformerKind; readonly label: string }[]
   { value: 'bend', label: 'Изгиб' },
   { value: 'explode', label: 'Разлёт' },
   { value: 'glyphRamp', label: 'Символы по яркости' },
+  { value: 'particles', label: 'Частицы' },
 ];
 
 type Param =
@@ -110,6 +111,18 @@ const PARAMS: { readonly [K in DeformerKind]: readonly Param[] } = {
     num('seed', 'Зерно', 0, 2147483647, 1),
   ],
   glyphRamp: [{ key: 'glyphs', label: 'Ряд от тёмного к светлому', type: 'text' }],
+  particles: [
+    { key: 'glyphs', label: 'Символы по возрасту', type: 'text' },
+    { key: 'from', label: 'Цвет в начале', type: 'color' },
+    { key: 'to', label: 'Цвет в конце', type: 'color' },
+    num('rate', 'В секунду', 0, 200, 1),
+    num('life', 'Жизнь, мс', 20, 10000, 50),
+    num('speed', 'Скорость', 0, 128, 0.5),
+    num('angle', 'Направление, °', -360, 360, 5),
+    num('spread', 'Разброс, °', 0, 360, 5),
+    num('gravity', 'Тяжесть', -128, 128, 0.5),
+    num('seed', 'Зерно', 0, 2147483647, 1),
+  ],
 };
 
 function ParamField({
@@ -187,7 +200,7 @@ function ParamField({
   );
 }
 
-/** Ромб ключа у числового параметра; у зерна дрожания ключей нет — там пустое место. */
+/** Ромб ключа у числового параметра; у зерна и частоты частиц ключей нет — там пустое место. */
 function ParamKey({ deformer, param }: { deformer: Deformer; param: Param }) {
   const animatable = (DEFORMER_PARAMS as readonly string[]).includes(param.key);
   const target = animatable
@@ -260,7 +273,7 @@ function DeformerItem({
 
 /**
  * Стек деформеров объекта: сверху вниз по порядку применения. Деформер двигает и красит символы
- * во времени без ключей на каждый символ: волна, дрожание, вихрь, размер, градиент.
+ * во времени без ключей на каждый символ: волна, дрожание, вихрь, размер, градиент, частицы.
  */
 export function DeformerFields({ object }: { readonly object: SceneObject }) {
   const [kind, setKind] = useState<DeformerKind>('wave');
