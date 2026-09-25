@@ -5,6 +5,7 @@ import { type Rgba, TRANSPARENT, tintColor, withAlpha } from './color';
 import { type CellKey, xOf, yOf } from './grid';
 import { deformedPoses, isDeformed, poseMatrix } from './deformObject';
 import { tintOf } from './look';
+import { MATERIAL_FLOATS, materialFloats } from './material';
 import type { SceneObject } from './object';
 import { glyphMatrix } from './transform';
 
@@ -21,9 +22,22 @@ export interface GlyphBatch {
   readonly glyphs: readonly string[];
 }
 
-export const INSTANCE_FLOATS = 14;
-/** Смещения полей внутри записи символа. Цвета — r, g, b, a долями 0..1. */
-export const INSTANCE = { x: 0, y: 1, rot: 2, sx: 3, sy: 4, glyph: 5, fg: 6, bg: 10 } as const;
+export const INSTANCE_FLOATS = 14 + MATERIAL_FLOATS;
+/**
+ * Смещения полей внутри записи символа. Цвета — r, g, b, a долями 0..1. `material` — числа
+ * GPU-материала объекта (`core/material.ts`); у символа без материала там нули.
+ */
+export const INSTANCE = {
+  x: 0,
+  y: 1,
+  rot: 2,
+  sx: 3,
+  sy: 4,
+  glyph: 5,
+  fg: 6,
+  bg: 10,
+  material: 14,
+} as const;
 
 /** Символ потока объектом: для тестов и отладки, горячий путь читает `data` напрямую. */
 export interface GlyphInstance {
@@ -35,6 +49,7 @@ export interface GlyphInstance {
   readonly glyph: string;
   readonly fg: Rgba;
   readonly bg: Rgba;
+  readonly material: readonly number[];
 }
 
 export function readInstance(batch: GlyphBatch, index: number): GlyphInstance {
@@ -50,6 +65,7 @@ export function readInstance(batch: GlyphBatch, index: number): GlyphInstance {
     glyph: batch.glyphs[d[o + INSTANCE.glyph]],
     fg: rgba(o + INSTANCE.fg),
     bg: rgba(o + INSTANCE.bg),
+    material: [...d.subarray(o + INSTANCE.material, o + INSTANCE_FLOATS)],
   };
 }
 
@@ -66,6 +82,7 @@ export class GlyphBatchBuilder {
   private count = 0;
   private readonly index = new Map<string, number>();
   private readonly glyphs: string[] = [];
+  private material: Float32Array | null = null;
 
   get size(): number {
     return this.count;
@@ -93,7 +110,14 @@ export class GlyphBatchBuilder {
     d[o + INSTANCE.glyph] = id;
     writeRgba(d, o + INSTANCE.fg, fg);
     writeRgba(d, o + INSTANCE.bg, bg);
+    if (this.material) d.set(this.material, o + INSTANCE.material);
+    else d.fill(0, o + INSTANCE.material, o + INSTANCE_FLOATS);
     this.count++;
+  }
+
+  /** Материал для символов, которые придут дальше: он общий на объект. */
+  useMaterial(material: Float32Array | null): void {
+    this.material = material;
   }
 
   finish(): GlyphBatch {
@@ -103,6 +127,18 @@ export class GlyphBatchBuilder {
       glyphs: this.glyphs.slice(),
     };
   }
+}
+
+/** Числа материала на объект: материал неизменяемый, поэтому кэш по ссылке на него. */
+const materialCache = new WeakMap<object, Float32Array | null>();
+function materialOf(obj: SceneObject): Float32Array | null {
+  if (obj.material === null) return null;
+  let floats = materialCache.get(obj.material);
+  if (floats === undefined) {
+    floats = materialFloats(obj.material);
+    materialCache.set(obj.material, floats);
+  }
+  return floats;
 }
 
 /** Ключи правленых символов по порядку: при наложении порядок отрисовки не зависит от истории. */
@@ -130,6 +166,7 @@ export function pushObjectGlyphs(
   opacity: number,
   time = 0,
 ): void {
+  builder.useMaterial(materialOf(obj));
   const pose = decomposeAffine(world);
   const alpha = opacity * obj.opacity;
   const tint = tintOf(obj);

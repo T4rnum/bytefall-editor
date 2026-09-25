@@ -61,17 +61,21 @@ export class FrameMeshes {
   }
 
   private create(kind: Slot['kind'], index: number): Slot {
-    const slot: Slot =
-      kind === 'cells'
-        ? { kind, mesh: new GridMesh(this.atlas) }
-        : { kind, mesh: new InstanceMesh(this.atlas) };
-    slot.mesh.mesh.renderOrder = RENDER_ORDER.content + index;
-    this.group.add(slot.mesh.mesh);
-    return slot;
+    const order = RENDER_ORDER.content + index;
+    if (kind === 'cells') {
+      const mesh = new GridMesh(this.atlas);
+      mesh.mesh.renderOrder = order;
+      this.group.add(mesh.mesh);
+      return { kind, mesh };
+    }
+    const mesh = new InstanceMesh(this.atlas);
+    mesh.setRenderOrder(order);
+    this.group.add(mesh.object);
+    return { kind, mesh };
   }
 
   private release(slot: Slot): void {
-    this.group.remove(slot.mesh.mesh);
+    this.group.remove(slot.kind === 'cells' ? slot.mesh.mesh : slot.mesh.object);
     slot.mesh.dispose();
   }
 }

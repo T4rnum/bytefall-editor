@@ -1,4 +1,5 @@
 import { isDeformed } from './deformObject';
+import { hasMaterial } from './material';
 import { type Affine, applyAffine, integerOffset, invertAffine, multiply } from './affine';
 import type { Cell } from './cell';
 import type { Document, Layer } from './document';
@@ -49,7 +50,12 @@ export function objectMatrix(doc: Document, obj: SceneObject): Affine {
  * поворот, масштаб, дробный сдвиг или правки отдельных символов.
  */
 export function isFreeObject(obj: SceneObject, matrix: Affine): boolean {
-  return obj.overrides.size > 0 || integerOffset(matrix) === null || isDeformed(obj);
+  return (
+    obj.overrides.size > 0 ||
+    integerOffset(matrix) === null ||
+    isDeformed(obj) ||
+    hasMaterial(obj.material)
+  );
 }
 
 /**

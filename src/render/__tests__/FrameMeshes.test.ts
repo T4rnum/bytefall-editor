@@ -17,6 +17,11 @@ const frameOf = (passes: FramePass[], dirty: number[] | null = null): ComposedFr
 });
 
 const meshes = (content: FrameMeshes): THREE.Object3D[] => content.group.children;
+/** Место прохода в порядке отрисовки: у потока символов — место его подложки. */
+const orderOf = (obj: THREE.Object3D): number =>
+  obj instanceof THREE.Group
+    ? Math.min(...obj.children.map((c) => c.renderOrder))
+    : obj.renderOrder;
 const fgRanges = (mesh: THREE.Object3D) =>
   ((mesh as THREE.Mesh).geometry.getAttribute('aFg') as THREE.InstancedBufferAttribute)
     .updateRanges;
@@ -26,10 +31,16 @@ describe('FrameMeshes', () => {
     const content = new FrameMeshes(new FakeAtlas());
     content.apply(frameOf([cells(), glyphs(), cells()]));
     expect(meshes(content)).toHaveLength(3);
-    expect(meshes(content).map((m) => m.renderOrder)).toEqual([
+    expect(meshes(content).map(orderOf)).toEqual([
       RENDER_ORDER.content,
       RENDER_ORDER.content + 1,
       RENDER_ORDER.content + 2,
+    ]);
+    // Подложка материала сразу под своими символами и выше предыдущего прохода.
+    const stream = meshes(content)[1] as THREE.Group;
+    expect(stream.children.map((c) => c.renderOrder)).toEqual([
+      RENDER_ORDER.content + 1,
+      RENDER_ORDER.content + 1.5,
     ]);
     // Служебная графика всегда выше любого прохода.
     expect(RENDER_ORDER.gridLines).toBeGreaterThan(RENDER_ORDER.content + 1000);

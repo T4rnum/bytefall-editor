@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { normalizeHex } from '../color';
+import { hasMaterial } from '../material';
 import { deformersSchema } from './deformers';
+import { materialFromFile, materialSchema, materialToFile } from './material';
 import type { Layer } from '../document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from '../grid';
 import type { SceneObject } from '../object';
@@ -79,6 +81,8 @@ export const objectSchema = z.object({
   overrides: z.array(overrideSchema).max(MAX_CELLS_PER_LAYER).optional(),
   /** Версия 7. */
   deformers: deformersSchema.optional(),
+  /** Версия 8. */
+  material: materialSchema.optional(),
   props: attrs.optional(),
 });
 
@@ -108,6 +112,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     cells: cellsToFile(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
     ...(obj.deformers.length > 0 ? { deformers: [...obj.deformers] } : {}),
+    ...(hasMaterial(obj.material) ? { material: materialToFile(obj.material) } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
   }));
 }
@@ -180,6 +185,7 @@ export function objectsFromFile(
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
       deformers: uniqueDeformers(obj.id, obj.deformers ?? []),
+      material: materialFromFile(obj.material),
       props: obj.props ?? {},
     };
   });

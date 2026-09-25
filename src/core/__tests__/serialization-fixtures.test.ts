@@ -16,6 +16,7 @@ import v4 from './fixtures/v4-effects.bp.json?raw';
 import v5 from './fixtures/v5-transforms.bp.json?raw';
 import v6 from './fixtures/v6-tracks.bp.json?raw';
 import v7 from './fixtures/v7-deformers.bp.json?raw';
+import v8 from './fixtures/v8-material.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -34,6 +35,7 @@ const FIXTURES = {
   'v5-transforms': v5,
   'v6-tracks': v6,
   'v7-deformers': v7,
+  'v8-material': v8,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -156,6 +158,16 @@ describe('фикстуры формата', () => {
     expect(flag.deformers[0]).toMatchObject({ axis: 'y', amplitude: 0.5, wavelength: 4 });
     // До v7 деформеров не было: у объектов старых версий стек пустой.
     expect(frameDocument(deserialize(v6), 0).objects[0].deformers).toEqual([]);
+  });
+
+  it('v8: материал объекта читается, цвет приводится к нижнему регистру', () => {
+    const [flag] = frameDocument(deserialize(v8), 0).objects;
+    expect(flag.material).toEqual({
+      outline: { color: '#000000', width: 2 },
+      glow: { color: '#ffec27', radius: 0.5, strength: 1.5 },
+    });
+    // До v8 материала не было.
+    expect(frameDocument(deserialize(v7), 0).objects[0].material).toBeNull();
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {

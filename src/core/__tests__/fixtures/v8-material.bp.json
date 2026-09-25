@@ -1,0 +1,109 @@
+{
+  "format": "bytefall",
+  "version": 8,
+  "name": "Fixture v8",
+  "width": 8,
+  "height": 4,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": [
+    "#000000",
+    "#ffffff"
+  ],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-flag",
+          "name": "Flag",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 1,
+            "y": 1,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 2,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [
+            {
+              "x": 0,
+              "y": 0,
+              "g": "~",
+              "f": "#ffffff"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "g": "~",
+              "f": "#ffffff"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "g": "~",
+              "f": "#ffffff"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "g": "~",
+              "f": "#ffffff"
+            }
+          ],
+          "deformers": [
+            {
+              "id": "deform-wave",
+              "enabled": true,
+              "kind": "wave",
+              "axis": "y",
+              "amplitude": 0.5,
+              "wavelength": 4,
+              "period": 800
+            },
+            {
+              "id": "deform-ramp",
+              "enabled": false,
+              "kind": "colorRamp",
+              "from": "#29adff",
+              "to": "#ff77a8",
+              "axis": "radial",
+              "length": 6,
+              "period": 0,
+              "amount": 0.5
+            }
+          ],
+          "material": {
+            "outline": {
+              "color": "#000000",
+              "width": 2
+            },
+            "glow": {
+              "color": "#FFEC27",
+              "radius": 0.5,
+              "strength": 1.5
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "fps": 20
+}

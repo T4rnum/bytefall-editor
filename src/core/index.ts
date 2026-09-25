@@ -24,6 +24,7 @@ export * from './instances';
 export * from './interpolate';
 export * from './keyframes';
 export * from './look';
+export * from './material';
 export * from './object';
 export * from './overrides';
 export * from './placement';

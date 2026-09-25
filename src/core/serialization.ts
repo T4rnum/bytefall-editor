@@ -50,10 +50,10 @@ export const LEGACY_FORMAT_NAMES = ['blendphoto'] as const;
 /**
  * Версия 2 добавила объекты, 3 кадры, 4 эффекты слоёв, 5 трансформ объектов, правки символов
  * и родителей, 6 — время: частоту и длину сцены, треки ключей, непрозрачность и оттенок
- * объекта, 7 — деформеры объекта. Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
+ * объекта, 7 — деформеры объекта, 8 — GPU-материал объекта. Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
  * Кадры старых файлов без изменений становятся спрайт-треком: у них уже были длительности.
  */
-export const FORMAT_VERSION = 7;
+export const FORMAT_VERSION = 8;
 /** bp — bytefall project. Расширение осталось от прототипа, чтобы старые файлы открывались. */
 export const FILE_EXTENSION = '.bp.json';
 
@@ -87,6 +87,7 @@ const documentSchema = z.object({
     z.literal(5),
     z.literal(6),
     z.literal(7),
+    z.literal(8),
   ]),
   name: z.string().max(MAX_NAME_LENGTH),
   width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
