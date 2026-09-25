@@ -9,6 +9,7 @@ import type { GlyphAtlas } from './font/GlyphAtlas';
 import { FrameMeshes } from './FrameMeshes';
 import type { GizmoMarks } from './gizmo';
 import { Overlay } from './Overlay';
+import type { RigMarks } from './rigLayer';
 import {
   DEFAULT_POST,
   type PostPasses,
@@ -135,6 +136,11 @@ export class SceneView {
   setObjectOutline(quad: readonly Point[] | null): void {
     this.overlay.setObjectOutline(quad);
     this.requestRender();
+  }
+
+  /** Кости и контроллеры рига поверх рисунка; null — рига нет. */
+  setRig(marks: RigMarks | null): void {
+    this.overlay.setRig(marks);
   }
 
   setCamera(state: CameraState): void {

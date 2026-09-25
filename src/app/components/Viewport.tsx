@@ -18,6 +18,7 @@ import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/view
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { buildToolEnv } from '../tools/env';
 import { gizmoLayout } from '../tools/gizmo';
+import { rigLayout } from '../tools/rig';
 
 type Drag =
   | { readonly kind: 'tool'; readonly pointerId: number }
@@ -123,11 +124,15 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       return [...tiles];
     };
 
-    /** Рамка выбранного объекта, а у инструмента объектов — ещё и ручки трансформа. */
+    /**
+     * Рамка выбранного объекта, а у инструмента объектов — ещё и ручки трансформа. У кости и
+     * контроллера рамки нет: их выделяет сам рисунок рига.
+     */
     const syncObjectOutline = (): void => {
       const { selectedObjectId, tool, camera } = useEditorStore.getState();
       const doc = currentDoc();
-      const obj = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
+      const found = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
+      const obj = found?.rig ? undefined : found;
       const world = obj ? objectMatrix(doc, obj) : null;
       view.setObjectOutline(obj && world ? objectQuad(obj, world) : null);
       const gizmo =
@@ -135,6 +140,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
           ? gizmoLayout(obj, world, camera.zoom)
           : null;
       view.setGizmo(gizmo && { ...gizmo, handles: gizmo.scale.map((s) => s.at) });
+      view.setRig(rigLayout(doc, selectedObjectId, camera.zoom));
     };
 
     /**

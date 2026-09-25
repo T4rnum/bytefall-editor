@@ -1,9 +1,11 @@
 import {
+  Bone,
   ChevronDown,
   ChevronUp,
   ClipboardCopy,
   ClipboardPaste,
   Copy,
+  Crosshair,
   Eye,
   EyeOff,
   Group,
@@ -46,6 +48,8 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
   const [editing, setEditing] = useState(false);
   const VisibleIcon = object.visible ? Eye : EyeOff;
   const LockIcon = object.locked ? Lock : LockOpen;
+  // Кость и контроллер без символов: значок говорит, что это риг, а не пустой объект.
+  const KindIcon = object.rig?.kind === 'bone' ? Bone : object.rig ? Crosshair : null;
 
   return (
     <li
@@ -76,6 +80,7 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
       >
         <LockIcon size={14} />
       </Button>
+      {KindIcon && <KindIcon size={12} className="item-kind" aria-hidden="true" />}
       {editing ? (
         <div className="item-name" onClick={(e) => e.stopPropagation()}>
           <TextField

@@ -3,10 +3,13 @@ import type { Point } from '../core/geometry';
 import { type Checker, createChecker } from './checker';
 import { type GizmoLayer, type GizmoMarks, createGizmoLayer } from './gizmo';
 import { RENDER_ORDER } from './order';
+import { type RigLayer, type RigMarks, createRigLayer } from './rigLayer';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
 
 export const ACCENT_COLOR = '#ffb347';
 export const OBJECT_COLOR = '#4fd1ff';
+/** Кости и контроллеры: свой цвет, чтобы риг не путался с рамкой объекта. */
+export const RIG_COLOR = '#b388ff';
 /** Заливка ручек гизмо: тёмная, чтобы ручка читалась и на светлом, и на тёмном рисунке. */
 const HANDLE_FILL_COLOR = '#101418';
 
@@ -63,6 +66,7 @@ export class Overlay {
   private readonly selection: SelectionLayer;
   private readonly objectOutline: Outline;
   private readonly gizmo: GizmoLayer;
+  private readonly rig: RigLayer;
   private gridLines: Lines | null = null;
   private width = 0;
   private height = 0;
@@ -75,6 +79,7 @@ export class Overlay {
   private hasSelection = false;
   private hasObject = false;
   private hasGizmo = false;
+  private hasRig = false;
 
   constructor() {
     this.background = new THREE.Mesh(unitPlane(), planeMaterial('#000000', 1));
@@ -92,11 +97,13 @@ export class Overlay {
       accent: ACCENT_COLOR,
       fill: HANDLE_FILL_COLOR,
     });
+    this.rig = createRigLayer({ color: RIG_COLOR, accent: ACCENT_COLOR });
     this.group.add(
       this.background,
       this.checker.mesh,
       this.selection.mesh,
       this.objectOutline,
+      this.rig.group,
       this.gizmo.group,
       this.cursor,
     );
@@ -166,9 +173,17 @@ export class Overlay {
     this.applyVisibility();
   }
 
-  /** Ручки гизмо задаются в пикселях экрана и пересчитываются под плотность экрана. */
+  /** Кости и контроллеры рига. null — рига в документе нет. */
+  setRig(marks: RigMarks | null): void {
+    this.hasRig = marks !== null;
+    if (marks) this.rig.update(marks);
+    this.applyVisibility();
+  }
+
+  /** Ручки гизмо и кольца рига задаются в пикселях экрана и пересчитываются под плотность. */
   setPixelRatio(ratio: number): void {
     this.gizmo.setPixelRatio(ratio);
+    this.rig.setPixelRatio(ratio);
   }
 
   /** Скрывает служебную графику, например на время экспорта. */
@@ -186,6 +201,7 @@ export class Overlay {
     this.selection.mesh.visible = chrome && this.hasSelection;
     this.objectOutline.visible = chrome && this.hasObject;
     this.gizmo.group.visible = chrome && this.hasGizmo;
+    this.rig.group.visible = chrome && this.hasRig;
   }
 
   private rebuildGrid(): void {
@@ -212,6 +228,7 @@ export class Overlay {
     this.selection.dispose();
     this.checker.dispose();
     this.gizmo.dispose();
+    this.rig.dispose();
     if (this.gridLines) disposeObject(this.gridLines);
   }
 }

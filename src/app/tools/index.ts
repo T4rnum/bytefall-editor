@@ -6,6 +6,7 @@ import {
   createRectTool,
   createStrokeTool,
 } from './drawingTools';
+import { createBoneTool } from './boneTool';
 import { createObjectTool } from './objectTool';
 import { createLassoTool, createSelectTool, createWandTool } from './selectTool';
 import { createTextTool } from './textTool';
@@ -28,6 +29,7 @@ export const TOOLS: readonly Tool[] = [
   createWandTool(),
   createTextTool(),
   createObjectTool(),
+  createBoneTool(),
 ];
 
 const byId = new Map<ToolId, Tool>(TOOLS.map((t) => [t.id, t]));

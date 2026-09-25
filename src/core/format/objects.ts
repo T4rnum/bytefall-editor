@@ -3,6 +3,7 @@ import { normalizeHex } from '../color';
 import { hasMaterial } from '../material';
 import { deformersSchema } from './deformers';
 import { materialFromFile, materialSchema, materialToFile } from './material';
+import { rigFromFile, rigSchema, rigToFile } from './rig';
 import type { Layer } from '../document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from '../grid';
 import type { SceneObject } from '../object';
@@ -83,6 +84,8 @@ export const objectSchema = z.object({
   deformers: deformersSchema.optional(),
   /** Версия 8. */
   material: materialSchema.optional(),
+  /** Версия 9: кость или контроллер рига. */
+  rig: rigSchema.optional(),
   props: attrs.optional(),
 });
 
@@ -113,6 +116,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
     ...(obj.deformers.length > 0 ? { deformers: [...obj.deformers] } : {}),
     ...(hasMaterial(obj.material) ? { material: materialToFile(obj.material) } : {}),
+    ...(obj.rig ? { rig: rigToFile(obj.rig) } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
   }));
 }
@@ -186,6 +190,7 @@ export function objectsFromFile(
       overrides: overridesFromFile(obj.overrides ?? [], cells),
       deformers: uniqueDeformers(obj.id, obj.deformers ?? []),
       material: materialFromFile(obj.material),
+      rig: rigFromFile(obj.rig),
       props: obj.props ?? {},
     };
   });

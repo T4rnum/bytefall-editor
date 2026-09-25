@@ -16,7 +16,8 @@ export type ToolId =
   | 'lasso'
   | 'wand'
   | 'text'
-  | 'object';
+  | 'object'
+  | 'bone';
 
 /** Всё, что инструменту нужно от редактора. Собирается заново на каждое событие. */
 export interface ToolEnv {

@@ -311,6 +311,12 @@ select {
   white-space: nowrap;
 }
 
+/** Значок узла рига перед именем: кость или контроллер. */
+.item-kind {
+  flex: none;
+  color: var(--text-dim);
+}
+
 .item-name-input {
   flex: 1;
   min-width: 0;

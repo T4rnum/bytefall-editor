@@ -1,4 +1,5 @@
 import {
+  Bone,
   Circle,
   Eraser,
   Grid2x2,
@@ -32,6 +33,7 @@ const ICONS: Record<ToolId, LucideIcon> = {
   wand: Wand,
   text: Type,
   object: Move,
+  bone: Bone,
 };
 
 export function ToolBar() {

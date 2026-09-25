@@ -15,6 +15,7 @@ import { DeformerFields } from './DeformerFields';
 import { GlyphFields } from './GlyphFields';
 import { LookFields } from './LookFields';
 import { MaterialFields } from './MaterialFields';
+import { RigFields } from './RigFields';
 import { TransformFields } from './TransformFields';
 
 interface Props {
@@ -76,17 +77,28 @@ export function ObjectInspector({ object }: Props) {
         />
       </Field>
       <TransformFields object={object} />
-      <h4 className="inspector-heading">Вид</h4>
-      <LookFields object={object} />
-      <span className="dim">
-        {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
-      </span>
-      <h4 className="inspector-heading">Материал</h4>
-      <MaterialFields object={object} />
-      <h4 className="inspector-heading">Деформеры</h4>
-      <DeformerFields object={object} />
-      <h4 className="inspector-heading">Отдельные символы</h4>
-      <GlyphFields object={object} />
+      {object.rig ? (
+        <>
+          <h4 className="inspector-heading">
+            {object.rig.kind === 'bone' ? 'Кость' : 'Контроллер'}
+          </h4>
+          <RigFields object={object} />
+        </>
+      ) : (
+        <>
+          <h4 className="inspector-heading">Вид</h4>
+          <LookFields object={object} />
+          <span className="dim">
+            {plural(object.cells.size, { one: 'ячейка', few: 'ячейки', many: 'ячеек' })}
+          </span>
+          <h4 className="inspector-heading">Материал</h4>
+          <MaterialFields object={object} />
+          <h4 className="inspector-heading">Деформеры</h4>
+          <DeformerFields object={object} />
+          <h4 className="inspector-heading">Отдельные символы</h4>
+          <GlyphFields object={object} />
+        </>
+      )}
 
       <PropertyEditor
         rows={rows}

@@ -4,6 +4,7 @@ import type { Point } from '../../core/geometry';
 import { moveInDocument, removeObject } from '../../core/hierarchy';
 import { canEditObject, findObject, transformObject } from '../../core/object';
 import { objectAt, objectMatrix } from '../../core/placement';
+import { isBone } from '../../core/rig';
 import type { Transform2D } from '../../core/transform';
 import {
   type ScaleHandle,
@@ -14,6 +15,7 @@ import {
   turnAround,
 } from '../../core/transformGesture';
 import { gizmoLayout, handleCursor, hitGizmo } from './gizmo';
+import { onBoneTail, rigNodeAt } from './rig';
 import type { PointerInfo, Tool, ToolEnv } from './types';
 
 const NUDGE_FAST = 10;
@@ -65,6 +67,11 @@ function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
   if (!obj || !canEditObject(env.doc, obj)) return null;
   const world = objectMatrix(env.doc, obj);
   const base = { id: obj.id, start: obj.transform, world, from: info.point };
+  if (obj.rig) {
+    // У кости нет рамки и ручек: её поворачивают за конец вокруг сустава, опора — сам сустав.
+    const tail = isBone(obj) && onBoneTail(env.doc, obj, info.point, env.zoom);
+    return tail ? { kind: 'rotate', ...base, last: info.point, turned: 0 } : null;
+  }
   if (info.alt) return { kind: 'pivot', ...base };
   const handle = hitGizmo(gizmoLayout(obj, world, env.zoom), info.point, env.zoom);
   if (!handle) return null;
@@ -132,7 +139,9 @@ export function createObjectTool(): Tool {
         if (next) env.setDraft(next);
         return;
       }
-      const hit = objectAt(env.doc, info.cell.x, info.cell.y);
+      // Кость и контроллер тоньше ячейки и лежат поверх рисунка: их ищем первыми.
+      const hit =
+        rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);
       env.setSelectedObject(hit ? hit.id : null);
       if (hit && canEditObject(env.doc, hit)) {
         gesture = { kind: 'move', id: hit.id, anchor: info.cell, moved: false };
@@ -152,13 +161,17 @@ export function createObjectTool(): Tool {
     },
     hoverCursor(env, info) {
       const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
-      if (obj && canEditObject(env.doc, obj)) {
+      if (obj && canEditObject(env.doc, obj) && obj.rig) {
+        if (isBone(obj) && onBoneTail(env.doc, obj, info.point, env.zoom)) return 'grab';
+      } else if (obj && canEditObject(env.doc, obj)) {
         if (info.alt) return 'crosshair';
         const layout = gizmoLayout(obj, objectMatrix(env.doc, obj), env.zoom);
         const handle = hitGizmo(layout, info.point, env.zoom);
         if (handle) return handleCursor(layout, handle);
       }
-      return objectAt(env.doc, info.cell.x, info.cell.y) ? 'move' : null;
+      const hit =
+        rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);
+      return hit ? 'move' : null;
     },
     onKeyDown(env, event) {
       const id = env.selectedObjectId;

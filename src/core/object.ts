@@ -2,6 +2,7 @@ import type { CellAttrValue } from './cell';
 import { type Deformer, copyDeformers } from './deformers';
 import { type Document, canEditLayer, findLayer, newId } from './document';
 import type { GlyphMaterial } from './material';
+import type { Rig } from './rig';
 import { type CellGrid, emptyGrid } from './grid';
 import {
   type GlyphOverrides,
@@ -47,6 +48,8 @@ export interface SceneObject {
   readonly deformers: readonly Deformer[];
   /** GPU-материал: контур и свечение символов, см. `core/material.ts`. null — без материала. */
   readonly material: GlyphMaterial | null;
+  /** Кость или контроллер рига, см. `core/rig.ts`. null — обычный объект. */
+  readonly rig: Rig | null;
   readonly props: ObjectProps;
 }
 
@@ -79,6 +82,7 @@ export function createObject(init: CreateObjectInit): SceneObject {
     overrides: emptyOverrides(),
     deformers: [],
     material: null,
+    rig: null,
     props: init.props ?? {},
   };
 }

@@ -27,7 +27,7 @@ const KNOB_PX = 11;
 const PIVOT_PX = 13;
 
 /** Кольцо в маленькой текстуре: точка с ней рисуется кружком, а не квадратом. */
-function ringTexture(size: number, thickness: number): THREE.DataTexture {
+export function ringTexture(size: number, thickness: number): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4);
   const r = size / 2;
   for (let y = 0; y < size; y++) {

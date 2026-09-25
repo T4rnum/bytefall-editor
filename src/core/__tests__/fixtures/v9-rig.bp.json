@@ -1,0 +1,104 @@
+{
+  "format": "bytefall",
+  "version": 9,
+  "name": "Fixture v9",
+  "width": 12,
+  "height": 8,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": [
+    "#000000",
+    "#ffffff"
+  ],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        }
+      ],
+      "objects": [
+        {
+          "id": "bone-upper",
+          "name": "Upper arm",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 2,
+            "y": 4,
+            "dx": 0,
+            "dy": 0.5,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 0,
+            "py": 0
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [],
+          "rig": {
+            "kind": "bone",
+            "length": 3.5
+          }
+        },
+        {
+          "id": "bone-lower",
+          "name": "Forearm",
+          "layerId": "layer-base",
+          "parentId": "bone-upper",
+          "transform": {
+            "x": 4,
+            "y": 0,
+            "dx": -0.5,
+            "dy": 0,
+            "rot": 30,
+            "sx": 1,
+            "sy": 1,
+            "px": 0,
+            "py": 0
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [],
+          "rig": {
+            "kind": "bone",
+            "length": 3,
+            "limit": {
+              "min": 0,
+              "max": 150
+            }
+          }
+        },
+        {
+          "id": "control-hand",
+          "name": "Hand target",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 9,
+            "y": 6,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 0,
+            "py": 0
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [],
+          "rig": {
+            "kind": "control"
+          }
+        }
+      ]
+    }
+  ]
+}

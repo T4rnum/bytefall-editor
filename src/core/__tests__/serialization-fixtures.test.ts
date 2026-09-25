@@ -17,6 +17,7 @@ import v5 from './fixtures/v5-transforms.bp.json?raw';
 import v6 from './fixtures/v6-tracks.bp.json?raw';
 import v7 from './fixtures/v7-deformers.bp.json?raw';
 import v8 from './fixtures/v8-material.bp.json?raw';
+import v9 from './fixtures/v9-rig.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -36,6 +37,7 @@ const FIXTURES = {
   'v6-tracks': v6,
   'v7-deformers': v7,
   'v8-material': v8,
+  'v9-rig': v9,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -170,6 +172,16 @@ describe('фикстуры формата', () => {
     });
     // До v8 материала не было.
     expect(frameDocument(deserialize(v7), 0).objects[0].material).toBeNull();
+  });
+
+  it('v9: кости и контроллер рига читаются как записаны, сустав — в начале кости', () => {
+    const [upper, lower, target] = frameDocument(deserialize(v9), 0).objects;
+    expect(upper.rig).toEqual({ kind: 'bone', length: 3.5, limit: null });
+    expect(lower).toMatchObject({ parentId: 'bone-upper', transform: { rot: 30, px: 0 } });
+    expect(lower.rig).toEqual({ kind: 'bone', length: 3, limit: { min: 0, max: 150 } });
+    expect(target.rig).toEqual({ kind: 'control' });
+    // До v9 рига не было.
+    expect(frameDocument(deserialize(v8), 0).objects[0].rig).toBeNull();
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {
