@@ -22,7 +22,17 @@ import {
 import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
 import { toggleKeyAction } from '../store/keyActions';
-import { Button, KeyButton, Panel, Slider, TextField, dropsBefore, reorderIndex } from '../ui';
+import {
+  Button,
+  Field,
+  KeyButton,
+  NumberField,
+  Panel,
+  TextField,
+  dropsBefore,
+  reorderIndex,
+  resetTo,
+} from '../ui';
 
 /** Перетаскивание строки: откуда взяли, над какой строкой и с какой стороны от неё. */
 interface Drag {
@@ -190,6 +200,15 @@ export function LayersPanel() {
       `layer-opacity:${active.id}:${gesture.current}`,
     );
   };
+  // Сброс — отдельная запись истории: он не продолжает серию жеста и не трогает её ключ.
+  const resetOpacity = (value: number): void => {
+    if (active) updateLayerAction(active.id, { opacity: value / 100 }, 'Layer opacity');
+  };
+  const commitOpacity = (value: number): void => {
+    setOpacity(value);
+    // Отпускание указателя завершает серию: следующий жест станет отдельной отменой.
+    gesture.current += 1;
+  };
 
   return (
     <Panel
@@ -234,20 +253,20 @@ export function LayersPanel() {
           />
         ))}
       </ul>
-      <div className="keyed">
-        <Slider
-          label="Непрозрачность"
+      <Field
+        label="Непрозрачность"
+        onReset={active ? resetTo(opacity, 100, resetOpacity) : undefined}
+      >
+        <NumberField
           value={opacity}
           min={0}
           max={100}
+          step={1}
           suffix="%"
           disabled={!active}
           onChange={setOpacity}
-          onCommit={(value) => {
-            setOpacity(value);
-            // Отпускание указателя завершает серию: следующий жест станет отдельной отменой.
-            gesture.current += 1;
-          }}
+          onCommit={commitOpacity}
+          width="var(--field-w)"
         />
         <KeyButton
           state={opacityKey}
@@ -255,7 +274,7 @@ export function LayersPanel() {
           disabled={!active}
           onClick={() => opacityTarget && toggleKeyAction(opacityTarget)}
         />
-      </div>
+      </Field>
     </Panel>
   );
 }

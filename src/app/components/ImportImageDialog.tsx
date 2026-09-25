@@ -10,6 +10,7 @@ import {
 } from '../store/importActions';
 import {
   type ImportSettings,
+  defaultSettings,
   initialSettings,
   quantizeOptionsOf,
   saveStyle,
@@ -58,10 +59,14 @@ function useConversion(source: ImageImportSource, settings: ImportSettings, atla
  */
 function ImportImageDialogBody({ source, atlas }: BodyProps) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [settings, setSettings] = useState(() => {
+  // Холст на время предпросмотра меняет размер: ширина по умолчанию считается от того, что был.
+  const [start] = useState(() => {
     const { doc, animation } = useDocumentStore.getState();
-    return initialSettings(source.image, doc, isDocumentEmpty(animation));
+    return { doc: { width: doc.width }, fit: isDocumentEmpty(animation) };
   });
+  const [settings, setSettings] = useState(() =>
+    initialSettings(source.image, start.doc, start.fit),
+  );
   const converted = useConversion(source, settings, atlas);
 
   // Не модальное окно: холст за ним можно двигать и приближать, чтобы разглядеть результат.
@@ -101,6 +106,7 @@ function ImportImageDialogBody({ source, atlas }: BodyProps) {
         </p>
         <ImportImageFields
           settings={settings}
+          defaults={defaultSettings(image, start.doc, settings.fitCanvas)}
           height={converted.height}
           onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
         />

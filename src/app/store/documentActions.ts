@@ -84,7 +84,7 @@ export function updateLayerAction(
   id: string,
   patch: Partial<Omit<Layer, 'id' | 'cells' | 'effects'>>,
   label: string,
-  /** Ключ серии: непрерывное перетаскивание ползунка должно стать одной записью истории. */
+  /** Ключ серии: непрерывное перетаскивание поля должно стать одной записью истории. */
   mergeKey?: string,
 ): void {
   const { animation, time, commitAnimation } = state();

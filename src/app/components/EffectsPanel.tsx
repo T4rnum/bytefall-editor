@@ -6,6 +6,7 @@ import {
   type EffectByKind,
   type EffectKind,
   type LayerEffect,
+  createEffect,
 } from '../../core/effects';
 import type { EffectParam } from '../../core/tracks';
 import { useKeyState } from '../hooks/useKeyState';
@@ -23,6 +24,7 @@ import {
   Select,
   type SelectOption,
   TextField,
+  resetTo,
 } from '../ui';
 
 /** Описание поля эффекта; ключ проверяется компилятором против интерфейса эффекта. */
@@ -105,6 +107,11 @@ const FIELDS: FieldsByKind = {
 const kindLabel = (kind: EffectKind): string =>
   EFFECT_KINDS.find((k) => k.kind === kind)?.label ?? kind;
 
+type Values = Readonly<Record<string, string | number | boolean>>;
+
+/** Параметры нового эффекта того же вида: к ним ведут кнопки сброса. */
+const defaultsOf = (kind: EffectKind): Values => createEffect(kind, '') as unknown as Values;
+
 /**
  * Числовой параметр эффекта с ромбом ключа. Перетаскивание поля пишет на каждое движение, а
  * записи одного жеста склеиваются: отменяется жест целиком.
@@ -128,8 +135,12 @@ function NumberParam({
       `fx:${effect.id}:${field.key}:${gesture.current}`,
     );
   };
+  // Сброс — отдельная запись истории: серии жеста он не продолжает.
+  const reset = resetTo(value, defaultsOf(effect.kind)[field.key], (initial) =>
+    updateEffectAction(effect, { [field.key]: initial }),
+  );
   return (
-    <Field label={field.label}>
+    <Field label={field.label} onReset={reset}>
       <NumberField
         value={value}
         min={field.min}
@@ -140,7 +151,7 @@ function NumberParam({
           change(next);
           gesture.current += 1;
         }}
-        width="var(--field-w-sm)"
+        width="var(--field-w)"
       />
       <KeyButton
         state={state}
@@ -159,6 +170,7 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
     updateEffectAction(effect, { [field.key]: next });
   };
   if (field.type === 'number') return <NumberParam effect={effect} field={field} />;
+  const reset = resetTo(value, defaultsOf(effect.kind)[field.key], commit);
 
   if (field.type === 'boolean') {
     return (
@@ -169,7 +181,7 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
   }
   if (field.type === 'select') {
     return (
-      <Field label={field.label}>
+      <Field label={field.label} onReset={reset}>
         <Select
           value={String(value)}
           options={field.options}
@@ -177,12 +189,13 @@ function FieldEditor({ effect, field }: { effect: LayerEffect; field: EffectFiel
           ariaLabel={field.label}
           onChange={commit}
         />
+        <span className="key-spacer" aria-hidden="true" />
       </Field>
     );
   }
   if (field.type === 'text') {
     return (
-      <Field label={field.label}>
+      <Field label={field.label} stacked onReset={reset}>
         <TextField
           value={String(value)}
           size="sm"
@@ -252,7 +265,7 @@ export function EffectsPanel() {
                   <X size={12} />
                 </Button>
               </div>
-              <FieldGroup columns={2} className="fx-fields">
+              <FieldGroup className="fx-fields">
                 {FIELDS[effect.kind].map((field) => (
                   <FieldEditor key={field.key} effect={effect} field={field} />
                 ))}

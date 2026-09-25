@@ -15,7 +15,32 @@ import {
 } from '../../core/material';
 import type { SceneObject } from '../../core/object';
 import { setMaterialAction } from '../store/lookActions';
-import { Checkbox, ColorField, Field, NumberField } from '../ui';
+import { Checkbox, ColorField, Field, NumberField, resetTo } from '../ui';
+
+/** Цвет части материала с подписью и сбросом к цвету по умолчанию. */
+function PartColor({
+  label,
+  value,
+  initial,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly initial: string;
+  readonly onChange: (color: string, merge: boolean) => void;
+}) {
+  return (
+    <Field label={label} onReset={resetTo(value, initial, (c) => onChange(c, false))}>
+      <ColorField
+        label={label}
+        value={value}
+        size="sm"
+        onChange={(color) => color && onChange(color, true)}
+        onCommit={(color) => color && onChange(color, false)}
+      />
+    </Field>
+  );
+}
 
 interface PartProps<T> {
   readonly object: SceneObject;
@@ -36,24 +61,22 @@ function OutlineFields({ value, onChange }: PartProps<OutlineMaterial>) {
       </Checkbox>
       {value && (
         <>
-          <ColorField
+          <PartColor
             label="Цвет контура"
             value={value.color}
-            size="sm"
-            onChange={(color) => color && onChange({ ...value, color }, true)}
-            onCommit={(color) => color && onChange({ ...value, color }, false)}
+            initial={DEFAULT_OUTLINE.color}
+            onChange={(color, merge) => onChange({ ...value, color }, merge)}
           />
-          <Field label="Толщина" title="В пикселях шрифта">
-            <NumberField
-              value={value.width}
-              min={1}
-              max={MAX_OUTLINE_WIDTH}
-              step={1}
-              onChange={(width) => onChange({ ...value, width }, true)}
-              onCommit={(width) => onChange({ ...value, width }, false)}
-              width="var(--field-w)"
-            />
-          </Field>
+          <PartNumber
+            label="Толщина"
+            title="В пикселях шрифта"
+            value={value.width}
+            initial={DEFAULT_OUTLINE.width}
+            min={1}
+            max={MAX_OUTLINE_WIDTH}
+            step={1}
+            onChange={(width, merge) => onChange({ ...value, width }, merge)}
+          />
         </>
       )}
     </>
@@ -72,45 +95,46 @@ function GlowFields({ value, onChange }: PartProps<GlowMaterial>) {
       </Checkbox>
       {value && (
         <>
-          <ColorField
+          <PartColor
             label="Цвет свечения"
             value={value.color}
-            size="sm"
-            onChange={(color) => color && onChange({ ...value, color }, true)}
-            onCommit={(color) => color && onChange({ ...value, color }, false)}
+            initial={DEFAULT_GLOW.color}
+            onChange={(color, merge) => onChange({ ...value, color }, merge)}
           />
-          <Field label="Радиус" title="В ячейках">
-            <NumberField
-              value={value.radius}
-              min={0.05}
-              max={MAX_GLOW_RADIUS}
-              step={0.05}
-              onChange={(radius) => onChange({ ...value, radius }, true)}
-              onCommit={(radius) => onChange({ ...value, radius }, false)}
-              width="var(--field-w)"
-            />
-          </Field>
-          <Field label="Сила">
-            <NumberField
-              value={value.strength}
-              min={0}
-              max={MAX_GLOW_STRENGTH}
-              step={0.1}
-              onChange={(strength) => onChange({ ...value, strength }, true)}
-              onCommit={(strength) => onChange({ ...value, strength }, false)}
-              width="var(--field-w)"
-            />
-          </Field>
+          <PartNumber
+            label="Радиус"
+            title="В ячейках"
+            value={value.radius}
+            initial={DEFAULT_GLOW.radius}
+            min={0.05}
+            max={MAX_GLOW_RADIUS}
+            step={0.05}
+            onChange={(radius, merge) => onChange({ ...value, radius }, merge)}
+          />
+          <PartNumber
+            label="Сила"
+            value={value.strength}
+            initial={DEFAULT_GLOW.strength}
+            min={0}
+            max={MAX_GLOW_STRENGTH}
+            step={0.1}
+            onChange={(strength, merge) => onChange({ ...value, strength }, merge)}
+          />
         </>
       )}
     </>
   );
 }
 
-/** Числовое поле части материала: пишет по ходу жеста и завершает его на отпускании. */
+/**
+ * Числовое поле части материала: пишет по ходу жеста и завершает его на отпускании, сбрасывает
+ * к значению по умолчанию.
+ */
 function PartNumber({
   label,
+  title,
   value,
+  initial,
   min,
   max,
   step,
@@ -118,7 +142,9 @@ function PartNumber({
   onChange,
 }: {
   readonly label: string;
+  readonly title?: string;
   readonly value: number;
+  readonly initial: number;
   readonly min: number;
   readonly max: number;
   readonly step: number;
@@ -126,7 +152,7 @@ function PartNumber({
   readonly onChange: (value: number, merge: boolean) => void;
 }) {
   return (
-    <Field label={label}>
+    <Field label={label} title={title} onReset={resetTo(value, initial, (v) => onChange(v, false))}>
       <NumberField
         value={value}
         min={min}
@@ -155,16 +181,16 @@ function ShineFields({ value, onChange }: PartProps<ShineMaterial>) {
       </Checkbox>
       {value && (
         <>
-          <ColorField
+          <PartColor
             label="Цвет блика"
             value={value.color}
-            size="sm"
-            onChange={(color) => color && set({ color }, true)}
-            onCommit={(color) => color && set({ color }, false)}
+            initial={DEFAULT_SHINE.color}
+            onChange={(color, merge) => set({ color }, merge)}
           />
           <PartNumber
             label="Ширина"
             value={value.width}
+            initial={DEFAULT_SHINE.width}
             min={0.1}
             max={64}
             step={0.1}
@@ -173,6 +199,7 @@ function ShineFields({ value, onChange }: PartProps<ShineMaterial>) {
           <PartNumber
             label="Шаг"
             value={value.spacing}
+            initial={DEFAULT_SHINE.spacing}
             min={0.5}
             max={256}
             step={0.5}
@@ -181,6 +208,7 @@ function ShineFields({ value, onChange }: PartProps<ShineMaterial>) {
           <PartNumber
             label="Скорость"
             value={value.speed}
+            initial={DEFAULT_SHINE.speed}
             min={-MAX_SHINE_SPEED}
             max={MAX_SHINE_SPEED}
             step={0.5}
@@ -189,6 +217,7 @@ function ShineFields({ value, onChange }: PartProps<ShineMaterial>) {
           <PartNumber
             label="Угол"
             value={value.angle}
+            initial={DEFAULT_SHINE.angle}
             min={-360}
             max={360}
             step={5}
@@ -215,6 +244,7 @@ function DitherFields({ value, onChange }: PartProps<DitherMaterial>) {
         <PartNumber
           label="Доля узора"
           value={Math.round(value.amount * 100)}
+          initial={Math.round(DEFAULT_DITHER.amount * 100)}
           min={0}
           max={100}
           step={1}

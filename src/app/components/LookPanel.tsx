@@ -1,7 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { DEFAULT_POST, type PostSettings } from '../../render/post';
 import { useEditorStore } from '../store/editorStore';
-import { Button, Panel, Slider } from '../ui';
+import { Button, Field, NumberField, Panel, resetTo } from '../ui';
 
 const CONTROLS: readonly {
   readonly key: keyof PostSettings;
@@ -28,16 +28,21 @@ export function LookPanel() {
         </Button>
       }
     >
-      {CONTROLS.map((control) => (
-        <Slider
-          key={control.key}
-          label={control.label}
-          value={post[control.key]}
-          min={0}
-          max={control.max}
-          step={0.05}
-          onChange={(value) => setPost({ [control.key]: value })}
-        />
+      {CONTROLS.map(({ key, label, max }) => (
+        <Field
+          key={key}
+          label={label}
+          onReset={resetTo(post[key], DEFAULT_POST[key], (v) => setPost({ [key]: v }))}
+        >
+          <NumberField
+            value={post[key]}
+            min={0}
+            max={max}
+            step={0.05}
+            onChange={(value) => setPost({ [key]: value })}
+            width="var(--field-w)"
+          />
+        </Field>
       ))}
     </Panel>
   );

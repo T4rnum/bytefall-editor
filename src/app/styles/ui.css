@@ -22,7 +22,6 @@
 .numfield:focus-visible,
 .tab:focus-visible,
 .checkbox input:focus-visible,
-.slider-track:focus-visible,
 .panel-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -256,83 +255,6 @@
   cursor: default;
 }
 
-/* ── Ползунок ──────────────────────────────────────────────────────────── */
-.slider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.slider-label {
-  flex: 0 0 auto;
-  color: var(--text-dim);
-  font-size: var(--text-sm);
-}
-
-/**
- * Дорожка нарисована сама, а не взята у input[type=range]: нативная не умеет в модификаторы
- * и не поддаётся единому оформлению.
- */
-.slider-track {
-  position: relative;
-  flex: 1;
-  min-width: 40px;
-  height: var(--control-h-sm);
-  cursor: pointer;
-  touch-action: none;
-}
-
-/** Сама полоса тоньше области нажатия: попадать в четыре пикселя неудобно. */
-.slider-track::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-}
-
-.slider-fill {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: var(--accent);
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.slider-thumb {
-  position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  background: var(--accent);
-  border: 1px solid var(--bg);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  transition: transform var(--motion-fast) var(--ease);
-}
-
-.slider-track:hover .slider-thumb,
-.slider-track:focus-visible .slider-thumb {
-  transform: translate(-50%, -50%) scale(1.25);
-}
-
-.slider.is-disabled {
-  opacity: var(--disabled-opacity);
-}
-
-.slider.is-disabled .slider-track {
-  cursor: default;
-}
-
 /* ── Вкладки ───────────────────────────────────────────────────────────── */
 /** Вкладки переносятся на новую строку, а не распирают узкую панель вбок. */
 .tabs {
@@ -376,12 +298,25 @@
 }
 
 .field-label {
+  display: flex;
   flex: 1;
-  overflow: hidden;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
   color: var(--text-dim);
   font-size: var(--text-sm);
+}
+
+.field-label-text {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/** Сброс прижат к контролу: сбрасывается значение справа от кнопки. */
+.field-reset {
+  margin-left: auto;
+  color: var(--accent);
 }
 
 .field-control {

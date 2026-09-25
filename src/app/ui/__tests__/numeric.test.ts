@@ -9,11 +9,8 @@ import {
   roundTo,
   snapToStep,
   stepFor,
-  trackFraction,
   valueFromDrag,
   valueFromNudge,
-  valueFromTrackDrag,
-  valueFromTrackPosition,
 } from '../numeric';
 
 const unit: NumericRange = { min: 0, max: 1, step: 0.05 };
@@ -183,46 +180,5 @@ describe('dragModeOf', () => {
 
   it('Cmd работает как Ctrl', () => {
     expect(dragModeOf({ shiftKey: false, ctrlKey: false, metaKey: true })).toBe('coarse');
-  });
-});
-
-describe('дорожка ползунка', () => {
-  const track = { left: 100, width: 200 };
-
-  it('щелчок по дорожке ставит значение по положению', () => {
-    expect(valueFromTrackPosition(track.left, track.left, track.width, pixels)).toBe(1);
-    expect(valueFromTrackPosition(track.left + 200, track.left, track.width, pixels)).toBe(1024);
-    expect(valueFromTrackPosition(track.left + 100, track.left, track.width, unit)).toBe(0.5);
-  });
-
-  it('за пределами дорожки значение упирается в границы', () => {
-    expect(valueFromTrackPosition(0, track.left, track.width, unit)).toBe(0);
-    expect(valueFromTrackPosition(9999, track.left, track.width, unit)).toBe(1);
-  });
-
-  it('перетаскивание считает от значения на старте', () => {
-    // Половина дорожки это половина диапазона.
-    expect(valueFromTrackDrag(0, 100, track.width, unit)).toBe(0.5);
-    expect(valueFromTrackDrag(0.5, -100, track.width, unit)).toBe(0);
-  });
-
-  it('Shift замедляет движение по дорожке', () => {
-    const normal = valueFromTrackDrag(0.5, 20, track.width, unit, 'normal');
-    const fine = valueFromTrackDrag(0.5, 20, track.width, unit, 'fine');
-    expect(fine - 0.5).toBeLessThan(normal - 0.5);
-    expect(fine).toBeGreaterThan(0.5);
-  });
-
-  it('нулевая ширина дорожки не ломает расчёт', () => {
-    expect(valueFromTrackDrag(0.5, 50, 0, unit)).toBe(0.5);
-    expect(valueFromTrackPosition(50, 0, 0, unit)).toBe(0);
-  });
-
-  it('доля заполнения считается от границ диапазона', () => {
-    expect(trackFraction(0.5, unit)).toBeCloseTo(0.5);
-    expect(trackFraction(-1, unit)).toBe(0);
-    expect(trackFraction(99, unit)).toBe(1);
-    // Вырожденный диапазон не должен давать деление на ноль.
-    expect(trackFraction(5, { min: 5, max: 5, step: 1 })).toBe(0);
   });
 });

@@ -9,6 +9,7 @@ import {
   MAX_SHIFT,
   MIN_SCALE,
   type Transform2D,
+  centerPivot,
   isPlainTransform,
 } from '../../core/transform';
 import {
@@ -39,6 +40,8 @@ interface Row {
   readonly history: string;
   /** Анимируемое свойство за строкой и как его назвать в подсказке ромба. */
   readonly keyed?: { readonly property: ObjectProperty; readonly subject: string };
+  /** Значения по умолчанию для кнопки сброса; у положения их нет. */
+  readonly initial?: (object: SceneObject) => Partial<Transform2D>;
 }
 
 const XY = (x: Key, y: Key): readonly Axis[] => [
@@ -67,6 +70,7 @@ const ROWS: readonly Row[] = [
     suffix: '°',
     history: 'Rotate object',
     keyed: { property: 'rotation', subject: 'поворот' },
+    initial: () => ({ rot: 0 }),
   },
   {
     label: 'Масштаб',
@@ -77,6 +81,7 @@ const ROWS: readonly Row[] = [
     step: 0.05,
     history: 'Scale object',
     keyed: { property: 'scale', subject: 'масштаб' },
+    initial: () => ({ sx: 1, sy: 1 }),
   },
   {
     label: 'Смещение',
@@ -86,6 +91,7 @@ const ROWS: readonly Row[] = [
     max: MAX_SHIFT,
     step: 0.05,
     history: 'Shift object',
+    initial: () => ({ dx: 0, dy: 0 }),
   },
   {
     label: 'Опора',
@@ -96,6 +102,10 @@ const ROWS: readonly Row[] = [
     max: MAX_PIVOT,
     step: 0.5,
     history: 'Move pivot',
+    initial: (object) => {
+      const center = centerPivot(object.cells);
+      return { px: center.x, py: center.y };
+    },
   },
 ];
 
@@ -132,10 +142,23 @@ export function TransformFields({ object }: { readonly object: SceneObject }) {
     }
   };
 
+  /** Сброс строки целиком, одной записью истории; опора переезжает, не сдвигая объект. */
+  const resetOf = (row: Row): (() => void) | undefined => {
+    const initial = row.initial?.(object);
+    if (!initial || row.axes.every(({ key }) => initial[key] === t[key])) return undefined;
+    return () => {
+      if (initial.px !== undefined && initial.py !== undefined) {
+        setObjectPivotAction(object.id, { x: initial.px, y: initial.py });
+      } else {
+        transformObjectAction(object.id, initial, row.history);
+      }
+    };
+  };
+
   return (
     <>
       {ROWS.map((row) => (
-        <Field key={row.label} label={row.label} title={row.title}>
+        <Field key={row.label} label={row.label} title={row.title} onReset={resetOf(row)}>
           {row.axes.map(({ key, label }) => (
             <NumberField
               key={key}

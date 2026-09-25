@@ -6,7 +6,13 @@ import { imageName, isImageFile } from '../../io/image';
 import { useDocumentStore } from '../documentStore';
 import { useEditorStore } from '../editorStore';
 import { applyImageImportAction, closeImageImport, previewImageImport } from '../importActions';
-import { initialSettings, loadStyle, quantizeOptionsOf, saveStyle } from '../importSettings';
+import {
+  defaultSettings,
+  initialSettings,
+  loadStyle,
+  quantizeOptionsOf,
+  saveStyle,
+} from '../importSettings';
 import { useUiStore } from '../uiStore';
 
 const tiny = { width: 2, height: 1, data: new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 255]) };
@@ -76,6 +82,18 @@ describe('настройки импорта', () => {
       JSON.stringify({ contrast: 'много', monoColor: 'красный' }),
     );
     expect(loadStyle()).toMatchObject({ contrast: 1, monoColor: '#ffffff' });
+  });
+
+  it('сброс ведёт к стилю по умолчанию, а не прошлого раза, и к ширине по картинке', () => {
+    saveStyle({ ...initialSettings(tiny, { width: 80 }, false), contrast: 2, dither: 'noise' });
+    const wide = { ...tiny, width: 5000 };
+    expect(initialSettings(wide, { width: 80 }, false)).toMatchObject({ contrast: 2 });
+    expect(defaultSettings(wide, { width: 80 }, false)).toMatchObject({
+      contrast: 1,
+      dither: 'bayer',
+      width: 80,
+    });
+    expect(defaultSettings(wide, { width: 80 }, true).width).toBe(160);
   });
 });
 

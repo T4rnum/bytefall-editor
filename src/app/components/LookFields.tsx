@@ -5,7 +5,7 @@ import type { TrackTarget } from '../../core/tracks';
 import { useKeyState } from '../hooks/useKeyState';
 import { toggleKeyAction } from '../store/keyActions';
 import { setObjectLookAction } from '../store/lookActions';
-import { ColorField, Field, KeyButton, NumberField } from '../ui';
+import { ColorField, Field, KeyButton, NumberField, resetTo } from '../ui';
 
 /** Цвет оттенка без силы и сила в процентах. Без оттенка — белый, сила ноль. */
 function splitTint(tint: string | null): { color: string; strength: number } {
@@ -27,6 +27,7 @@ function KeyedPercent({
   value,
   onChange,
   onCommit,
+  onReset,
 }: {
   readonly label: string;
   readonly target: TrackTarget;
@@ -34,10 +35,11 @@ function KeyedPercent({
   readonly value: number;
   readonly onChange: (value: number) => void;
   readonly onCommit: (value: number) => void;
+  readonly onReset?: () => void;
 }) {
   const state = useKeyState(target);
   return (
-    <Field label={label}>
+    <Field label={label} onReset={onReset}>
       <NumberField
         value={value}
         min={0}
@@ -76,6 +78,9 @@ export function LookFields({ object }: { readonly object: SceneObject }) {
   // Цвет, выбранный при нулевой силе, иначе ничего бы не изменил: сила встаёт в полную.
   const pickColor = (value: string | null): void =>
     setTint(joinTint(value ?? color, strength > 0 ? strength : 100));
+  // Сброс — отдельная запись истории: серии жеста он не продолжает.
+  const look = (patch: Partial<Pick<SceneObject, 'opacity' | 'tint'>>, label: string): void =>
+    setObjectLookAction(object.id, patch, label);
 
   return (
     <>
@@ -84,6 +89,7 @@ export function LookFields({ object }: { readonly object: SceneObject }) {
         target={{ node: 'object', id: object.id, property: 'opacity' }}
         subject="непрозрачность"
         value={Math.round(object.opacity * 100)}
+        onReset={resetTo(object.opacity, 1, (opacity) => look({ opacity }, 'Object opacity'))}
         onChange={setOpacity}
         onCommit={(v) => {
           setOpacity(v);
@@ -95,22 +101,31 @@ export function LookFields({ object }: { readonly object: SceneObject }) {
         target={{ node: 'object', id: object.id, property: 'tint' }}
         subject="оттенок"
         value={strength}
+        onReset={resetTo(object.tint, null, (tint) => look({ tint }, 'Object tint'))}
         onChange={(v) => setTint(joinTint(color, v))}
         onCommit={(v) => {
           setTint(joinTint(color, v));
           end();
         }}
       />
-      <ColorField
+      <Field
         label="Цвет оттенка"
-        value={color}
-        size="sm"
-        onChange={pickColor}
-        onCommit={(value) => {
-          pickColor(value);
-          end();
-        }}
-      />
+        onReset={resetTo(color, '#ffffff', (white) =>
+          look({ tint: joinTint(white, strength) }, 'Object tint'),
+        )}
+      >
+        <ColorField
+          label="Цвет оттенка"
+          value={color}
+          size="sm"
+          onChange={pickColor}
+          onCommit={(value) => {
+            pickColor(value);
+            end();
+          }}
+        />
+        <span className="key-spacer" aria-hidden="true" />
+      </Field>
     </>
   );
 }

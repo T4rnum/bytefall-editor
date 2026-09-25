@@ -7,11 +7,53 @@ import {
   RAMP_PRESETS,
 } from '../../core/quantize';
 import type { ImportSettings } from '../store/importSettings';
-import { Checkbox, ColorField, Field, NumberField, Select, Slider, TextField } from '../ui';
+import { Checkbox, ColorField, Field, NumberField, Select, TextField, resetTo } from '../ui';
 
 interface GroupProps {
   readonly settings: ImportSettings;
+  /** К чему ведут кнопки сброса. */
+  readonly defaults: ImportSettings;
   readonly onChange: (patch: Partial<ImportSettings>) => void;
+}
+
+/** Сброс настройки к значению по умолчанию, если она от него отличается. */
+function resetOf<K extends keyof ImportSettings>(
+  { settings, defaults, onChange }: GroupProps,
+  key: K,
+): (() => void) | undefined {
+  return resetTo(settings[key], defaults[key], (v) => onChange({ [key]: v }));
+}
+
+type Fraction = 'edgeThreshold' | 'edgeStrength' | 'brightness' | 'contrast';
+
+/** Доля от 0 до 1 полем в процентах. */
+function PercentField({
+  props: { settings, defaults, onChange },
+  name,
+  label,
+  min,
+  max,
+}: {
+  readonly props: GroupProps;
+  readonly name: Fraction;
+  readonly label: string;
+  readonly min: number;
+  readonly max: number;
+}) {
+  const percent = Math.round(settings[name] * 100);
+  const set = (v: number): void => onChange({ [name]: v / 100 });
+  return (
+    <Field label={label} onReset={resetTo(percent, Math.round(defaults[name] * 100), set)}>
+      <NumberField
+        value={percent}
+        min={min}
+        max={max}
+        suffix="%"
+        onChange={set}
+        width="var(--field-w)"
+      />
+    </Field>
+  );
 }
 
 const RAMP_OPTIONS = [
@@ -45,10 +87,15 @@ const WEIGHT_OPTIONS: { value: LumaWeights; label: string }[] = [
   { value: 'average', label: 'Поровну' },
 ];
 
-function SizeGroup({ settings, onChange, height }: GroupProps & { readonly height: number }) {
+function SizeGroup(props: GroupProps & { readonly height: number }) {
+  const { settings, onChange, height } = props;
   return (
     <>
-      <Field label="Ширина" title="Сколько ячеек в ширину. Высота — по пропорциям картинки">
+      <Field
+        label="Ширина"
+        title="Сколько ячеек в ширину. Высота — по пропорциям картинки"
+        onReset={resetOf(props, 'width')}
+      >
         <NumberField
           value={settings.width}
           min={1}
@@ -65,12 +112,17 @@ function SizeGroup({ settings, onChange, height }: GroupProps & { readonly heigh
   );
 }
 
-function SymbolsGroup({ settings, onChange }: GroupProps) {
+function SymbolsGroup(props: GroupProps) {
+  const { settings, onChange } = props;
   const blocks = settings.background === 'blocks';
   return (
     <>
       <h3 className="dialog-section">Символы</h3>
-      <Field label="Набор" title="Символы от пустого к плотному: яркость выбирает, какой встанет">
+      <Field
+        label="Набор"
+        title="Символы от пустого к плотному: яркость выбирает, какой встанет"
+        onReset={resetOf(props, 'ramp')}
+      >
         <Select
           value={settings.ramp}
           options={RAMP_OPTIONS}
@@ -81,17 +133,20 @@ function SymbolsGroup({ settings, onChange }: GroupProps) {
         />
       </Field>
       {settings.ramp === 'custom' && !blocks && (
-        <TextField
-          value={settings.customRamp}
-          pixel
-          size="sm"
-          ariaLabel="Свои символы, от пустого к плотному"
-          onCommit={(customRamp) => onChange({ customRamp })}
-        />
+        <Field label="Свои символы" stacked onReset={resetOf(props, 'customRamp')}>
+          <TextField
+            value={settings.customRamp}
+            pixel
+            size="sm"
+            ariaLabel="Свои символы, от пустого к плотному"
+            onCommit={(customRamp) => onChange({ customRamp })}
+          />
+        </Field>
       )}
       <Field
         label="Дизеринг"
         title="Смешивает соседние символы, чтобы на плавных переходах не было полос"
+        onReset={resetOf(props, 'dither')}
       >
         <Select
           value={settings.dither}
@@ -112,49 +167,26 @@ function SymbolsGroup({ settings, onChange }: GroupProps) {
       </Checkbox>
       {settings.edges && !blocks && (
         <>
-          <Slider
-            label="Порог"
-            value={Math.round(settings.edgeThreshold * 100)}
-            min={5}
-            max={100}
-            suffix="%"
-            onChange={(v) => onChange({ edgeThreshold: v / 100 })}
-          />
-          <Slider
-            label="Сила"
-            value={Math.round(settings.edgeStrength * 100)}
-            min={0}
-            max={100}
-            suffix="%"
-            onChange={(v) => onChange({ edgeStrength: v / 100 })}
-          />
+          <PercentField props={props} name="edgeThreshold" label="Порог" min={5} max={100} />
+          <PercentField props={props} name="edgeStrength" label="Сила" min={0} max={100} />
         </>
       )}
     </>
   );
 }
 
-function ToneGroup({ settings, onChange }: GroupProps) {
+function ToneGroup(props: GroupProps) {
+  const { settings, onChange } = props;
   return (
     <>
       <h3 className="dialog-section">Яркость</h3>
-      <Slider
-        label="Яркость"
-        value={Math.round(settings.brightness * 100)}
-        min={-100}
-        max={100}
-        suffix="%"
-        onChange={(v) => onChange({ brightness: v / 100 })}
-      />
-      <Slider
-        label="Контраст"
-        value={Math.round(settings.contrast * 100)}
-        min={0}
-        max={300}
-        suffix="%"
-        onChange={(v) => onChange({ contrast: v / 100 })}
-      />
-      <Field label="Гамма" title="Больше единицы — светлее средние тона, меньше — темнее">
+      <PercentField props={props} name="brightness" label="Яркость" min={-100} max={100} />
+      <PercentField props={props} name="contrast" label="Контраст" min={0} max={300} />
+      <Field
+        label="Гамма"
+        title="Больше единицы — светлее средние тона, меньше — темнее"
+        onReset={resetOf(props, 'gamma')}
+      >
         <NumberField
           value={settings.gamma}
           min={0.2}
@@ -164,7 +196,11 @@ function ToneGroup({ settings, onChange }: GroupProps) {
           width="var(--field-w)"
         />
       </Field>
-      <Field label="Веса" title="Как смешать красный, зелёный и синий в яркость">
+      <Field
+        label="Веса"
+        title="Как смешать красный, зелёный и синий в яркость"
+        onReset={resetOf(props, 'weights')}
+      >
         <Select
           value={settings.weights}
           options={WEIGHT_OPTIONS}
@@ -184,11 +220,16 @@ function ToneGroup({ settings, onChange }: GroupProps) {
   );
 }
 
-function ColorGroup({ settings, onChange }: GroupProps) {
+function ColorGroup(props: GroupProps) {
+  const { settings, onChange } = props;
   return (
     <>
       <h3 className="dialog-section">Цвет</h3>
-      <Field label="Фон" title="Символы без фона, только цветные ячейки или символы на своём цвете">
+      <Field
+        label="Фон"
+        title="Символы без фона, только цветные ячейки или символы на своём цвете"
+        onReset={resetOf(props, 'background')}
+      >
         <Select
           value={settings.background}
           options={BACKGROUND_OPTIONS}
@@ -197,7 +238,7 @@ function ColorGroup({ settings, onChange }: GroupProps) {
           onChange={(background) => onChange({ background })}
         />
       </Field>
-      <Field label="Палитра">
+      <Field label="Палитра" onReset={resetOf(props, 'palette')}>
         <Select
           value={settings.palette}
           options={PALETTE_OPTIONS}
@@ -207,12 +248,14 @@ function ColorGroup({ settings, onChange }: GroupProps) {
         />
       </Field>
       {settings.palette === 'mono' && (
-        <ColorField
-          label="Цвет"
-          value={settings.monoColor}
-          size="sm"
-          onChange={(color) => color && onChange({ monoColor: color })}
-        />
+        <Field label="Цвет" onReset={resetOf(props, 'monoColor')}>
+          <ColorField
+            label="Цвет"
+            value={settings.monoColor}
+            size="sm"
+            onChange={(color) => color && onChange({ monoColor: color })}
+          />
+        </Field>
       )}
       <Checkbox
         checked={settings.vivid}

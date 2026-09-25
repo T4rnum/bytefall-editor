@@ -89,14 +89,31 @@ export function saveStyle(settings: ImportSettings): void {
   writeSetting(SETTINGS_KEY, Object.fromEntries(STYLE_KEYS.map((key) => [key, settings[key]])));
 }
 
+/** Ширина по картинке: не шире холста, а новый холст — не шире `DEFAULT_WIDTH`. */
+function widthFor(image: RgbaImage, doc: { readonly width: number }, fitCanvas: boolean): number {
+  const limit = fitCanvas ? DEFAULT_WIDTH : doc.width;
+  return Math.max(8, Math.min(image.width, limit));
+}
+
 /** Настройки для новой картинки: стиль прошлого раза, размер — по картинке и холсту. */
 export function initialSettings(
   image: RgbaImage,
   doc: { readonly width: number },
   fitCanvas: boolean,
 ): ImportSettings {
-  const limit = fitCanvas ? DEFAULT_WIDTH : doc.width;
-  return { ...loadStyle(), width: Math.max(8, Math.min(image.width, limit)), fitCanvas };
+  return { ...loadStyle(), width: widthFor(image, doc, fitCanvas), fitCanvas };
+}
+
+/**
+ * Значения, к которым ведут кнопки сброса: стиль по умолчанию, а не прошлого раза, и ширина по
+ * картинке — такая же, какой была бы у первого импорта.
+ */
+export function defaultSettings(
+  image: RgbaImage,
+  doc: { readonly width: number },
+  fitCanvas: boolean,
+): ImportSettings {
+  return { ...DEFAULT_STYLE, width: widthFor(image, doc, fitCanvas), fitCanvas };
 }
 
 /** Параметры конвертера из настроек диалога. */
