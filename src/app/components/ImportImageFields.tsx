@@ -7,6 +7,7 @@ import {
   RAMP_PRESETS,
 } from '../../core/quantize';
 import type { ImportSettings } from '../store/importSettings';
+import { CustomPaletteFields } from './CustomPaletteFields';
 import { Checkbox, ColorField, Field, NumberField, Select, TextField, resetTo } from '../ui';
 
 interface GroupProps {
@@ -67,6 +68,7 @@ const PALETTE_OPTIONS = [
   { value: 'document', label: 'Палитра документа' },
   ...PALETTE_PRESETS.map((p) => ({ value: p.id, label: p.label })),
   { value: 'mono', label: 'Один цвет' },
+  { value: 'custom', label: 'Своя палитра' },
 ];
 
 const DITHER_OPTIONS: { value: DitherMode; label: string }[] = [
@@ -256,6 +258,12 @@ function ColorGroup(props: GroupProps) {
             onChange={(color) => color && onChange({ monoColor: color })}
           />
         </Field>
+      )}
+      {settings.palette === 'custom' && (
+        <CustomPaletteFields
+          value={settings.customPalette}
+          onChange={(customPalette) => onChange({ customPalette })}
+        />
       )}
       <Checkbox
         checked={settings.vivid}

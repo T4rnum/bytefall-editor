@@ -67,6 +67,10 @@ describe('настройки импорта', () => {
       { coverage: () => 0.5, documentPalette: ['#000000', '#ffffff'] },
     );
     expect(doc.palette).toEqual(['#000000', '#ffffff']);
+    const context = { coverage: () => 0.5, documentPalette: [] };
+    const custom = { ...settings, palette: 'custom', customPalette: '#000000 1d2b53' };
+    expect(quantizeOptionsOf(custom, context).palette).toEqual(['#000000', '#1d2b53']);
+    expect(quantizeOptionsOf({ ...custom, customPalette: '' }, context).palette).toBeNull();
   });
 
   it('ширина по картинке и холсту, стиль запоминается, а испорченный — отбрасывается', () => {

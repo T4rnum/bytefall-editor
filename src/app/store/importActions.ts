@@ -1,7 +1,8 @@
 import { evaluate } from '../../core/evaluate';
 import { type ConvertedImage, addImageLayer } from '../../core/imageLayer';
+import { formatPalette, parsePalette } from '../../core/paletteFile';
 import { decodeImage, imageName } from '../io/image';
-import { openImageFile } from '../io/files';
+import { openImageFile, openPaletteFile } from '../io/files';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { errorMessage, notify } from './notifyStore';
@@ -26,6 +27,23 @@ export async function importImageAction(): Promise<void> {
   } catch (error) {
     notify(`Не удалось открыть картинку: ${errorMessage(error)}`, 'error');
   }
+}
+
+/**
+ * Своя палитра импорта из файла: цвета строкой. null при отмене и при ошибке — о ней скажет
+ * уведомление, а прежняя палитра останется.
+ */
+export async function loadPaletteFileAction(): Promise<string | null> {
+  try {
+    const file = await openPaletteFile();
+    if (!file) return null;
+    const colors = parsePalette(await file.text());
+    if (colors.length > 0) return formatPalette(colors);
+    notify(`В файле ${file.name} не нашлось цветов`, 'error');
+  } catch (error) {
+    notify(`Не удалось открыть палитру: ${errorMessage(error)}`, 'error');
+  }
+  return null;
 }
 
 /**

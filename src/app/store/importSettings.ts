@@ -1,4 +1,5 @@
 import { isHexColor } from '../../core/color';
+import { parsePalette } from '../../core/paletteFile';
 import {
   type BackgroundMode,
   DEFAULT_QUANTIZE,
@@ -34,9 +35,11 @@ export interface ImportSettings {
   readonly edges: boolean;
   readonly edgeThreshold: number;
   readonly edgeStrength: number;
-  /** 'image', 'document', 'mono' или id готовой палитры. */
+  /** 'image', 'document', 'mono', 'custom' или id готовой палитры. */
   readonly palette: string;
   readonly monoColor: string;
+  /** Своя палитра: цвета через пробел, см. `formatPalette`. */
+  readonly customPalette: string;
   readonly vivid: boolean;
   readonly background: BackgroundMode;
 }
@@ -57,6 +60,7 @@ const DEFAULT_STYLE: Style = {
   edgeStrength: DEFAULT_QUANTIZE.edgeStrength,
   palette: 'image',
   monoColor: '#ffffff',
+  customPalette: '',
   vivid: DEFAULT_QUANTIZE.vivid,
   background: DEFAULT_QUANTIZE.background,
 };
@@ -116,6 +120,12 @@ export function defaultSettings(
   return { ...DEFAULT_STYLE, width: widthFor(image, doc, fitCanvas), fitCanvas };
 }
 
+/** Своя палитра без единого цвета — это цвета картинки, а не пустой выбор. */
+function customColors(text: string): readonly string[] | null {
+  const colors = parsePalette(text);
+  return colors.length > 0 ? colors : null;
+}
+
 /** Параметры конвертера из настроек диалога. */
 export function quantizeOptionsOf(
   settings: ImportSettings,
@@ -134,7 +144,9 @@ export function quantizeOptionsOf(
         ? context.documentPalette
         : settings.palette === 'mono'
           ? [settings.monoColor]
-          : (PALETTE_PRESETS.find((p) => p.id === settings.palette)?.colors ?? null);
+          : settings.palette === 'custom'
+            ? customColors(settings.customPalette)
+            : (PALETTE_PRESETS.find((p) => p.id === settings.palette)?.colors ?? null);
   return {
     ...DEFAULT_QUANTIZE,
     ramp,
