@@ -2,7 +2,7 @@ import type { Affine } from '../../core/affine';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import { moveInDocument, removeObject } from '../../core/hierarchy';
-import { canEditObject, findObject, transformObject } from '../../core/object';
+import { type SceneObject, canEditObject, findObject, transformObject } from '../../core/object';
 import { objectAt, objectMatrix } from '../../core/placement';
 import { isBone } from '../../core/rig';
 import type { Transform2D } from '../../core/transform';
@@ -15,16 +15,25 @@ import {
   turnAround,
 } from '../../core/transformGesture';
 import { gizmoLayout, handleCursor, hitGizmo } from './gizmo';
-import { onBoneTail, rigNodeAt } from './rig';
+import { isChained, onBoneTail, rigNodeAt } from './rig';
 import type { PointerInfo, Tool, ToolEnv } from './types';
 
 const NUDGE_FAST = 10;
 /** Shift при повороте ведёт угол шагами по 15°. */
 const ROTATE_SNAP = 15;
+/** Узел рига тянется четвертями ячейки, с Shift — свободно. */
+const RIG_STEP = 0.25;
 
 /** Жест, который сейчас идёт. Трансформ и матрица — на момент нажатия. */
 type Gesture =
-  | { readonly kind: 'move'; readonly id: string; readonly anchor: Point; moved: boolean }
+  | {
+      readonly kind: 'move';
+      readonly id: string;
+      readonly anchor: Point;
+      /** Узел рига едет плавно, по точке указателя, а не по ячейкам. */
+      readonly fine: boolean;
+      moved: boolean;
+    }
   | {
       readonly kind: 'rotate';
       readonly id: string;
@@ -80,12 +89,26 @@ function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
     : { kind: 'rotate', ...base, last: info.point, turned: 0 };
 }
 
+/** Жест от нажатия на объект: кость в цепочке поворачивается вокруг сустава, остальное едет. */
+function pressGesture(env: ToolEnv, hit: SceneObject, info: PointerInfo): Gesture {
+  if (isChained(env.doc, hit)) {
+    const world = objectMatrix(env.doc, hit);
+    const base = { id: hit.id, start: hit.transform, world, from: info.point };
+    return { kind: 'rotate', ...base, last: info.point, turned: 0 };
+  }
+  const fine = hit.rig !== null;
+  return { kind: 'move', id: hit.id, anchor: fine ? info.point : info.cell, fine, moved: false };
+}
+
 /** Документ, каким он станет, если отпустить кнопку здесь. null — ничего не изменилось. */
 function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | null {
   switch (g.kind) {
     case 'move': {
-      const dx = info.cell.x - g.anchor.x;
-      const dy = info.cell.y - g.anchor.y;
+      const at = g.fine ? info.point : info.cell;
+      const snap = (v: number): number =>
+        g.fine && !info.shift ? Math.round(v / RIG_STEP) * RIG_STEP : v;
+      const dx = snap(at.x - g.anchor.x);
+      const dy = snap(at.y - g.anchor.y);
       if (dx === 0 && dy === 0 && !g.moved) return null;
       g.moved = true;
       return moveInDocument(env.doc, g.id, dx, dy);
@@ -143,9 +166,7 @@ export function createObjectTool(): Tool {
       const hit =
         rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);
       env.setSelectedObject(hit ? hit.id : null);
-      if (hit && canEditObject(env.doc, hit)) {
-        gesture = { kind: 'move', id: hit.id, anchor: info.cell, moved: false };
-      }
+      if (hit && canEditObject(env.doc, hit)) gesture = pressGesture(env, hit, info);
     },
     onPointerMove(env, info) {
       if (!gesture) return;
@@ -171,7 +192,8 @@ export function createObjectTool(): Tool {
       }
       const hit =
         rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);
-      return hit ? 'move' : null;
+      if (!hit) return null;
+      return isChained(env.doc, hit) ? 'grab' : 'move';
     },
     onKeyDown(env, event) {
       const id = env.selectedObjectId;

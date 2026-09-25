@@ -1,8 +1,10 @@
 import { type Affine, applyAffine } from './affine';
+import { type Constraint, MAX_CONSTRAINTS_PER_OBJECT, createConstraint } from './constraints';
 import { type Document, MAX_DIMENSION } from './document';
 import type { Point } from './geometry';
 import { setParent } from './hierarchy';
 import { type SceneObject, addObject, createObject, findObject, updateObject } from './object';
+import { objectMatrices } from './placement';
 import { type Transform2D, normalizeTransform } from './transform';
 
 /**
@@ -113,4 +115,38 @@ export function setBoneLength(doc: Document, id: string, length: number): Docume
     });
   }
   return out;
+}
+
+/** Сколько костей IK берёт по умолчанию: плечо и предплечье, бедро и голень. */
+const DEFAULT_CHAIN = 2;
+
+/**
+ * IK к новому контроллеру: контроллер встаёт на конец кости, кость получает IK к нему. Цепочка —
+ * до двух костей вверх, пока родитель — кость. Контроллер становится ребёнком того, к чему
+ * крепится цепочка, — тела персонажа: тело едет, и цель едет с ним. Прежний IK кости заменяется.
+ */
+export function addIkControl(
+  doc: Document,
+  boneId: string,
+): { readonly doc: Document; readonly controlId: string } | null {
+  const bone = findObject(doc, boneId);
+  if (!bone || !isBone(bone)) return null;
+  const others = bone.constraints.filter((c) => c.kind !== 'ik');
+  if (others.length >= MAX_CONSTRAINTS_PER_OBJECT) return null;
+  let root: SceneObject = bone;
+  let chain = 1;
+  for (let up = root.parentId; up !== null && chain < DEFAULT_CHAIN; chain++) {
+    const parent = findObject(doc, up);
+    if (!parent || !isBone(parent)) break;
+    root = parent;
+    up = parent.parentId;
+  }
+  const tail = boneEnds(objectMatrices(doc).get(bone.id) as Affine, bone.rig).tail;
+  const control = createControl({ name: `Цель: ${bone.name}`, layerId: bone.layerId, at: tail });
+  const ik: Constraint = { ...createConstraint('ik'), target: control.id, chain } as Constraint;
+  const withControl = addRigNode(doc, control, root.parentId);
+  return {
+    doc: updateObject(withControl, bone.id, { constraints: [...others, ik] }),
+    controlId: control.id,
+  };
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { normalizeHex } from '../color';
 import { hasMaterial } from '../material';
+import { constraintsSchema } from './constraints';
 import { deformersSchema } from './deformers';
 import { materialFromFile, materialSchema, materialToFile } from './material';
 import { rigFromFile, rigSchema, rigToFile } from './rig';
@@ -84,8 +85,9 @@ export const objectSchema = z.object({
   deformers: deformersSchema.optional(),
   /** Версия 8. */
   material: materialSchema.optional(),
-  /** Версия 9: кость или контроллер рига. */
+  /** Версия 9: кость или контроллер рига и связи объекта. */
   rig: rigSchema.optional(),
+  constraints: constraintsSchema.optional(),
   props: attrs.optional(),
 });
 
@@ -117,6 +119,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     ...(obj.deformers.length > 0 ? { deformers: [...obj.deformers] } : {}),
     ...(hasMaterial(obj.material) ? { material: materialToFile(obj.material) } : {}),
     ...(obj.rig ? { rig: rigToFile(obj.rig) } : {}),
+    ...(obj.constraints.length > 0 ? { constraints: [...obj.constraints] } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
   }));
 }
@@ -141,9 +144,14 @@ function overridesFromFile(overrides: readonly OverrideFile[], cells: CellGrid):
   return out;
 }
 
-function uniqueDeformers<T extends { readonly id: string }>(objectId: string, list: T[]): T[] {
+/** Деформеры и связи объекта различаются по id: два с одним id — испорченный файл. */
+function uniqueIds<T extends { readonly id: string }>(
+  objectId: string,
+  what: string,
+  list: T[],
+): T[] {
   if (new Set(list.map((d) => d.id)).size !== list.length) {
-    throw new DocumentFormatError(`Duplicate deformer id in object ${objectId}`);
+    throw new DocumentFormatError(`Duplicate ${what} id in object ${objectId}`);
   }
   return list;
 }
@@ -188,9 +196,10 @@ export function objectsFromFile(
       tint: obj.tint === undefined ? null : normalizeHex(obj.tint),
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
-      deformers: uniqueDeformers(obj.id, obj.deformers ?? []),
+      deformers: uniqueIds(obj.id, 'deformer', obj.deformers ?? []),
       material: materialFromFile(obj.material),
       rig: rigFromFile(obj.rig),
+      constraints: uniqueIds(obj.id, 'constraint', obj.constraints ?? []),
       props: obj.props ?? {},
     };
   });

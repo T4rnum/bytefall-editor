@@ -33,21 +33,37 @@ function shownRig(doc: Document): { node: SceneObject; world: Affine }[] {
 /**
  * Узел рига под указателем. Кость хватается за отрезок, контроллер — за точку, радиус — в
  * пикселях экрана, как у ручек гизмо. Выигрывает ближайший: кости цепочки сходятся в суставах.
+ * Контроллер важнее кости: он стоит на её конце, и тянут именно за него.
  */
 export function rigNodeAt(doc: Document, point: Point, zoom: number): SceneObject | undefined {
-  let best: SceneObject | undefined;
-  let bestDistance = HANDLE_HIT_PX / zoom;
-  for (const { node, world } of shownRig(doc)) {
-    const ends = isBone(node) ? boneEnds(world, node.rig) : null;
-    const distance = ends
-      ? segmentDistance(point, ends.head, ends.tail)
-      : Math.hypot(point.x - world.e, point.y - world.f);
-    if (distance <= bestDistance) {
-      best = node;
-      bestDistance = distance;
+  const reach = HANDLE_HIT_PX / zoom;
+  const nearest = (bones: boolean): SceneObject | undefined => {
+    let best: SceneObject | undefined;
+    let bestDistance = reach;
+    for (const { node, world } of shownRig(doc)) {
+      if (isBone(node) !== bones) continue;
+      const ends = isBone(node) ? boneEnds(world, node.rig) : null;
+      const distance = ends
+        ? segmentDistance(point, ends.head, ends.tail)
+        : Math.hypot(point.x - world.e, point.y - world.f);
+      if (distance <= bestDistance) {
+        best = node;
+        bestDistance = distance;
+      }
     }
-  }
-  return best;
+    return best;
+  };
+  return nearest(false) ?? nearest(true);
+}
+
+/**
+ * Кость в цепочке: её родитель — тоже кость. Такая кость держится за сустав родителя, и её не
+ * переносят, а поворачивают, за что ни возьми, — как в позе у Blender.
+ */
+export function isChained(doc: Document, obj: SceneObject): boolean {
+  if (!isBone(obj) || obj.parentId === null) return false;
+  const parent = doc.objects.find((o) => o.id === obj.parentId);
+  return parent !== undefined && isBone(parent);
 }
 
 /** Конец кости в координатах документа. */

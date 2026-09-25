@@ -18,6 +18,7 @@ import v6 from './fixtures/v6-tracks.bp.json?raw';
 import v7 from './fixtures/v7-deformers.bp.json?raw';
 import v8 from './fixtures/v8-material.bp.json?raw';
 import v9 from './fixtures/v9-rig.bp.json?raw';
+import v9links from './fixtures/v9-constraints.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -38,6 +39,7 @@ const FIXTURES = {
   'v7-deformers': v7,
   'v8-material': v8,
   'v9-rig': v9,
+  'v9-constraints': v9links,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -182,6 +184,18 @@ describe('фикстуры формата', () => {
     expect(target.rig).toEqual({ kind: 'control' });
     // До v9 рига не было.
     expect(frameDocument(deserialize(v8), 0).objects[0].rig).toBeNull();
+  });
+
+  it('v9: связи объекта читаются как записаны, без них список пуст', () => {
+    const doc = frameDocument(deserialize(v9links), 0);
+    expect(doc.objects.find((o) => o.id === 'bone-lower')!.constraints).toEqual([
+      { id: 'link-ik', kind: 'ik', enabled: true, target: 'control-hand', chain: 2 },
+    ]);
+    expect(doc.objects.find((o) => o.id === 'object-tail')!.constraints).toEqual([
+      { id: 'link-follow', kind: 'follow', enabled: true, delay: 120 },
+      { id: 'link-aim', kind: 'aim', enabled: false, target: null, lag: 40 },
+    ]);
+    expect(frameDocument(deserialize(v9), 0).objects[0].constraints).toEqual([]);
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {

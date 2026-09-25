@@ -1,3 +1,4 @@
+import type { Pose } from './constraints';
 import type { LayerEffect } from './effects';
 import type { Point } from './geometry';
 import { type CellGrid, emptyGrid, shiftGrid } from './grid';
@@ -31,6 +32,11 @@ export interface Document {
   readonly palette: readonly string[];
   readonly layers: readonly Layer[];
   readonly objects: readonly SceneObject[];
+  /**
+   * Поза рига: входы связей из других моментов времени, см. `core/pose.ts`. Есть только у сцены,
+   * вычисленной `evaluate`, и в файл не пишется.
+   */
+  readonly pose?: Pose;
 }
 
 export const MIN_DIMENSION = 1;
@@ -192,6 +198,13 @@ export function duplicateLayer(
     // Деформеры копии — свои: ключи находят деформер по идентификатору. Без импорта
     // deformers.ts: он сам зависит от document.ts, и цикл сломал бы порядок загрузки.
     deformers: o.deformers.map((d) => ({ ...d, id: ids.deformers?.get(d.id) ?? newId('deform') })),
+    // Цель, скопированная вместе с объектом, — это копия цели: копия рига тянется за своим
+    // контроллером, а не за чужим.
+    constraints: o.constraints.map((c) =>
+      c.kind !== 'follow' && c.target !== null && renamed.has(c.target)
+        ? { ...c, target: renamed.get(c.target) as string }
+        : c,
+    ),
     layerId: copy.id,
     parentId: (o.parentId !== null && renamed.get(o.parentId)) || o.parentId,
   }));

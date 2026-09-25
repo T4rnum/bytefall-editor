@@ -3,6 +3,7 @@ import { type Deformer, copyDeformers } from './deformers';
 import { type Document, canEditLayer, findLayer, newId } from './document';
 import type { GlyphMaterial } from './material';
 import type { Rig } from './rig';
+import type { Constraint } from './constraints';
 import { type CellGrid, emptyGrid } from './grid';
 import {
   type GlyphOverrides,
@@ -50,6 +51,8 @@ export interface SceneObject {
   readonly material: GlyphMaterial | null;
   /** Кость или контроллер рига, см. `core/rig.ts`. null — обычный объект. */
   readonly rig: Rig | null;
+  /** Связи: задержка, слежение, IK, см. `core/constraints.ts`. Порядок не важен. */
+  readonly constraints: readonly Constraint[];
   readonly props: ObjectProps;
 }
 
@@ -83,6 +86,7 @@ export function createObject(init: CreateObjectInit): SceneObject {
     deformers: [],
     material: null,
     rig: null,
+    constraints: [],
     props: init.props ?? {},
   };
 }

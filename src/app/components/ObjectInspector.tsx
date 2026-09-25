@@ -15,6 +15,7 @@ import { DeformerFields } from './DeformerFields';
 import { GlyphFields } from './GlyphFields';
 import { LookFields } from './LookFields';
 import { MaterialFields } from './MaterialFields';
+import { ConstraintFields } from './ConstraintFields';
 import { RigFields } from './RigFields';
 import { TransformFields } from './TransformFields';
 
@@ -77,6 +78,8 @@ export function ObjectInspector({ object }: Props) {
         />
       </Field>
       <TransformFields object={object} />
+      <h4 className="inspector-heading">Связи</h4>
+      <ConstraintFields key={object.id} object={object} />
       {object.rig ? (
         <>
           <h4 className="inspector-heading">

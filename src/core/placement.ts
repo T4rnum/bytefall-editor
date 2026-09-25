@@ -1,44 +1,18 @@
 import { isDeformed } from './deformObject';
 import { hasMaterial } from './material';
-import { type Affine, applyAffine, integerOffset, invertAffine, multiply } from './affine';
+import { type Affine, applyAffine, integerOffset, invertAffine } from './affine';
 import type { Cell } from './cell';
 import type { Document, Layer } from './document';
 import { hasActiveEffects } from './effects';
 import { type Point, type Rect, inBounds } from './geometry';
 import { gridBounds, keyOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
+import { objectMatrices } from './pose';
 import { coveringRect, sourceKey } from './rasterize';
 import { transformMatrix } from './transform';
 
-/** Документ неизменяем, поэтому массив объектов — надёжный ключ кэша матриц. */
-const matrixCache = new WeakMap<readonly SceneObject[], ReadonlyMap<string, Affine>>();
-
-/**
- * Матрицы всех объектов из локальных координат в координаты документа, с учётом родителей:
- * трансформ ребёнка задан относительно родителя. Пропавший родитель и цикл считаются корнем:
- * файл недоверенный, и падать на нём нельзя.
- */
-export function objectMatrices(doc: Document): ReadonlyMap<string, Affine> {
-  const cached = matrixCache.get(doc.objects);
-  if (cached) return cached;
-  const byId = new Map(doc.objects.map((o) => [o.id, o]));
-  const out = new Map<string, Affine>();
-  const visiting = new Set<string>();
-  const resolve = (obj: SceneObject): Affine => {
-    const known = out.get(obj.id);
-    if (known) return known;
-    visiting.add(obj.id);
-    const local = transformMatrix(obj.transform);
-    const parent = obj.parentId === null ? undefined : byId.get(obj.parentId);
-    const world = parent && !visiting.has(parent.id) ? multiply(resolve(parent), local) : local;
-    visiting.delete(obj.id);
-    out.set(obj.id, world);
-    return world;
-  };
-  for (const obj of doc.objects) resolve(obj);
-  matrixCache.set(doc.objects, out);
-  return out;
-}
+/** Матрицы объектов считает `pose.ts`: там же родители и связи рига. */
+export { objectMatrices };
 
 export function objectMatrix(doc: Document, obj: SceneObject): Affine {
   return objectMatrices(doc).get(obj.id) ?? transformMatrix(obj.transform);

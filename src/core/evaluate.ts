@@ -9,11 +9,14 @@ import {
   writeObjectValue,
 } from './animated';
 import { type Animation, frameDocument } from './animation';
+import { isTemporal } from './constraints';
 import type { Document, Layer } from './document';
 import type { LayerEffect } from './effects';
 import { valueAt } from './interpolate';
 import type { SceneObject } from './object';
-import { frameIndexAt } from './timeline';
+import { temporalPose } from './pose';
+import { roundTime } from './time';
+import { frameIndexAt, sceneDuration } from './timeline';
 import { type Track, type TrackTarget, nodeKey, tracksByNode } from './tracks';
 
 /**
@@ -24,7 +27,41 @@ import { type Track, type TrackTarget, nodeKey, tracksByNode } from './tracks';
  * зная о времени. Дробные значения живут только в нём, в анимации лежат ключи.
  */
 export function evaluate(anim: Animation, time: number): Document {
-  return applyTracks(frameDocument(anim, frameIndexAt(anim, time)), anim.tracks, time);
+  return evaluateAt(anim, time, new Map(), 0);
+}
+
+/** Глубже связи из прошлого не заглядывают: такая цепочка уже читается как хвост. */
+const MAX_POSE_DEPTH = 24;
+
+/**
+ * Сцена с позой рига. Связям из прошлого нужна сцена в другой момент — она считается так же,
+ * со своей позой, и запоминается на один вызов: звенья цепочки с одной задержкой спрашивают
+ * одни и те же моменты. Время заворачивается по длине сцены: в петле хвост в начале тянется
+ * за тем, что было в конце, и на стыке петли не прыгает.
+ */
+function evaluateAt(
+  anim: Animation,
+  time: number,
+  memo: Map<number, Document>,
+  depth: number,
+): Document {
+  const known = memo.get(time);
+  if (known) return known;
+  const doc = applyTracks(frameDocument(anim, frameIndexAt(anim, time)), anim.tracks, time);
+  const temporal =
+    depth < MAX_POSE_DEPTH && doc.objects.some((o) => o.constraints.some((c) => isTemporal(o, c)));
+  const pose = temporal
+    ? temporalPose(doc, time, (t) => evaluateAt(anim, loopTime(anim, t), memo, depth + 1))
+    : undefined;
+  const out = pose ? { ...doc, pose } : doc;
+  memo.set(time, out);
+  return out;
+}
+
+/** Момент внутри петли сцены: прошлое до нуля — это конец предыдущего круга. */
+function loopTime(anim: Animation, time: number): number {
+  const length = sceneDuration(anim);
+  return length > 0 ? roundTime(((time % length) + length) % length) : 0;
 }
 
 /** Применяет треки к документу кадра. Узлы без треков остаются теми же объектами. */

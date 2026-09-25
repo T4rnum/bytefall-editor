@@ -1,4 +1,11 @@
-import { type Affine, applyAffine, decomposeAffine, invertAffine, multiply } from './affine';
+import {
+  type Affine,
+  IDENTITY,
+  applyAffine,
+  decomposeAffine,
+  invertAffine,
+  multiply,
+} from './affine';
 import { type Document, removeLayer } from './document';
 import {
   type SceneObject,
@@ -88,17 +95,17 @@ export function setParent(doc: Document, childId: string, parentId: string | nul
  * Сдвигает объект на (dx, dy) ячеек документа. У объекта в корне это просто новая домашняя
  * ячейка. У ребёнка повёрнутого или отмасштабированного родителя позиция задана в осях родителя:
  * сдвиг переводится в них, целая часть уходит в домашнюю ячейку, дробная — в смещение. Так объект
- * под курсором едет за курсором, а не вдоль повёрнутых осей.
+ * под курсором едет за курсором, а не вдоль повёрнутых осей. Дробный сдвиг — у узлов рига,
+ * которые тянут плавно, — точно так же делится на ячейку и смещение.
  */
 export function moveInDocument(doc: Document, id: string, dx: number, dy: number): Document {
   const obj = findObject(doc, id);
   if (!obj) return doc;
   const parent = obj.parentId === null ? undefined : findObject(doc, obj.parentId);
   const pw = parent ? objectMatrices(doc).get(parent.id) : undefined;
-  if (!pw || (pw.a === 1 && pw.b === 0 && pw.c === 0 && pw.d === 1)) {
-    return moveObject(doc, id, dx, dy);
-  }
-  const inverse = invertAffine(pw);
+  const plain = !pw || (pw.a === 1 && pw.b === 0 && pw.c === 0 && pw.d === 1);
+  if (plain && Number.isInteger(dx) && Number.isInteger(dy)) return moveObject(doc, id, dx, dy);
+  const inverse = pw && !plain ? invertAffine(pw) : IDENTITY;
   if (!inverse) return doc;
   const t = obj.transform;
   const hx = t.x + t.dx + (inverse.a * dx + inverse.c * dy);

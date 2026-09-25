@@ -6,6 +6,7 @@ import {
   selectAllAction,
 } from '../store/clipboardActions';
 import { focusCellAttrInputAction } from '../store/cellAttrActions';
+import { addIkControlAction } from '../store/constraintActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
@@ -180,6 +181,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: () => setSelectedParentAction(null),
   },
   { group: 'Объекты', label: 'Сбросить масштаб', keys: 'Alt+S', run: resetSelectedScaleAction },
+  {
+    group: 'Объекты',
+    label: 'IK к новому контроллеру у выбранной кости',
+    keys: 'Shift+I',
+    run: addIkControlAction,
+  },
 
   { group: 'Анимация', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },
   { group: 'Анимация', label: 'Предыдущий кадр', keys: ',', run: () => stepFrameAction(-1) },

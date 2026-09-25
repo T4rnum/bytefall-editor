@@ -5,8 +5,10 @@ import { createDocument } from '../document';
 import { composeFrame } from '../frame';
 import { findObject } from '../object';
 import { objectMatrix } from '../placement';
+import { moveInDocument } from '../hierarchy';
 import {
   type Bone,
+  addIkControl,
   addRigNode,
   boneEnds,
   createBone,
@@ -112,5 +114,23 @@ describe('кости и контроллеры', () => {
     bone.rig = { kind: 'bone', length: 4, limit: { min: 90, max: -30 } };
     const read = frameDocument(deserialize(JSON.stringify(file)), 0);
     expect(findObject(read, upper.id)!.rig).toEqual(limited.rig);
+  });
+
+  it('IK к новому контроллеру: цель на конце кости, цепочка из двух костей идёт за ней', () => {
+    const { doc, upper } = arm();
+    const added = addIkControl(doc, 'lower')!;
+    const control = findObject(added.doc, added.controlId)!;
+    expect(control.rig).toEqual({ kind: 'control' });
+    const ik = findObject(added.doc, 'lower')!.constraints[0];
+    expect(ik).toMatchObject({ kind: 'ik', target: control.id, chain: 2 });
+    // Контроллер стоит ровно на конце: поза та же, что и без IK.
+    expect(ends(added.doc, 'lower').tail.x).toBeCloseTo(9, 5);
+    expect(ends(added.doc, 'lower').tail.y).toBeCloseTo(12, 5);
+    // Контроллер на клетку левее — конец цепочки за ним, плечо стоит в суставе.
+    const moved = moveInDocument(added.doc, control.id, -1, 0);
+    expect(ends(moved, 'lower').tail.x).toBeCloseTo(8, 3);
+    expect(ends(moved, 'lower').tail.y).toBeCloseTo(12, 3);
+    expect(ends(moved, upper.id).head).toEqual({ x: 2, y: 8 });
+    expect(addIkControl(doc, 'nope')).toBeNull();
   });
 });

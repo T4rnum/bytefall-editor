@@ -92,4 +92,28 @@ describe('инструмент «Кость»', () => {
     expect(tail.x).toBeCloseTo(2, 5);
     expect(tail.y).toBeCloseTo(8, 5);
   });
+
+  it('кость в цепочке за середину не отрывается от родителя, а поворачивается', () => {
+    const bones = createBoneTool();
+    const first = makeToolEnv(blank());
+    bones.onPointerDown?.(first.env, atPoint(2, 4));
+    bones.onPointerUp?.(first.env, atPoint(6, 4));
+    const upper = first.calls.docCommits[0].doc;
+    const second = makeToolEnv(upper, { selectedObjectId: upper.objects[0].id });
+    bones.onPointerDown?.(second.env, atPoint(6, 4));
+    bones.onPointerUp?.(second.env, atPoint(10, 4));
+    const doc = second.calls.docCommits[0].doc;
+    const id = doc.objects[1].id;
+
+    const { env, calls } = makeToolEnv(doc);
+    const objects = createObjectTool();
+    objects.onPointerDown?.(env, atPoint(8, 4));
+    objects.onPointerUp?.(env, atPoint(6, 6));
+    expect(calls.docCommits.map((c) => c.label)).toEqual(['Rotate object']);
+    const { head, tail } = endsOf(calls.docCommits[0].doc, id);
+    expect(head.x).toBeCloseTo(6, 6);
+    expect(head.y).toBeCloseTo(4, 6);
+    expect(tail.x).toBeCloseTo(6, 5);
+    expect(tail.y).toBeCloseTo(8, 5);
+  });
 });
