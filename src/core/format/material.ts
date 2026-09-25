@@ -9,7 +9,7 @@ import {
 } from '../material';
 import { hex } from './primitives';
 
-/** GPU-материал объекта в файле (версия 8): контур и свечение, каждое по желанию. */
+/** GPU-материал объекта в файле (версия 8): контур, свечение, блик, дизеринг — по желанию. */
 export const materialSchema = z.object({
   outline: z
     .object({ color: hex, width: z.number().int().min(1).max(MAX_OUTLINE_WIDTH) })
@@ -35,7 +35,7 @@ export const materialSchema = z.object({
 
 type MaterialFile = z.infer<typeof materialSchema>;
 
-/** Материал из файла; без обеих частей — null, как у объекта без материала. */
+/** Материал из файла; без единой части — null, как у объекта без материала. */
 export function materialFromFile(file: MaterialFile | undefined): GlyphMaterial | null {
   if (!file || (!file.outline && !file.glow && !file.shine && !file.dither)) return null;
   return {

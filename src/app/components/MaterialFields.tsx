@@ -227,8 +227,8 @@ function DitherFields({ value, onChange }: PartProps<DitherMaterial>) {
 }
 
 /**
- * GPU-материал объекта: контур и свечение символов. Меняет только то, как символы выглядят, —
- * поэтому они есть на экране и в картинках, но не в тексте.
+ * GPU-материал объекта: контур, свечение, блик и дизеринг символов. Меняет только то, как
+ * символы выглядят, — поэтому он есть на экране и в картинках, но не в тексте.
  */
 export function MaterialFields({ object }: { readonly object: SceneObject }) {
   const gesture = useRef(0);
