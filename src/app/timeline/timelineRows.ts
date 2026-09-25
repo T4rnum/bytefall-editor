@@ -73,6 +73,7 @@ const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
   explode: 'Разлёт',
   glyphRamp: 'Символы по яркости',
   particles: 'Частицы',
+  skin: 'Кости',
 };
 
 function labelOf(target: TrackTarget): string {

@@ -62,13 +62,19 @@ class PassTarget implements DrawTarget {
     return buffer;
   }
 
-  free(obj: SceneObject, matrix: Affine, opacity: number, time: number): void {
+  free(
+    obj: SceneObject,
+    matrix: Affine,
+    opacity: number,
+    time: number,
+    rig?: ReadonlyMap<string, Affine>,
+  ): void {
     let last = this.passes.at(-1);
     if (last?.kind !== 'glyphs') {
       last = { kind: 'glyphs', builder: new GlyphBatchBuilder() };
       this.passes.push(last);
     }
-    pushObjectGlyphs(last.builder, obj, matrix, opacity, time);
+    pushObjectGlyphs(last.builder, obj, matrix, opacity, time, rig);
   }
 }
 

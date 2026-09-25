@@ -57,3 +57,13 @@ export function* iterateRect(rect: Rect): Generator<Point> {
     for (let x = rect.x; x < rect.x + rect.w; x++) yield { x, y };
   }
 }
+
+/** Расстояние от точки до отрезка. */
+export function segmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length2 = dx * dx + dy * dy;
+  const t = length2 === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2;
+  const k = Math.min(1, Math.max(0, t));
+  return Math.hypot(p.x - (a.x + dx * k), p.y - (a.y + dy * k));
+}

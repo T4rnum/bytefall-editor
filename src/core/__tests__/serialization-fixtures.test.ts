@@ -19,6 +19,7 @@ import v7 from './fixtures/v7-deformers.bp.json?raw';
 import v8 from './fixtures/v8-material.bp.json?raw';
 import v9 from './fixtures/v9-rig.bp.json?raw';
 import v9links from './fixtures/v9-constraints.bp.json?raw';
+import v9skin from './fixtures/v9-skin.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -40,6 +41,7 @@ const FIXTURES = {
   'v8-material': v8,
   'v9-rig': v9,
   'v9-constraints': v9links,
+  'v9-skin': v9skin,
 } as const;
 
 describe('фикстуры формата', () => {
@@ -196,6 +198,18 @@ describe('фикстуры формата', () => {
       { id: 'link-aim', kind: 'aim', enabled: false, target: null, lag: 40 },
     ]);
     expect(frameDocument(deserialize(v9), 0).objects[0].constraints).toEqual([]);
+  });
+
+  it('v9: скиннинг читается с позой покоя костей и мягкостью', () => {
+    const [sleeve, upper] = frameDocument(deserialize(v9skin), 0).objects;
+    const [skin] = sleeve.deformers;
+    expect(skin.kind === 'skin' && skin.falloff).toBe(1.5);
+    expect(skin.kind === 'skin' && skin.bones.map((b) => [b.id, b.length])).toEqual([
+      ['bone-upper', 3.5],
+      ['bone-lower', 3],
+    ]);
+    expect(skin.kind === 'skin' && skin.bones[1].bind.e).toBe(3.5);
+    expect(upper.parentId).toBe('object-sleeve');
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {

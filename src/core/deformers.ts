@@ -1,8 +1,10 @@
+import type { Affine } from './affine';
 import type { Rgba } from './color';
 import { applyDeformer } from './deformerKinds';
 import { newId } from './document';
 import type { CellKey } from './grid';
 import type { ParticlesDeformer } from './particles';
+import type { SkinDeformer } from './skin';
 import { MAX_SCALE, MIN_SCALE } from './transform';
 import type { DeformerParam } from './tracks';
 
@@ -20,7 +22,8 @@ export type DeformerKind =
   | 'bend'
   | 'explode'
   | 'glyphRamp'
-  | 'particles';
+  | 'particles'
+  | 'skin';
 
 export interface DeformerCommon {
   readonly id: string;
@@ -112,7 +115,8 @@ export type Deformer =
   | BendDeformer
   | ExplodeDeformer
   | GlyphRampDeformer
-  | ParticlesDeformer;
+  | ParticlesDeformer
+  | SkinDeformer;
 
 export interface DeformerByKind {
   readonly wave: WaveDeformer;
@@ -124,6 +128,7 @@ export interface DeformerByKind {
   readonly explode: ExplodeDeformer;
   readonly glyphRamp: GlyphRampDeformer;
   readonly particles: ParticlesDeformer;
+  readonly skin: SkinDeformer;
 }
 
 export const MAX_DEFORMERS_PER_OBJECT = 8;
@@ -156,6 +161,7 @@ export const DEFORMER_PARAM_SPECS: {
     spread: { min: 0, max: 360 },
     gravity: { min: -128, max: 128 },
   },
+  skin: {},
 };
 
 const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K] } = {
@@ -189,6 +195,7 @@ const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K
   bend: (id) => ({ id, kind: 'bend', enabled: true, strength: 10 }),
   explode: (id) => ({ id, kind: 'explode', enabled: true, amount: 0.5, angle: 90, seed: 1 }),
   glyphRamp: (id) => ({ id, kind: 'glyphRamp', enabled: true, glyphs: '.:-=+*#%@' }),
+  skin: (id) => ({ id, kind: 'skin', enabled: true, bones: [], falloff: 1.5 }),
   particles: (id) => ({
     id,
     kind: 'particles',
@@ -263,6 +270,8 @@ export interface DeformContext {
   readonly time: number;
   /** Центр содержимого объекта в его ячейках. */
   readonly center: { readonly x: number; readonly y: number };
+  /** Кости скиннинга сейчас в координатах объекта, см. `skinRig`. */
+  readonly rig?: ReadonlyMap<string, Affine>;
 }
 
 /**

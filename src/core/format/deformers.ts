@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { MAX_DEFORMERS_PER_OBJECT } from '../deformers';
+import { type Deformer, MAX_DEFORMERS_PER_OBJECT } from '../deformers';
+import { MAX_BONE_LENGTH, MIN_BONE_LENGTH } from '../rig';
+import { MAX_FALLOFF, MAX_SKIN_BONES, MIN_FALLOFF } from '../skin';
 import { MAX_SCALE, MIN_SCALE } from '../transform';
 import { hex, id } from './primitives';
 
@@ -7,9 +9,24 @@ const period = z.number().min(10).max(600000);
 const length = z.number().min(0.5).max(2048);
 const scale = z.number().min(MIN_SCALE).max(MAX_SCALE);
 const base = { id, enabled: z.boolean() };
+/** Число матрицы привязки: с запасом на холст, поворот и масштаб, но не бесконечность. */
+const entry = z.number().min(-1e6).max(1e6);
+const matrix = z.object({ a: entry, b: entry, c: entry, d: entry, e: entry, f: entry });
+/** Скиннинг (версия 9): кости с позой покоя относительно объекта. */
+const skinSchema = z.object({
+  ...base,
+  kind: z.literal('skin'),
+  falloff: z.number().min(MIN_FALLOFF).max(MAX_FALLOFF),
+  bones: z
+    .array(
+      z.object({ id, bind: matrix, length: z.number().min(MIN_BONE_LENGTH).max(MAX_BONE_LENGTH) }),
+    )
+    .max(MAX_SKIN_BONES),
+});
 
 /** Деформеры объекта в файле (версия 7): вид и параметры с пределами, файл недоверенный. */
 export const deformerSchema = z.discriminatedUnion('kind', [
+  skinSchema,
   z.object({
     ...base,
     kind: z.literal('wave'),
@@ -70,3 +87,10 @@ export const deformerSchema = z.discriminatedUnion('kind', [
 ]);
 
 export const deformersSchema = z.array(deformerSchema).max(MAX_DEFORMERS_PER_OBJECT);
+
+/** Стек в файл: кости скиннинга — своими копиями, как и всё, что уходит в JSON. */
+export function deformersToFile(deformers: readonly Deformer[]): z.infer<typeof deformersSchema> {
+  return deformers.map((d) =>
+    d.kind === 'skin' ? { ...d, bones: d.bones.map((b) => ({ ...b, bind: { ...b.bind } })) } : d,
+  );
+}

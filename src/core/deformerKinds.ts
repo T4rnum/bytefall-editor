@@ -15,6 +15,7 @@ import type {
 import { hashNoise } from './effects';
 import { xOf, yOf } from './grid';
 import { emitParticles } from './particles';
+import { skin } from './skin';
 
 const TAU = Math.PI * 2;
 
@@ -151,5 +152,7 @@ export function applyDeformer(poses: GlyphPose[], deformer: Deformer, ctx: Defor
       return glyphRamp(poses, deformer);
     case 'particles':
       return emitParticles(poses, deformer, ctx);
+    case 'skin':
+      return skin(poses, deformer, ctx);
   }
 }

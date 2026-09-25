@@ -7,6 +7,7 @@ import {
 } from '../../core/deformers';
 import { setTargetValue } from '../../core/keyframes';
 import { findObject, updateObject } from '../../core/object';
+import { bindSkin } from '../../core/skinBind';
 import { DEFORMER_PARAMS, type TrackTarget, findTrack } from '../../core/tracks';
 import { plural } from '../ui/plural';
 import { useDocumentStore } from './documentStore';
@@ -50,8 +51,29 @@ export function addDeformerAction(objectId: string, kind: DeformerKind): void {
     notify(`Не больше ${limit} на объект`, 'error');
     return;
   }
-  const deformer = createDeformer(kind);
+  const created = createDeformer(kind);
+  let deformer: Deformer = created;
+  if (created.kind === 'skin') {
+    // Скиннинг без костей ничего не делает: привязываем сразу, а без костей не добавляем.
+    const bones = bindSkin(useDocumentStore.getState().doc, objectId);
+    if (bones.length === 0) {
+      notify('У объекта нет костей: выбери его и нарисуй их инструментом «Кость» (J)', 'error');
+      return;
+    }
+    deformer = { ...created, bones };
+  }
   editStack(objectId, 'Add deformer', (stack) => [...stack, deformer]);
+}
+
+/**
+ * Поза покоя — сейчас: скиннинг заново привязывается к костям объекта такими, какие они на
+ * экране. Новые кости попадают в привязку, пропавшие уходят из неё.
+ */
+export function rebindSkinAction(objectId: string, deformerId: string): void {
+  const bones = bindSkin(useDocumentStore.getState().doc, objectId);
+  editStack(objectId, 'Bind skin', (stack) =>
+    stack.map((d) => (d.id === deformerId && d.kind === 'skin' ? { ...d, bones } : d)),
+  );
 }
 
 export function removeDeformerAction(objectId: string, deformerId: string): void {

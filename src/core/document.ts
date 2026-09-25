@@ -197,7 +197,13 @@ export function duplicateLayer(
     id: renamed.get(o.id) as string,
     // Деформеры копии — свои: ключи находят деформер по идентификатору. Без импорта
     // deformers.ts: он сам зависит от document.ts, и цикл сломал бы порядок загрузки.
-    deformers: o.deformers.map((d) => ({ ...d, id: ids.deformers?.get(d.id) ?? newId('deform') })),
+    // Скиннинг копии держится за копии костей, если их скопировали вместе с объектом.
+    deformers: o.deformers.map((d) => {
+      const id = ids.deformers?.get(d.id) ?? newId('deform');
+      if (d.kind !== 'skin') return { ...d, id };
+      const bones = d.bones.map((b) => ({ ...b, id: renamed.get(b.id) ?? b.id }));
+      return { ...d, id, bones };
+    }),
     // Цель, скопированная вместе с объектом, — это копия цели: копия рига тянется за своим
     // контроллером, а не за чужим.
     constraints: o.constraints.map((c) =>

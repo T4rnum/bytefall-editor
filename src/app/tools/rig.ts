@@ -1,6 +1,6 @@
 import type { Affine } from '../../core/affine';
 import { type Document, findLayer } from '../../core/document';
-import type { Point } from '../../core/geometry';
+import { type Point, segmentDistance } from '../../core/geometry';
 import type { SceneObject } from '../../core/object';
 import { objectMatrices } from '../../core/placement';
 import { type Bone, boneEnds, isBone } from '../../core/rig';
@@ -10,16 +10,6 @@ import { HANDLE_HIT_PX } from './gizmo';
 const BONE_WIDTH_PX = 5;
 /** Размах перекрестья контроллера на экране. */
 const CONTROL_PX = 9;
-
-/** Расстояние от точки до отрезка. */
-export function segmentDistance(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const length2 = dx * dx + dy * dy;
-  const t = length2 === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2;
-  const k = Math.min(1, Math.max(0, t));
-  return Math.hypot(p.x - (a.x + dx * k), p.y - (a.y + dy * k));
-}
 
 /** Узлы рига, которые видно: сам узел и его слой не скрыты. Сверху вниз по списку. */
 function shownRig(doc: Document): { node: SceneObject; world: Affine }[] {

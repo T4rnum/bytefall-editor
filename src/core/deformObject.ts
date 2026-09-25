@@ -15,7 +15,11 @@ export const isDeformed = (obj: SceneObject): boolean => hasActiveDeformers(obj.
  * Символы объекта в момент `time` после стека деформеров, в координатах объекта. На входе стека
  * — ячейки с правками символов: ручная доводка остаётся доступной, и стек читает её как вход.
  */
-export function deformedPoses(obj: SceneObject, time: number): GlyphPose[] {
+export function deformedPoses(
+  obj: SceneObject,
+  time: number,
+  rig?: ReadonlyMap<string, Affine>,
+): GlyphPose[] {
   const poses: GlyphPose[] = [];
   for (const [key, cell] of obj.cells) {
     const o = obj.overrides.get(key);
@@ -32,7 +36,7 @@ export function deformedPoses(obj: SceneObject, time: number): GlyphPose[] {
       bg: cell.bg === null ? TRANSPARENT : colorOf(cell.bg),
     });
   }
-  return deform(poses, obj.deformers, { time, center: centerPivot(obj.cells) });
+  return deform(poses, obj.deformers, { time, center: centerPivot(obj.cells), rig });
 }
 
 /** Символ в координаты документа: поворот и масштаб вокруг его центра, потом объект. */
@@ -50,8 +54,9 @@ export function rasterizeDeformed(
   time: number,
   clip: Rect,
   visit: (x: number, y: number, cell: Cell) => void,
+  rig?: ReadonlyMap<string, Affine>,
 ): void {
-  for (const p of deformedPoses(obj, time)) {
+  for (const p of deformedPoses(obj, time, rig)) {
     const m = poseMatrix(world, p);
     const x = Math.floor(m.e);
     const y = Math.floor(m.f);

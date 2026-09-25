@@ -14,6 +14,7 @@ export const DEFORMER_KIND_OPTIONS: readonly {
   { value: 'explode', label: 'Разлёт' },
   { value: 'glyphRamp', label: 'Символы по яркости' },
   { value: 'particles', label: 'Частицы' },
+  { value: 'skin', label: 'Кости' },
 ];
 
 export type Param =
@@ -105,4 +106,5 @@ export const DEFORMER_FIELDS: { readonly [K in DeformerKind]: readonly Param[] }
     num('gravity', 'Тяжесть', -128, 128, 0.5),
     num('seed', 'Зерно', 0, 2147483647, 1),
   ],
+  skin: [num('falloff', 'Мягкость сгиба', 0.25, 64, 0.25)],
 };

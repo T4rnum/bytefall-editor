@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { normalizeHex } from '../color';
 import { hasMaterial } from '../material';
 import { constraintsSchema } from './constraints';
-import { deformersSchema } from './deformers';
+import { deformersSchema, deformersToFile } from './deformers';
 import { materialFromFile, materialSchema, materialToFile } from './material';
 import { rigFromFile, rigSchema, rigToFile } from './rig';
 import type { Layer } from '../document';
@@ -116,7 +116,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     ...(obj.tint !== null ? { tint: obj.tint } : {}),
     cells: cellsToFile(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
-    ...(obj.deformers.length > 0 ? { deformers: [...obj.deformers] } : {}),
+    ...(obj.deformers.length > 0 ? { deformers: deformersToFile(obj.deformers) } : {}),
     ...(hasMaterial(obj.material) ? { material: materialToFile(obj.material) } : {}),
     ...(obj.rig ? { rig: rigToFile(obj.rig) } : {}),
     ...(obj.constraints.length > 0 ? { constraints: [...obj.constraints] } : {}),

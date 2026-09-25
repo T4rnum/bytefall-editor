@@ -1,15 +1,17 @@
 import type { Affine } from './affine';
 import { isBlankCell } from './cell';
-import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
+import { type CellBuffer, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
-import { isDeformed, rasterizeDeformed } from './deformObject';
+import { isDeformed } from './deformObject';
+import { skinRig } from './skin';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
-import { lookCell, tintOf } from './look';
 import { isAnimatedMaterial } from './material';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
 import { isFreeObject, layerDrawOrder, objectMatrices } from './placement';
+import { lookCell, tintOf } from './look';
+import { blendDeformed, blendObject } from './objectCells';
 import { rasterizeObject } from './rasterize';
 import { type TileLayout, tileIndexOf, tileLayout, tileOf, tileRect } from './tiles';
 
@@ -68,7 +70,14 @@ function layerContent(
  */
 export interface DrawTarget {
   cells(): CellBuffer;
-  free(obj: SceneObject, matrix: Affine, opacity: number, time: number): void;
+  /** `rig` — кости скиннинга объекта сейчас, в его координатах. */
+  free(
+    obj: SceneObject,
+    matrix: Affine,
+    opacity: number,
+    time: number,
+    rig?: ReadonlyMap<string, Affine>,
+  ): void;
 }
 
 type CellFilter = (x: number, y: number) => boolean;
@@ -76,43 +85,6 @@ type CellFilter = (x: number, y: number) => boolean;
 /** Фильтр ячеек по грязным тайлам: без списка тайлов годится любая ячейка. */
 export function tileFilter(layout: TileLayout, tiles: ReadonlySet<number> | null): CellFilter {
   return tiles === null ? () => true : (x, y) => tiles.has(tileOf(layout, x, y));
-}
-
-/**
- * Объект в буфер по ячейкам. Свободный объект — повёрнутый, отмасштабированный — попадает в
- * ячейки так же, как в текст и при впечатывании в слой: через `rasterizeObject`.
- */
-export function blendObject(
-  buf: CellBuffer,
-  obj: SceneObject,
-  matrix: Affine,
-  opacity: number,
-  wanted: CellFilter,
-): void {
-  const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
-  const alpha = opacity * obj.opacity;
-  const tint = tintOf(obj);
-  // Оттенок бывает только у объектов: смешивание растра, горячий путь, о нём не знает.
-  rasterizeObject(obj, matrix, canvas, (x, y, cell) => {
-    if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
-  });
-}
-
-/** Деформированный объект в буфер по ячейкам — так он уходит в текст и миниатюры. */
-function blendDeformed(
-  buf: CellBuffer,
-  obj: SceneObject,
-  matrix: Affine,
-  opacity: number,
-  wanted: CellFilter,
-  time: number,
-): void {
-  const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
-  const alpha = opacity * obj.opacity;
-  const tint = tintOf(obj);
-  rasterizeDeformed(obj, matrix, time, canvas, (x, y, cell) => {
-    if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
-  });
 }
 
 /** Растр слоя и превью инструмента поверх него. */
@@ -170,6 +142,8 @@ export function drawDocument(
   const objectsByLayer = groupObjectsByLayer(doc);
   const matrices = objectMatrices(doc);
   const matrixOf = (obj: SceneObject): Affine => matrices.get(obj.id) as Affine;
+  const free = (obj: SceneObject, opacity: number): void =>
+    target.free(obj, matrixOf(obj), opacity, time, skinRig(obj, matrices));
   const ctx = { time, width: doc.width, height: doc.height };
   const canvas = { x: 0, y: 0, w: doc.width, h: doc.height };
   const wanted = tileFilter(layout, tiles);
@@ -188,8 +162,7 @@ export function drawDocument(
         blendCell(buf, key, cell, opacity);
       }
       for (const obj of objects) {
-        if (isDrawn(obj) && isFreeObject(obj, matrixOf(obj)))
-          target.free(obj, matrixOf(obj), opacity, time);
+        if (isDrawn(obj) && isFreeObject(obj, matrixOf(obj))) free(obj, opacity);
       }
       continue;
     }
@@ -198,7 +171,7 @@ export function drawDocument(
     for (const obj of objects) {
       if (!isDrawn(obj)) continue;
       const matrix = matrixOf(obj);
-      if (isFreeObject(obj, matrix)) target.free(obj, matrix, opacity, time);
+      if (isFreeObject(obj, matrix)) free(obj, opacity);
       else blendObject(target.cells(), obj, matrix, opacity, wanted);
     }
   }
@@ -302,9 +275,9 @@ export function composite(
   // Плоский кадр: свободные объекты впечатываются в тот же буфер, как в текст.
   const flat: DrawTarget = {
     cells: () => buf,
-    free: (obj, matrix, opacity, t) =>
+    free: (obj, matrix, opacity, t, rig) =>
       isDeformed(obj)
-        ? blendDeformed(buf, obj, matrix, opacity, wanted, t)
+        ? blendDeformed(buf, obj, matrix, opacity, wanted, t, rig)
         : blendObject(buf, obj, matrix, opacity, wanted),
   };
   for (const ghost of ghosts) {

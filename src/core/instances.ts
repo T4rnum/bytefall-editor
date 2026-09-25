@@ -165,6 +165,7 @@ export function pushObjectGlyphs(
   world: Affine,
   opacity: number,
   time = 0,
+  rig?: ReadonlyMap<string, Affine>,
 ): void {
   builder.useMaterial(materialOf(obj));
   const pose = decomposeAffine(world);
@@ -173,7 +174,7 @@ export function pushObjectGlyphs(
   const paint = (hex: string): Rgba => withAlpha(tintColor(colorOf(hex), tint), alpha);
   if (isDeformed(obj)) {
     const tinted = (c: Rgba): Rgba => withAlpha(tintColor(c, tint), alpha);
-    for (const p of deformedPoses(obj, time)) {
+    for (const p of deformedPoses(obj, time, rig)) {
       builder.push(poseMatrix(world, p), p.glyph, tinted(p.fg), tinted(p.bg));
     }
     return;

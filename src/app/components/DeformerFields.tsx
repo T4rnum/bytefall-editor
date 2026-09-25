@@ -8,6 +8,7 @@ import { toggleKeyAction } from '../store/keyActions';
 import {
   addDeformerAction,
   moveDeformerAction,
+  rebindSkinAction,
   removeDeformerAction,
   updateDeformerAction,
 } from '../store/deformerActions';
@@ -20,6 +21,7 @@ import {
   NumberField,
   Select,
   TextField,
+  plural,
   resetTo,
 } from '../ui';
 import { DEFORMER_FIELDS, DEFORMER_KIND_OPTIONS, type Param } from './deformerParams';
@@ -185,6 +187,19 @@ function DeformerItem({
       {DEFORMER_FIELDS[deformer.kind].map((param) => (
         <ParamField key={param.key} object={object} deformer={deformer} param={param} />
       ))}
+      {deformer.kind === 'skin' && (
+        <Field
+          label={plural(deformer.bones.length, { one: 'кость', few: 'кости', many: 'костей' })}
+        >
+          <Button
+            size="sm"
+            label="Запомнить кости такими, как сейчас: от этой позы символы и отсчитывают сгиб"
+            onClick={() => rebindSkinAction(object.id, deformer.id)}
+          >
+            Поза покоя — сейчас
+          </Button>
+        </Field>
+      )}
     </li>
   );
 }
