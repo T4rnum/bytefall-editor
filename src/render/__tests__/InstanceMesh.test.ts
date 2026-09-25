@@ -80,7 +80,14 @@ describe('InstanceMesh', () => {
     mesh.update(batchOf(1));
     expect(mesh.under.visible).toBe(false);
     const builder = new GlyphBatchBuilder();
-    builder.useMaterial(materialFloats({ outline: { color: '#ff0000', width: 2 }, glow: null }));
+    builder.useMaterial(
+      materialFloats({
+        outline: { color: '#ff0000', width: 2 },
+        glow: null,
+        shine: null,
+        dither: null,
+      }),
+    );
     builder.push({ ...IDENTITY, e: 0.5, f: 0.5 }, 'A', RED, TRANSPARENT);
     mesh.update(builder.finish());
     expect(mesh.under.visible).toBe(true);

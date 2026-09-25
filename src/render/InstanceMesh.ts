@@ -15,6 +15,8 @@ interface Attributes {
   readonly outline: THREE.InstancedBufferAttribute;
   readonly glow: THREE.InstancedBufferAttribute;
   readonly glowStrength: THREE.InstancedBufferAttribute;
+  readonly shine: THREE.InstancedBufferAttribute;
+  readonly shineMotion: THREE.InstancedBufferAttribute;
 }
 
 /** Имена атрибутов в шейдере, см. `instanceShader.ts`. */
@@ -27,6 +29,8 @@ const NAMES: Readonly<Record<keyof Attributes, string>> = {
   outline: 'aOutline',
   glow: 'aGlow',
   glowStrength: 'aGlowStrength',
+  shine: 'aShine',
+  shineMotion: 'aShineMotion',
 };
 
 const SIZES: Readonly<Record<keyof Attributes, number>> = {
@@ -38,6 +42,8 @@ const SIZES: Readonly<Record<keyof Attributes, number>> = {
   outline: 4,
   glow: 4,
   glowStrength: 1,
+  shine: 4,
+  shineMotion: 4,
 };
 
 /**
@@ -73,6 +79,13 @@ export class InstanceMesh {
       this.object.add(mesh);
     }
     this.under.visible = false;
+  }
+
+  /** Время кадра, мс: по нему шейдер двигает бегущие материалы. */
+  setTime(time: number): void {
+    for (const mesh of [this.under, this.mesh]) {
+      (mesh.material as THREE.ShaderMaterial).uniforms.uTime.value = time / 1000;
+    }
   }
 
   /** Место потока в порядке отрисовки: подложка сразу под своими символами. */
@@ -113,6 +126,12 @@ export class InstanceMesh {
       arrays.outline.set(d.subarray(m + MATERIAL.outline, m + MATERIAL.outline + 4), i * 4);
       arrays.glow.set(d.subarray(m + MATERIAL.glow, m + MATERIAL.glow + 4), i * 4);
       arrays.glowStrength[i] = d[m + MATERIAL.glowStrength];
+      arrays.shine.set(d.subarray(m + MATERIAL.shine, m + MATERIAL.shine + 4), i * 4);
+      // Шаг, скорость и угол блика, а четвёртым — дизеринг: оба читает проход символов.
+      arrays.shineMotion.set(
+        d.subarray(m + MATERIAL.shineMotion, m + MATERIAL.shineMotion + 4),
+        i * 4,
+      );
       if (d[m + MATERIAL.outline + 3] > 0 || d[m + MATERIAL.glow + 3] > 0) material = true;
     }
     for (const attr of Object.values(attrs) as THREE.InstancedBufferAttribute[]) {

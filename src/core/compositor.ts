@@ -5,6 +5,7 @@ import type { Document, Layer } from './document';
 import { isDeformed, rasterizeDeformed } from './deformObject';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
 import { lookCell, tintOf } from './look';
+import { isAnimatedMaterial } from './material';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -228,9 +229,12 @@ export function effectsSignature(
   const parts: string[] = [];
   const collect = (d: Document): void => {
     const ctx = { time, width: d.width, height: d.height };
-    // Деформер — функция времени, как и эффект: его объект меняется на каждый момент.
-    for (const obj of d.objects)
-      if (obj.visible && isDeformed(obj)) parts.push(`${obj.id}~${time}`);
+    // Деформер и бегущий материал — функции времени, как и эффект: объект меняется каждый момент.
+    for (const obj of d.objects) {
+      if (obj.visible && (isDeformed(obj) || isAnimatedMaterial(obj.material))) {
+        parts.push(`${obj.id}~${time}`);
+      }
+    }
     for (const layer of d.layers) {
       if (!layer.visible || layer.opacity <= 0) continue;
       for (const effect of layer.effects) {

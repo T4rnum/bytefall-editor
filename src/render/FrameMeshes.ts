@@ -38,6 +38,7 @@ export class FrameMeshes {
         slot.mesh.update(pass.buffer, dirty);
       } else if (pass.kind === 'glyphs' && slot.kind === 'glyphs') {
         slot.mesh.update(pass.batch);
+        slot.mesh.setTime(frame.time);
       }
     });
     for (const extra of this.slots.splice(frame.passes.length)) this.release(extra);

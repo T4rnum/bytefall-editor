@@ -19,7 +19,12 @@ const VERTEX_SHADER = /* glsl */ `
   attribute vec4 aOutline;
   attribute vec4 aGlow;
   attribute float aGlowStrength;
+  attribute vec4 aShine;
+  attribute vec4 aShineMotion;
   varying vec2 vCell;
+  varying vec2 vDoc;
+  varying vec4 vShine;
+  varying vec4 vShineMotion;
   varying vec4 vRect;
   varying vec4 vFg;
   varying vec4 vBg;
@@ -34,6 +39,8 @@ const VERTEX_SHADER = /* glsl */ `
     vOutline = aOutline;
     vGlow = aGlow;
     vGlowStrength = aGlowStrength;
+    vShine = aShine;
+    vShineMotion = aShineMotion;
     #ifdef UNDER
       // Контур и свечение выходят за ячейку: квадрат шире на поле материала.
       float margin = max(aOutline.w, aGlow.w);
@@ -47,13 +54,19 @@ const VERTEX_SHADER = /* glsl */ `
     float c = cos(aPose.x);
     float s = sin(aPose.x);
     vec2 doc = aCenter + vec2(c * local.x - s * local.y, s * local.x + c * local.y);
+    vDoc = doc;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(doc.x, -doc.y, 0.0, 1.0);
   }
 `;
 
 const FRAGMENT_SHADER = /* glsl */ `
   uniform sampler2D uAtlas;
+  /** Время кадра, секунды: по нему бежит блик, одинаково на экране и в экспорте. */
+  uniform float uTime;
   varying vec2 vCell;
+  varying vec2 vDoc;
+  varying vec4 vShine;
+  varying vec4 vShineMotion;
   varying vec4 vRect;
   varying vec4 vFg;
   varying vec4 vBg;
@@ -109,15 +122,41 @@ const FRAGMENT_SHADER = /* glsl */ `
     return vec4(vOutline.rgb * alpha, alpha);
   }
 
+  /** Порог Байера 4×4 для пикселя шрифта: узор привязан к символу, а не к экрану. */
+  float bayer2(vec2 a) {
+    a = floor(a);
+    return fract(dot(a, vec2(0.5, a.y * 0.75)));
+  }
+  float bayer4(vec2 a) {
+    return bayer2(0.5 * a) * 0.25 + bayer2(a);
+  }
+
+  /**
+   * Блик: полосы шириной vShine.w через каждые vShineMotion.x ячеек, бегут со скоростью
+   * vShineMotion.y по направлению vShineMotion.z в координатах документа.
+   */
+  float shine() {
+    vec2 dir = vec2(cos(vShineMotion.z), sin(vShineMotion.z));
+    float spacing = max(vShineMotion.x, 0.001);
+    float along = dot(vDoc, dir) - vShineMotion.y * uTime;
+    float dist = abs(fract(along / spacing + 0.5) - 0.5) * spacing;
+    return clamp(1.0 - dist / max(vShine.w * 0.5, 0.001), 0.0, 1.0);
+  }
+
   void main() {
     vec4 color = vec4(0.0);
     #ifdef UNDER
       if (vGlow.w > 0.0 && vGlowStrength > 0.0) color = glow();
       if (vOutline.w > 0.0 && cover(vCell) < 0.5) color = over(outline(), color);
     #else
-      float glyph = cover(vCell) * vFg.a;
+      float glyph = cover(vCell);
+      // Дизеринг: пиксель шрифта пропадает, если его порог ниже доли узора.
+      if (vShineMotion.w > 0.0 && bayer4(floor(vCell * 8.0)) < vShineMotion.w) glyph = 0.0;
+      vec3 fg = vFg.rgb;
+      if (vShine.w > 0.0) fg = mix(fg, vShine.rgb, shine());
+      glyph *= vFg.a;
       if (insideCell(vCell)) color = vec4(vBg.rgb * vBg.a, vBg.a);
-      color = over(vec4(vFg.rgb * glyph, glyph), color);
+      color = over(vec4(fg * glyph, glyph), color);
     #endif
     if (color.a <= 0.002) discard;
     gl_FragColor = vec4(color.rgb / color.a, color.a);
@@ -127,7 +166,7 @@ const FRAGMENT_SHADER = /* glsl */ `
 /** Материал потока: подложка (`under`) или сами символы. */
 export function createInstanceMaterial(atlas: GlyphSource, under: boolean): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { uAtlas: { value: atlas.texture } },
+    uniforms: { uAtlas: { value: atlas.texture }, uTime: { value: 0 } },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
     defines: under ? { UNDER: '' } : {},

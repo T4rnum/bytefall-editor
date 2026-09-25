@@ -165,6 +165,8 @@ describe('фикстуры формата', () => {
     expect(flag.material).toEqual({
       outline: { color: '#000000', width: 2 },
       glow: { color: '#ffec27', radius: 0.5, strength: 1.5 },
+      shine: null,
+      dither: null,
     });
     // До v8 материала не было.
     expect(frameDocument(deserialize(v7), 0).objects[0].material).toBeNull();

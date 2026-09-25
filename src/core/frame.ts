@@ -31,6 +31,8 @@ export interface ComposedFrame {
   readonly passes: readonly FramePass[];
   /** Тайлы, пересобранные в проходах ячеек. null — пересобрано всё, и залить надо всё. */
   readonly dirty: readonly number[] | null;
+  /** Момент кадра, мс: по нему шейдер двигает бегущие материалы, одинаково на экране и в экспорте. */
+  readonly time: number;
 }
 
 type OpenPass =
@@ -132,7 +134,8 @@ function drawFrame(
     p.kind === 'cells' ? p : { kind: 'glyphs', batch: p.builder.finish() },
   );
   hideCoveredGlyphs(cellBuffersOf(passes), layout, tiles);
-  return { width: doc.width, height: doc.height, passes, dirty: tiles ? [...tiles] : null };
+  const dirty = tiles ? [...tiles] : null;
+  return { width: doc.width, height: doc.height, passes, dirty, time };
 }
 
 const sameShape = (a: readonly FramePass[], b: readonly FramePass[]): boolean =>

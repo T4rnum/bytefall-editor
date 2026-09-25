@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { isDeformed } from '../../core/deformObject';
 import { hasActiveEffects } from '../../core/effects';
+import { isAnimatedMaterial } from '../../core/material';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 
@@ -18,7 +19,7 @@ export function useEffectClock(): void {
     s.animation.frames.some(
       (frame) =>
         frame.layers.some((layer) => hasActiveEffects(layer.effects)) ||
-        frame.objects.some(isDeformed),
+        frame.objects.some((o) => isDeformed(o) || isAnimatedMaterial(o.material)),
     ),
   );
 

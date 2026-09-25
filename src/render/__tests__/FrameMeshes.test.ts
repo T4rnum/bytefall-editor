@@ -14,6 +14,7 @@ const frameOf = (passes: FramePass[], dirty: number[] | null = null): ComposedFr
   height: 32,
   passes,
   dirty,
+  time: 0,
 });
 
 const meshes = (content: FrameMeshes): THREE.Object3D[] => content.group.children;

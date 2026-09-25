@@ -1,6 +1,7 @@
 import type { Animation, Frame } from './animation';
 import { isDeformed } from './deformObject';
 import { hasActiveEffects } from './effects';
+import { isAnimatedMaterial } from './material';
 import { MAX_SCENE_DURATION, roundTime } from './time';
 
 /**
@@ -73,7 +74,9 @@ export function hasMotion(anim: Animation): boolean {
     motion =
       anim.tracks.some((t) => t.keys.length > 1) ||
       anim.frames[0].layers.some((l) => l.visible && hasActiveEffects(l.effects)) ||
-      anim.frames.some((f) => f.objects.some((o) => o.visible && isDeformed(o)));
+      anim.frames.some((f) =>
+        f.objects.some((o) => o.visible && (isDeformed(o) || isAnimatedMaterial(o.material))),
+      );
     motionCache.set(anim, motion);
   }
   return motion;
