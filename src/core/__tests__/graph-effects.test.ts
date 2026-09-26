@@ -222,3 +222,70 @@ describe('зерно сборки', () => {
     expect(seed('node-1')).toBe(seed('node-1'));
   });
 });
+
+describe('поля с полями на входах', () => {
+  it('математика, диапазон и синус считают поле по символам, как одно число', () => {
+    const g = (nodes: [string, string][], links: string[], patch: Record<string, object> = {}) => {
+      const base = wired(nodes, links);
+      return {
+        ...base,
+        nodes: base.nodes.map((n) => (patch[n.id] ? { ...n, ...patch[n.id] } : n)),
+      };
+    };
+    const shifted = (graph: ReturnType<typeof g>) =>
+      run(graph).map((p, i) => p.x - poseRows()[i].x);
+    // Положение X на все входы: у каждого символа своё число.
+    const math = g(
+      [
+        ['pos', 'position'],
+        ['m', 'math'],
+        ['off', 'offset'],
+      ],
+      [
+        'in.glyphs → off.glyphs',
+        'pos.x → m.a',
+        'pos.x → m.b',
+        'm.value → off.x',
+        'off.glyphs → out.glyphs',
+      ],
+      { m: { options: { op: 'multiply' } }, off: { values: { strength: 0.01 } } },
+    );
+    // Сдвиг — квадрат X символа с силой 0.01.
+    const squares = shifted(math).map((d, i) => d / 0.01 - poseRows()[i].x ** 2);
+    expect(squares.every((v) => Math.abs(v) < 1e-9)).toBe(true);
+    const range = g(
+      [
+        ['pos', 'position'],
+        ['r', 'mapRange'],
+        ['off', 'offset'],
+      ],
+      [
+        'in.glyphs → off.glyphs',
+        'pos.x → r.value',
+        'pos.x → r.fromMax',
+        'r.value → off.x',
+        'off.glyphs → out.glyphs',
+      ],
+      { r: { values: { fromMin: 0, toMin: 0, toMax: 2 } } },
+    );
+    // value / fromMax — единица у каждого символа: сдвиг на два.
+    expect(shifted(range).every((d) => Math.abs(d - 2) < 1e-9)).toBe(true);
+    const wave = g(
+      [
+        ['pos', 'position'],
+        ['w', 'wave'],
+        ['off', 'offset'],
+      ],
+      [
+        'in.glyphs → off.glyphs',
+        'pos.x → w.wavelength',
+        'w.value → off.y',
+        'off.glyphs → out.glyphs',
+      ],
+      { w: { values: { period: 0, phase: 90 } } },
+    );
+    // Вдоль — ноль, сдвиг фазы 90°: синус единица у каждого символа, какая бы ни была длина.
+    const ys = run(wave).map((p, i) => p.y - poseRows()[i].y);
+    expect(ys.every((y) => Math.abs(y - 1) < 1e-9)).toBe(true);
+  });
+});

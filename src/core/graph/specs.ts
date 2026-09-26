@@ -48,16 +48,11 @@ export function lift(
   return (poses) => {
     const [a, b, c, d, e] = sources.map((s) => sample(s, poses));
     const out = new Float64Array(poses.length);
-    // Без массива аргументов на символ: вызов с тем числом чисел, что есть у узла.
+    // Без массива аргументов на символ: вызов с тем числом чисел, что есть у узла. Входов у
+    // узлов с полями два (математика), четыре (синус) или пять (диапазон).
     switch (sources.length) {
-      case 1:
-        for (let i = 0; i < out.length; i++) out[i] = fn(a[i]);
-        break;
       case 2:
         for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i]);
-        break;
-      case 3:
-        for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i], c[i]);
         break;
       case 4:
         for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i], c[i], d[i]);
