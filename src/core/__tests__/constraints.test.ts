@@ -141,10 +141,17 @@ describe('цепь с задержкой и слежение', () => {
     expect(findObject(evaluate(anim, 600), 'tail')!.transform.x).toBe(-2);
   });
 
-  it('в начале петли прошлое берётся с конца предыдущего круга', () => {
-    const anim = followScene(200);
-    // Сцена с движением длится две секунды; за 100 мс до нуля — это 1900 мс, ведущий уже в 10.
-    expect(originAt(anim, 'tail', 100).x).toBeCloseTo(10 - 2, 6);
+  it('у незамкнутой сцены до её начала хвост стоит, как нарисован', () => {
+    // Ведущий уезжает и не возвращается: за 100 мс до нуля он там же, где в ноль.
+    expect(originAt(followScene(200), 'tail', 100).x).toBeCloseTo(0 - 2, 6);
+  });
+
+  it('у замкнутой сцены прошлое до нуля берётся с конца предыдущего круга', () => {
+    const open = followScene(200);
+    const position = { node: 'object', id: 'leader', property: 'position' } as const;
+    const closed = { ...open, tracks: setKey(open.tracks, position, 2000, [0, 2]) };
+    // Сцена две секунды; 100 мс до нуля — это 1900: ведущий возвращается и уже в x = 1.
+    expect(originAt(closed, 'tail', 100).x).toBeCloseTo(1 - 2, 6);
   });
 
   it('слежение поворачивает ось X к цели, с запаздыванием — к её прошлому месту', () => {

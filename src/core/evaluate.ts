@@ -16,7 +16,7 @@ import { valueAt } from './interpolate';
 import type { SceneObject } from './object';
 import { temporalPose } from './pose';
 import { roundTime } from './time';
-import { frameIndexAt, sceneDuration } from './timeline';
+import { frameIndexAt, isClosedLoop, sceneDuration } from './timeline';
 import { type Track, type TrackTarget, nodeKey, tracksByNode } from './tracks';
 
 /**
@@ -36,8 +36,7 @@ const MAX_POSE_DEPTH = 24;
 /**
  * Сцена с позой рига. Связям из прошлого нужна сцена в другой момент — она считается так же,
  * со своей позой, и запоминается на один вызов: звенья цепочки с одной задержкой спрашивают
- * одни и те же моменты. Время заворачивается по длине сцены: в петле хвост в начале тянется
- * за тем, что было в конце, и на стыке петли не прыгает.
+ * одни и те же моменты. Что такое прошлое до начала сцены, решает `pastTime`.
  */
 function evaluateAt(
   anim: Animation,
@@ -51,17 +50,23 @@ function evaluateAt(
   const temporal =
     depth < MAX_POSE_DEPTH && doc.objects.some((o) => o.constraints.some((c) => isTemporal(o, c)));
   const pose = temporal
-    ? temporalPose(doc, time, (t) => evaluateAt(anim, loopTime(anim, t), memo, depth + 1))
+    ? temporalPose(doc, time, (t) => evaluateAt(anim, pastTime(anim, t), memo, depth + 1))
     : undefined;
   const out = pose ? { ...doc, pose } : doc;
   memo.set(time, out);
   return out;
 }
 
-/** Момент внутри петли сцены: прошлое до нуля — это конец предыдущего круга. */
-function loopTime(anim: Animation, time: number): number {
+/**
+ * Прошлое для связи. У замкнутой сцены прошлое до нуля — конец предыдущего круга: хвост на стыке
+ * петли не прыгает. У незамкнутой до начала сцены хвост стоит, как нарисован: иначе в первые
+ * мгновения он висел бы там, где голова оказалась в конце, — разорванным.
+ */
+function pastTime(anim: Animation, time: number): number {
+  if (time >= 0) return roundTime(time);
   const length = sceneDuration(anim);
-  return length > 0 ? roundTime(((time % length) + length) % length) : 0;
+  if (length <= 0 || !isClosedLoop(anim)) return 0;
+  return roundTime(((time % length) + length) % length);
 }
 
 /** Применяет треки к документу кадра. Узлы без треков остаются теми же объектами. */

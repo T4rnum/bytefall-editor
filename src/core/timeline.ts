@@ -1,6 +1,7 @@
 import type { Animation, Frame } from './animation';
 import { isDeformed } from './deformObject';
 import { hasActiveEffects } from './effects';
+import { valueAt } from './interpolate';
 import { isAnimatedMaterial } from './material';
 import { MAX_SCENE_DURATION, roundTime } from './time';
 
@@ -162,4 +163,24 @@ export function adjacentFrameTime(anim: Animation, time: number, direction: 1 | 
   if (direction > 0) return times.find((t) => t > time) ?? 0;
   for (let i = times.length - 1; i >= 0; i--) if (times[i] < time) return times[i];
   return times[times.length - 1] ?? 0;
+}
+
+const closedCache = new WeakMap<Animation, boolean>();
+
+/**
+ * Сцена замкнута: каждый трек в конце петли там же, где в начале. Такую сцену можно крутить
+ * по кругу без прыжка, и прошлое до её начала — это конец предыдущего круга. Кадры спрайта
+ * идут по кругу всегда, поэтому решают только ключи.
+ */
+export function isClosedLoop(anim: Animation): boolean {
+  const known = closedCache.get(anim);
+  if (known !== undefined) return known;
+  const end = sceneDuration(anim);
+  const closed = anim.tracks.every((track) => {
+    const from = valueAt(track, 0);
+    const to = valueAt(track, end);
+    return from.every((v, i) => Math.abs(v - to[i]) < 1e-6);
+  });
+  closedCache.set(anim, closed);
+  return closed;
 }
