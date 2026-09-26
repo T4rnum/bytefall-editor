@@ -1,0 +1,7 @@
+{
+    "name": "Bytefall.Editor",
+    "rootNamespace": "Bytefall.Editor",
+    "references": ["Bytefall.Runtime"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": true
+}

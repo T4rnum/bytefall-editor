@@ -1,0 +1,5 @@
+{
+    "name": "Bytefall.Runtime",
+    "rootNamespace": "Bytefall",
+    "autoReferenced": true
+}

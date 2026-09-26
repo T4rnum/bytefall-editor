@@ -1,0 +1,10 @@
+{
+  "name": "com.bytefall.runtime",
+  "version": "1.0.0",
+  "displayName": "Bytefall Runtime",
+  "description": "Анимации из Bytefall Editor: импорт файлов .bytefall и компонент Bytefall Player, который рисует кадр одним мешем.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Bytefall Editor"
+  }
+}
