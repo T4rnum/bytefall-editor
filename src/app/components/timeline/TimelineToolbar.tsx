@@ -180,7 +180,7 @@ function SceneControls({ onFit }: { readonly onFit: () => void }) {
       </Button>
       <Button
         icon
-        label="Живые эффекты: крутить эффекты, пока сцена стоит"
+        label="Живые эффекты: крутить эффекты и деформеры, пока сцена стоит (Shift+L)"
         active={effectsLive}
         onClick={() => useEditorStore.getState().setEffectsLive(!effectsLive)}
       >

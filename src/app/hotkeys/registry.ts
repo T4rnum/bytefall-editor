@@ -222,6 +222,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
   { group: 'Вид', label: 'Вписать в окно', keys: '0', run: fitViewAction },
   {
     group: 'Вид',
+    label: 'Живые эффекты на паузе',
+    keys: 'Shift+L',
+    run: () => editor().setEffectsLive(!editor().effectsLive),
+  },
+  {
+    group: 'Вид',
     label: 'Сетка',
     keys: '`',
     run: () => editor().setShowGrid(!editor().showGrid),

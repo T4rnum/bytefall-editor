@@ -57,7 +57,8 @@ export interface EditorState {
   readonly onionSkin: boolean;
   /**
    * Крутить ли эффекты, пока сцена стоит. Тогда у эффектов свои часы, а при проигрывании и в
-   * экспорте они идут по времени сцены.
+   * экспорте они идут по времени сцены. По умолчанию выключено: на паузе сцена показана ровно в
+   * момент указателя, как её увидит экспорт, а живой предпросмотр включают, чтобы посмотреть.
    */
   readonly effectsLive: boolean;
   /** Часы эффектов на паузе, миллисекунды. */
@@ -134,7 +135,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   isPlaying: false,
   selectedKeys: [],
   onionSkin: false,
-  effectsLive: true,
+  effectsLive: false,
   effectTime: 0,
   post: DEFAULT_POST,
 
