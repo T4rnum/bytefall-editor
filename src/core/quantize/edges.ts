@@ -22,12 +22,13 @@ const SOBEL_EDGE = 4;
 
 /**
  * Для каждой ячейки — символ контура или null. Оператор Собеля считается на мелкой сетке
- * образцов, внутри ячейки голосуют образцы с перепадом выше порога, каждый своим весом, и
+ * образцов — по яркости или, у рендера 3D, по каналам геометрии (`CellSamples.geometry`), внутри ячейки голосуют образцы с перепадом выше порога, каждый своим весом, и
  * побеждает направление с наибольшим весом. Без контуров модель выглядит шумом, с ними —
  * штриховым рисунком (DESIGN.md, раздел 5).
  */
 export function edgeGlyphs(samples: CellSamples, options: EdgeOptions): (string | null)[] {
-  const { width, height, sub, fine } = samples;
+  const { width, height, sub } = samples;
+  const channels = samples.geometry ?? [samples.fine];
   const fw = width * sub;
   const fh = height * sub;
   const votes = new Float32Array(width * height * 4);
@@ -44,17 +45,22 @@ export function edgeGlyphs(samples: CellSamples, options: EdgeOptions): (string 
     for (let x = 0; x < fw; x++) {
       const l = x > 0 ? x - 1 : 0;
       const r = x < fw - 1 ? x + 1 : fw - 1;
-      const gx =
-        fine[up + r] +
-        2 * fine[mid + r] +
-        fine[down + r] -
-        (fine[up + l] + 2 * fine[mid + l] + fine[down + l]);
-      const gy =
-        fine[down + l] +
-        2 * fine[down + x] +
-        fine[down + r] -
-        (fine[up + l] + 2 * fine[up + x] + fine[up + r]);
-      const magnitudeSq = gx * gx + gy * gy;
+      // Перепад — по тому каналу, где он сильнее: у рендера силуэт даёт глубина, ребро — нормаль.
+      let gx = 0;
+      let gy = 0;
+      let magnitudeSq = 0;
+      for (const f of channels) {
+        const cx =
+          f[up + r] + 2 * f[mid + r] + f[down + r] - (f[up + l] + 2 * f[mid + l] + f[down + l]);
+        const cy =
+          f[down + l] + 2 * f[down + x] + f[down + r] - (f[up + l] + 2 * f[up + x] + f[up + r]);
+        const m = cx * cx + cy * cy;
+        if (m > magnitudeSq) {
+          gx = cx;
+          gy = cy;
+          magnitudeSq = m;
+        }
+      }
       if (magnitudeSq <= thresholdSq) continue;
       const angle = ((Math.atan2(gy, gx) * 180) / Math.PI + 180) % 180;
       const bin = Math.round(angle / 45) % 4;

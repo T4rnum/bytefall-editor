@@ -26,6 +26,7 @@ import v9links from './fixtures/v9-constraints.bp.json?raw';
 import v9skin from './fixtures/v9-skin.bp.json?raw';
 import v9tracks from './fixtures/v9-deformer-tracks.bp.json?raw';
 import v10 from './fixtures/v10-graph.bp.json?raw';
+import v11 from './fixtures/v11-scene3d.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -50,6 +51,7 @@ const FIXTURES = {
   'v9-skin': v9skin,
   'v9-deformer-tracks': v9tracks,
   'v10-graph': v10,
+  'v11-scene3d': v11,
 } as const;
 
 /** Узел графа объекта по идентификатору. */

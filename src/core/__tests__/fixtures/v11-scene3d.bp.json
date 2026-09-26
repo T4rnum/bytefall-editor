@@ -1,0 +1,199 @@
+{
+  "format": "bytefall",
+  "version": 11,
+  "name": "Fixture v11",
+  "width": 12,
+  "height": 6,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": [
+    "#000000",
+    "#ffffff"
+  ],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        },
+        {
+          "id": "layer-3d",
+          "name": "Scene",
+          "visible": true,
+          "locked": false,
+          "opacity": 0.8,
+          "cells": [],
+          "scene": {
+            "nodes": [
+              {
+                "id": "body-cube",
+                "name": "Cube",
+                "kind": "box",
+                "visible": true,
+                "position": [
+                  0,
+                  0.5,
+                  0
+                ],
+                "rotation": [
+                  15,
+                  30,
+                  0
+                ],
+                "scale": [
+                  1,
+                  1,
+                  1
+                ],
+                "color": "#FF004D"
+              },
+              {
+                "id": "body-tri",
+                "name": "Tri",
+                "kind": "mesh",
+                "mesh": "mesh-tri",
+                "visible": false,
+                "position": [
+                  1,
+                  0,
+                  -1
+                ],
+                "rotation": [
+                  0,
+                  0,
+                  0
+                ],
+                "scale": [
+                  2,
+                  2,
+                  2
+                ],
+                "color": "#ffffff"
+              }
+            ],
+            "camera": {
+              "projection": "orthographic",
+              "position": [
+                0,
+                2,
+                6
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "fov": 35,
+              "size": 3
+            },
+            "light": {
+              "ambientColor": "#FFFFFF",
+              "ambient": 0.3,
+              "sunColor": "#ffec27",
+              "sun": 1.5,
+              "sunAzimuth": 40,
+              "sunElevation": 50
+            },
+            "quantize": {
+              "ramp": " .:-=+*#%@",
+              "weights": "rec709",
+              "gamma": 1,
+              "contrast": 1.2,
+              "brightness": 0,
+              "invert": false,
+              "dither": "none",
+              "edges": true,
+              "edgeThreshold": 0.35,
+              "edgeStrength": 0.5,
+              "palette": null,
+              "vivid": true,
+              "background": "none",
+              "alphaThreshold": 0.5
+            }
+          }
+        }
+      ],
+      "objects": []
+    }
+  ],
+  "fps": 20,
+  "tracks": [
+    {
+      "node": "body3d",
+      "id": "body-cube",
+      "property": "rotation",
+      "keys": [
+        {
+          "t": 0,
+          "v": [
+            15,
+            30,
+            0
+          ]
+        },
+        {
+          "t": 1000,
+          "v": [
+            15,
+            390,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "node": "scene3d",
+      "id": "layer-3d",
+      "property": "cameraPosition",
+      "keys": [
+        {
+          "t": 0,
+          "v": [
+            0,
+            2,
+            6
+          ],
+          "i": "step"
+        }
+      ]
+    },
+    {
+      "node": "scene3d",
+      "id": "layer-3d",
+      "property": "fov",
+      "keys": [
+        {
+          "t": 500,
+          "v": 50
+        }
+      ]
+    }
+  ],
+  "meshes": [
+    {
+      "id": "mesh-tri",
+      "name": "Triangle",
+      "parts": [
+        {
+          "positions": "AAAAAAAAAAAAAAAAAACAPwAAAAAAAAAAAAAAAAAAgD8AAAAA",
+          "normals": "AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/",
+          "uvs": "AAAAAAAAAAAAAIA/AAAAAAAAAAAAAIA/",
+          "indices": "AAAAAAEAAAACAAAA",
+          "color": "#29ADFF",
+          "texture": {
+            "width": 1,
+            "height": 1,
+            "data": "/wBN/w=="
+          }
+        }
+      ]
+    }
+  ]
+}

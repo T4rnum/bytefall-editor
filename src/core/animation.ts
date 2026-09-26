@@ -9,6 +9,7 @@ import {
 } from './document';
 import { emptyGrid } from './grid';
 import type { SceneObject } from './object';
+import type { Mesh3D } from './scene3d/types';
 import { DEFAULT_FPS } from './time';
 import { type Track, copyTracks, nodeKey, shiftPositionKeys } from './tracks';
 
@@ -42,6 +43,8 @@ export interface Animation {
   /** Длина сцены в миллисекундах; null — по кадрам и ключам, см. `sceneDuration`. */
   readonly duration: number | null;
   readonly tracks: readonly Track[];
+  /** Модели 3D-сцен, общие для всех кадров, см. `Document.meshes`. */
+  readonly meshes: readonly Mesh3D[];
 }
 
 export const DEFAULT_FRAME_DURATION = 100;
@@ -70,6 +73,7 @@ export function createAnimation(doc: Document): Animation {
     fps: DEFAULT_FPS,
     duration: null,
     tracks: [],
+    meshes: doc.meshes,
   };
 }
 
@@ -96,6 +100,7 @@ export function frameDocument(anim: Animation, index: number): Document {
     palette: anim.palette,
     layers: frame.layers,
     objects: frame.objects,
+    meshes: anim.meshes,
   };
 }
 
@@ -112,6 +117,7 @@ export function withFrameDocument(anim: Animation, index: number, doc: Document)
     font: doc.font,
     background: doc.background,
     palette: doc.palette,
+    meshes: doc.meshes,
     frames,
   };
 }
@@ -232,13 +238,17 @@ export function duplicateAnimationLayer(
     }
   }
   const effects = new Map(layer.effects.map((e) => [e.id, newId('fx')]));
+  const bodies = new Map((layer.scene?.nodes ?? []).map((n) => [n.id, newId('body')]));
   const next = mapFrames(anim, (doc) =>
-    duplicateLayer(doc, layerId, copyId, { objects, effects, nodes }),
+    duplicateLayer(doc, layerId, copyId, { objects, effects, nodes, bodies }),
   );
+  const layers = new Map([[layerId, copyId]]);
   let tracks = copyTracks(next.tracks, 'object', objects);
   tracks = copyTracks(tracks, 'node', nodes);
   tracks = copyTracks(tracks, 'effect', effects);
-  tracks = copyTracks(tracks, 'layer', new Map([[layerId, copyId]]));
+  tracks = copyTracks(tracks, 'layer', layers);
+  tracks = copyTracks(tracks, 'body3d', bodies);
+  tracks = copyTracks(tracks, 'scene3d', layers);
   return { ...next, tracks };
 }
 
@@ -258,6 +268,9 @@ export function aliveNodes(frames: readonly Frame[]): Set<string> {
     for (const layer of frame.layers) {
       alive.add(nodeKey('layer', layer.id));
       for (const effect of layer.effects) alive.add(nodeKey('effect', effect.id));
+      if (!layer.scene) continue;
+      alive.add(nodeKey('scene3d', layer.id));
+      for (const node of layer.scene.nodes) alive.add(nodeKey('body3d', node.id));
     }
   }
   return alive;

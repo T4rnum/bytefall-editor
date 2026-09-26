@@ -4,6 +4,7 @@ import { NODES, nodeSpec } from './graph/nodes';
 import type { GraphNode, InputSpec } from './graph/types';
 import { EFFECT_PARAM_SPECS, type LayerEffect, limitParam } from './effects';
 import type { SceneObject } from './object';
+import { limitValue3D, limits3D } from './scene3d/scene';
 import { MAX_ROTATION, MAX_SCALE, MAX_SHIFT, MIN_SCALE, normalizeTransform } from './transform';
 import type { EffectParam, ObjectProperty, TrackTarget } from './tracks';
 
@@ -161,6 +162,9 @@ export function normalizeValue(target: TrackTarget, value: readonly number[]): n
     const { min, max } = nodeInputLimits(target.property);
     return [round6(clamp(value[0], min, max))];
   }
+  if (target.node === 'body3d' || target.node === 'scene3d') {
+    return limitValue3D(target.property, value);
+  }
   switch (target.property) {
     case 'position':
       return value.slice(0, 2).map((v) => round6(clamp(v, -MAX_POSITION, MAX_POSITION)));
@@ -180,6 +184,7 @@ export function valueLimits(target: TrackTarget): { min: number; max: number } {
   if (target.node === 'layer') return { min: 0, max: 1 };
   if (target.node === 'effect') return paramLimits(target.property);
   if (target.node === 'node') return nodeInputLimits(target.property);
+  if (target.node === 'body3d' || target.node === 'scene3d') return limits3D(target.property);
   switch (target.property) {
     case 'position':
       return { min: -MAX_POSITION, max: MAX_POSITION };

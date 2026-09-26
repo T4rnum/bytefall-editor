@@ -4,6 +4,7 @@ import { type CellBuffer, blendCell, createCellBuffer, stackCell } from './cellB
 import type { Document, Layer } from './document';
 import { isAnimatedObject, isDeformed, objectRig } from './deformObject';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
+import { scene3DCells } from './scene3d/render';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -146,8 +147,10 @@ export function drawDocument(
   const canvas = { x: 0, y: 0, w: doc.width, h: doc.height };
   const wanted = tileFilter(layout, tiles);
 
-  for (const layer of doc.layers) {
-    if (!layer.visible || layer.opacity <= 0) continue;
+  for (const source of doc.layers) {
+    if (!source.visible || source.opacity <= 0) continue;
+    // У 3D-слоя растр — рендер его сцены: дальше он идёт как обычный, с эффектами и объектами.
+    const layer = source.scene ? { ...source, cells: scene3DCells(source, doc) } : source;
     const opacity = layer.opacity * alpha;
     const edits = preview && preview.layerId === layer.id ? preview.edits : null;
     const objects = layerDrawOrder(layer, objectsByLayer.get(layer.id) ?? [], matrices);

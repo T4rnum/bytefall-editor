@@ -19,26 +19,38 @@ import {
   trackKey,
   valueKind,
 } from '../tracks';
+import {
+  NODE_3D_PROPERTIES,
+  type Node3DProperty,
+  SCENE_3D_PROPERTIES,
+  type Scene3DProperty,
+} from '../scene3d/scene';
 import { type DeformerMigration, migrationKey } from './graph';
 import { DocumentFormatError, MAX_ID_LENGTH, hex } from './primitives';
 
 const along = z.number().min(0).max(1);
 const overshoot = z.number().min(-MAX_EASING_OVERSHOOT).max(MAX_EASING_OVERSHOOT);
 
+const finite = z.number().finite();
+
 /**
- * Ключ в файле: `t` — момент в миллисекундах, `v` — значение (число, пара чисел или цвет),
+ * Ключ в файле: `t` — момент в миллисекундах, `v` — значение (число, пара или тройка чисел,
+ * цвет),
  * `i` — интерполяция, если не линейная, `e` — кривая для `bezier`.
  */
 const keySchema = z.object({
   t: z.number().min(0).max(MAX_SCENE_DURATION),
-  v: z.union([z.number().finite(), z.tuple([z.number().finite(), z.number().finite()]), hex]),
+  v: z.union([finite, z.tuple([finite, finite]), z.tuple([finite, finite, finite]), hex]),
   i: z.enum(['step', 'linear', 'bezier']).optional(),
   e: z.tuple([along, overshoot, along, overshoot]).optional(),
 });
 
 const trackSchema = z.object({
-  /** `deformer` — версии 6–9, мигрирует во вход узла графа; `node` — версия 10. */
-  node: z.enum(['object', 'layer', 'effect', 'deformer', 'node']),
+  /**
+   * `deformer` — версии 6–9, мигрирует во вход узла графа; `node` — версия 10; `body3d` и
+   * `scene3d` — версия 11.
+   */
+  node: z.enum(['object', 'layer', 'effect', 'deformer', 'node', 'body3d', 'scene3d']),
   /** Узлы графа, мигрированные из деформеров, длиннее обычного идентификатора. */
   id: z
     .string()
@@ -78,6 +90,12 @@ function targetFromFile(track: TrackFile, graphs: GraphTargets): TrackTarget {
     const input = kind ? nodeSpec(kind)?.inputs.find((i) => i.name === property) : undefined;
     if (input?.type === 'number') return { node, id: target, property };
   }
+  if (node === 'body3d' && NODE_3D_PROPERTIES.includes(property as Node3DProperty)) {
+    return { node, id: target, property: property as Node3DProperty };
+  }
+  if (node === 'scene3d' && SCENE_3D_PROPERTIES.includes(property as Scene3DProperty)) {
+    return { node, id: target, property: property as Scene3DProperty };
+  }
   throw new DocumentFormatError(`Unknown ${node} property: ${property}`);
 }
 
@@ -90,7 +108,8 @@ function valueFromFile(target: TrackTarget, v: KeyFile['v']): number[] {
     return tintChannels(v);
   }
   let numbers: number[];
-  if (kind === 'vec2' && Array.isArray(v)) numbers = [...v];
+  if (kind === 'vec2' && Array.isArray(v) && v.length === 2) numbers = [...v];
+  else if (kind === 'vec3' && Array.isArray(v) && v.length === 3) numbers = [...v];
   else if (kind === 'scalar' && typeof v === 'number') numbers = [v];
   else throw new DocumentFormatError(`Track ${where} has a value of the wrong shape`);
   const { min, max } = valueLimits(target);
@@ -140,6 +159,8 @@ function valueToFile(target: TrackTarget, value: readonly number[]): KeyFile['v'
       return toHex({ r: value[0], g: value[1], b: value[2], a: value[3] });
     case 'vec2':
       return [value[0], value[1]];
+    case 'vec3':
+      return [value[0], value[1], value[2]];
     case 'scalar':
       return value[0];
   }

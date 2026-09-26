@@ -8,31 +8,20 @@ import {
   aliveNodes,
   createFrame,
 } from './animation';
-import {
-  type Layer,
-  MAX_DIMENSION,
-  MAX_LAYERS,
-  MAX_PALETTE,
-  MIN_DIMENSION,
-  newId,
-} from './document';
-import { MAX_EFFECTS_PER_LAYER } from './effects';
-import { effectSchema } from './format/effects';
+import { MAX_DIMENSION, MAX_PALETTE, MIN_DIMENSION } from './document';
 import type { DeformerMigration } from './format/graph';
+import {
+  assertSharedLayers,
+  layersFromFile,
+  layersSchema,
+  layersToFile,
+  uniqueEffectIds,
+} from './format/layers';
+import { meshesFromFile, meshesSchema, meshesToFile } from './format/meshes';
 import { objectSchema, objectsFromFile, objectsToFile } from './format/objects';
 import { tracksFromFile, tracksSchema, tracksToFile } from './format/tracks';
 import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION } from './time';
-import {
-  DocumentFormatError,
-  MAX_CELLS_PER_LAYER,
-  MAX_ID_LENGTH,
-  MAX_NAME_LENGTH,
-  cellSchema,
-  cellsFromFile,
-  cellsToFile,
-  hex,
-  id,
-} from './format/primitives';
+import { DocumentFormatError, MAX_ID_LENGTH, MAX_NAME_LENGTH, hex, id } from './format/primitives';
 import { MAX_OBJECTS } from './object';
 
 export {
@@ -53,25 +42,14 @@ export const LEGACY_FORMAT_NAMES = ['blendphoto'] as const;
  * и родителей, 6 — время: частоту и длину сцены, треки ключей, непрозрачность и оттенок
  * объекта, 7 — деформеры объекта, 8 — GPU-материал объекта, 9 — кости и контроллеры рига,
  * 10 — граф узлов на объекте вместо стека деформеров и материала: старые стеки мигрируют в граф,
- * ключи их параметров — на входы узлов.
+ * ключи их параметров — на входы узлов, 11 — 3D-сцена на слое и модели документа.
  * Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
  * Кадры старых файлов без изменений становятся спрайт-треком: у них уже были длительности.
  */
-export const FORMAT_VERSION = 10;
+export const FORMAT_VERSION = 11;
 /** bp — bytefall project. Расширение осталось от прототипа, чтобы старые файлы открывались. */
 export const FILE_EXTENSION = '.bp.json';
 
-const layerSchema = z.object({
-  id,
-  name: z.string().max(MAX_NAME_LENGTH),
-  visible: z.boolean(),
-  locked: z.boolean(),
-  opacity: z.number().min(0).max(1),
-  cells: z.array(cellSchema).max(MAX_CELLS_PER_LAYER),
-  effects: z.array(effectSchema).max(MAX_EFFECTS_PER_LAYER).optional(),
-});
-
-const layersSchema = z.array(layerSchema).min(1).max(MAX_LAYERS);
 const objectsSchema = z.array(objectSchema).max(MAX_OBJECTS);
 
 const frameSchema = z.object({
@@ -94,6 +72,7 @@ const documentSchema = z.object({
     z.literal(8),
     z.literal(9),
     z.literal(10),
+    z.literal(11),
   ]),
   name: z.string().max(MAX_NAME_LENGTH),
   width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
@@ -110,23 +89,12 @@ const documentSchema = z.object({
   fps: z.number().int().min(MIN_FPS).max(MAX_FPS).optional(),
   duration: z.number().min(MIN_SCENE_DURATION).max(MAX_SCENE_DURATION).optional(),
   tracks: tracksSchema.optional(),
+  /** Версия 11. */
+  meshes: meshesSchema.optional(),
 });
 
 export type DocumentFile = z.infer<typeof documentSchema>;
 export type FrameFile = z.infer<typeof frameSchema>;
-type LayerFile = z.infer<typeof layerSchema>;
-
-function layersToFile(layers: readonly Layer[]): LayerFile[] {
-  return layers.map((layer) => ({
-    id: layer.id,
-    name: layer.name,
-    visible: layer.visible,
-    locked: layer.locked,
-    opacity: layer.opacity,
-    cells: cellsToFile(layer.cells),
-    ...(layer.effects.length > 0 ? { effects: [...layer.effects] } : {}),
-  }));
-}
 
 export function toFileObject(anim: Animation): DocumentFile {
   return {
@@ -147,6 +115,7 @@ export function toFileObject(anim: Animation): DocumentFile {
     fps: anim.fps,
     ...(anim.duration !== null ? { duration: anim.duration } : {}),
     ...(anim.tracks.length > 0 ? { tracks: tracksToFile(anim.tracks) } : {}),
+    ...(anim.meshes.length > 0 ? { meshes: meshesToFile(anim.meshes) } : {}),
   };
 }
 
@@ -154,86 +123,18 @@ export function serialize(anim: Animation): string {
   return JSON.stringify(toFileObject(anim));
 }
 
-function layersFromFile(
-  layers: readonly LayerFile[],
-  size: { width: number; height: number },
-): Layer[] {
-  const ids = new Set<string>();
-  return layers.map((layer) => {
-    if (ids.has(layer.id)) throw new DocumentFormatError(`Duplicate layer id: ${layer.id}`);
-    ids.add(layer.id);
-    return {
-      id: layer.id,
-      name: layer.name,
-      visible: layer.visible,
-      locked: layer.locked,
-      opacity: layer.opacity,
-      cells: cellsFromFile(layer.cells, size),
-      effects: uniqueEffects(layer.id, layer.effects ?? []),
-    };
-  });
-}
-
-function uniqueEffects<T extends { readonly id: string }>(layerId: string, effects: T[]): T[] {
-  if (new Set(effects.map((e) => e.id)).size !== effects.length) {
-    throw new DocumentFormatError(`Duplicate effect id in layer ${layerId}`);
-  }
-  return effects;
-}
-
-/** Слои общие для всех кадров: одинаковые идентификаторы в одном порядке, иначе операции над слоями разойдутся. */
-function assertSharedLayers(frames: readonly Frame[]): void {
-  const reference = frames[0].layers.map((l) => l.id).join('\n');
-  frames.forEach((frame, index) => {
-    if (frame.layers.map((l) => l.id).join('\n') !== reference) {
-      throw new DocumentFormatError(`Frame ${index} has different layers than frame 0`);
-    }
-  });
-}
-
-/**
- * Эффекты слоя общие для всех кадров, а ключи находят эффект по идентификатору, поэтому он
- * обязан быть единственным в документе. Копия слоя из старых версий делила идентификаторы
- * эффектов с оригиналом: такие копии получают новые, одинаковые во всех кадрах.
- */
-function uniqueEffectIds(frames: readonly Frame[]): Frame[] {
-  const seen = new Set<string>();
-  const renames = new Map<string, string>();
-  for (const layer of frames[0].layers) {
-    for (const effect of layer.effects) {
-      if (seen.has(effect.id))
-        renames.set(
-          `${layer.id}
-${effect.id}`,
-          newId('fx'),
-        );
-      else seen.add(effect.id);
-    }
-  }
-  if (renames.size === 0) return [...frames];
-  return frames.map((frame) => ({
-    ...frame,
-    layers: frame.layers.map((layer) => ({
-      ...layer,
-      effects: layer.effects.map((e) => {
-        const id = renames.get(`${layer.id}
-${e.id}`);
-        return id ? { ...e, id } : e;
-      }),
-    })),
-  }));
-}
-
 export function fromFileObject(file: DocumentFile): Animation {
   const size = { width: file.width, height: file.height };
   const migration: DeformerMigration = new Map();
+  const meshes = meshesFromFile(file.meshes ?? []);
+  const meshIds = new Set(meshes.map((m) => m.id));
   let frames: Frame[];
   if (file.frames) {
     const ids = new Set<string>();
     frames = file.frames.map((frame) => {
       if (ids.has(frame.id)) throw new DocumentFormatError(`Duplicate frame id: ${frame.id}`);
       ids.add(frame.id);
-      const layers = layersFromFile(frame.layers, size);
+      const layers = layersFromFile(frame.layers, size, meshIds);
       return createFrame(
         layers,
         objectsFromFile(frame.objects ?? [], layers, migration),
@@ -243,7 +144,7 @@ export function fromFileObject(file: DocumentFile): Animation {
     });
     assertSharedLayers(frames);
   } else if (file.layers) {
-    const layers = layersFromFile(file.layers, size);
+    const layers = layersFromFile(file.layers, size, meshIds);
     frames = [createFrame(layers, objectsFromFile(file.objects ?? [], layers, migration))];
   } else {
     throw new DocumentFormatError('Document has neither frames nor layers');
@@ -263,6 +164,7 @@ export function fromFileObject(file: DocumentFile): Animation {
       nodeKinds: graphNodeKinds(frames),
       migration,
     }),
+    meshes,
   };
 }
 

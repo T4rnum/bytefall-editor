@@ -23,6 +23,7 @@ import type { LayerEffect } from './effects';
 import { evaluate, readTarget } from './evaluate';
 import { valueAt } from './interpolate';
 import type { SceneObject } from './object';
+import { findNode3D, updateNode3D, writeNode3DValue, writeScene3DValue } from './scene3d/scene';
 import { frameIndexAt } from './timeline';
 import { roundTime } from './time';
 import {
@@ -68,6 +69,21 @@ function writeStatic(anim: Animation, target: TrackTarget, value: readonly numbe
         );
       case 'node':
         return withGraphNode(doc, target.id, (n) => writeNodeValue(n, target.property, value));
+      case 'body3d':
+        return mapLayers(doc, (l) => {
+          const scene = l.scene;
+          if (!scene || !findNode3D(scene, target.id)) return l;
+          const next = updateNode3D(scene, target.id, (n) =>
+            writeNode3DValue(n, target.property, value),
+          );
+          return next === scene ? l : { ...l, scene: next };
+        });
+      case 'scene3d':
+        return mapLayers(doc, (l) =>
+          l.id === target.id && l.scene
+            ? { ...l, scene: writeScene3DValue(l.scene, target.property, value) }
+            : l,
+        );
     }
   });
 }
@@ -243,6 +259,9 @@ function routeLayer(
       stored,
     });
   }
+  // 3D-сцена правится целиком во всех кадрах (`setTargetValue`), здесь её не трогают: в кадр
+  // возвращается та, что там лежала, без значений ключей на момент правки.
+  if (out.scene === before.scene) out = { ...out, scene: stored.scene };
   if (out.effects === before.effects) return { ...out, effects: stored.effects };
   const effects = out.effects.map((effect) =>
     routeEffect(

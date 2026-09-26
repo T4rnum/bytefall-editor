@@ -2,6 +2,7 @@ import type { Animation } from '../../core/animation';
 import type { Document } from '../../core/document';
 import { EFFECT_KINDS } from '../../core/effects';
 import { nodeSpec } from '../../core/graph/nodes';
+import { findBody3D } from '../../core/scene3d/animate';
 import {
   type EffectParam,
   OBJECT_PROPERTIES,
@@ -12,6 +13,7 @@ import {
   nodeKey,
   trackKey,
 } from '../../core/tracks';
+import { NODE_3D_LABELS, SCENE_3D_LABELS } from '../scene3d/labels';
 
 /** Строка таймлайна: заголовок узла или свойство с ключами. */
 export type TimelineRow =
@@ -67,6 +69,10 @@ function labelOf(target: TrackTarget, doc: Document): string {
       const spec = found && nodeSpec(found.node.kind);
       return spec?.inputs.find((i) => i.name === target.property)?.label ?? target.property;
     }
+    case 'body3d':
+      return NODE_3D_LABELS[target.property];
+    case 'scene3d':
+      return SCENE_3D_LABELS[target.property];
   }
 }
 
@@ -100,6 +106,14 @@ function nodeLabel(anim: Animation, doc: Document, track: Track): string {
     const found = findGraphNode(doc, track.id);
     const spec = found && nodeSpec(found.node.kind);
     return found && spec ? `${spec.label} · ${found.obj.name}` : track.id;
+  }
+  if (track.node === 'body3d') {
+    const found = findBody3D(doc, track.id);
+    return found ? `${found.node.name} · ${found.layer.name}` : track.id;
+  }
+  if (track.node === 'scene3d') {
+    const layer = doc.layers.find((l) => l.id === track.id);
+    return layer ? `Сцена · ${layer.name}` : track.id;
   }
   for (const layer of doc.layers) {
     const effect = layer.effects.find((e) => e.id === track.id);

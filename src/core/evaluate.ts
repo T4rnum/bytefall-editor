@@ -15,6 +15,7 @@ import type { LayerEffect } from './effects';
 import { valueAt } from './interpolate';
 import type { SceneObject } from './object';
 import { temporalPose } from './pose';
+import { animateScene3D, readBody3DTarget, readScene3DTarget } from './scene3d/animate';
 import { roundTime } from './time';
 import { frameIndexAt, isClosedLoop, sceneDuration } from './timeline';
 import { type Track, type TrackTarget, nodeKey, tracksByNode } from './tracks';
@@ -122,7 +123,9 @@ function patchLayer(
     const own = index.get(nodeKey('effect', effect.id));
     return own ? patchEffect(effect, own, time) : effect;
   });
-  return effects === layer.effects ? out : { ...out, effects };
+  if (effects !== layer.effects) out = { ...out, effects };
+  const scene = animateScene3D(layer, index, time);
+  return scene === layer.scene ? out : { ...out, scene };
 }
 
 /**
@@ -178,5 +181,9 @@ export function readTarget(doc: Document, target: TrackTarget): number[] | null 
       }
       return null;
     }
+    case 'body3d':
+      return readBody3DTarget(doc, target.id, target.property);
+    case 'scene3d':
+      return readScene3DTarget(doc, target.id, target.property);
   }
 }

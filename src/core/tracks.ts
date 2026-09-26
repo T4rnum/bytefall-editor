@@ -1,4 +1,5 @@
 import { EASE_IN_OUT, type Easing } from './easing';
+import { type Node3DProperty, type Scene3DProperty, isVectorProperty } from './scene3d/scene';
 import { MAX_SCENE_DURATION, roundTime } from './time';
 
 /** Как значение идёт от ключа к следующему: скачком, равномерно или по кривой. */
@@ -10,7 +11,7 @@ export const INTERPOLATIONS: readonly Interpolation[] = ['step', 'linear', 'bezi
 export interface Key {
   /** Миллисекунды от начала сцены. */
   readonly time: number;
-  /** Каналы значения: одно число, пара (положение, масштаб) или RGBA оттенка. */
+  /** Каналы значения: одно число, пара (положение, масштаб), тройка (3D) или RGBA оттенка. */
   readonly value: readonly number[];
   readonly interpolation: Interpolation;
   /** Кривая для `bezier`. У остальных хранится, чтобы переключение туда и обратно её не теряло. */
@@ -49,7 +50,11 @@ export type TrackTarget =
   | { readonly node: 'layer'; readonly id: string; readonly property: LayerProperty }
   | { readonly node: 'effect'; readonly id: string; readonly property: EffectParam }
   /** Вход узла графа на объекте: `property` — имя числового входа, см. `core/graph`. */
-  | { readonly node: 'node'; readonly id: string; readonly property: string };
+  | { readonly node: 'node'; readonly id: string; readonly property: string }
+  /** Тело 3D-сцены слоя, см. `core/scene3d`. */
+  | { readonly node: 'body3d'; readonly id: string; readonly property: Node3DProperty }
+  /** Камера и свет 3D-сцены: `id` — идентификатор слоя. */
+  | { readonly node: 'scene3d'; readonly id: string; readonly property: Scene3DProperty };
 
 export type TrackNode = TrackTarget['node'];
 
@@ -66,15 +71,23 @@ export interface KeyRef {
 export const MAX_KEYS_PER_TRACK = 4096;
 export const MAX_TRACKS = 4096;
 
-export type ValueKind = 'scalar' | 'vec2' | 'color';
+export type ValueKind = 'scalar' | 'vec2' | 'vec3' | 'color';
 
 export function valueKind(target: TrackTarget): ValueKind {
+  if (target.node === 'body3d' || target.node === 'scene3d') {
+    return isVectorProperty(target.property) ? 'vec3' : 'scalar';
+  }
   if (target.node !== 'object') return 'scalar';
   if (target.property === 'position' || target.property === 'scale') return 'vec2';
   return target.property === 'tint' ? 'color' : 'scalar';
 }
 
-export const CHANNELS: Readonly<Record<ValueKind, number>> = { scalar: 1, vec2: 2, color: 4 };
+export const CHANNELS: Readonly<Record<ValueKind, number>> = {
+  scalar: 1,
+  vec2: 2,
+  vec3: 3,
+  color: 4,
+};
 
 /** Идентификатор трека для словарей и выделения. Никогда не разбирается обратно. */
 export const trackKey = (target: TrackTarget): string =>

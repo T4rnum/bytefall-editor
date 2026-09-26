@@ -3,6 +3,7 @@ import type { LayerEffect } from './effects';
 import type { Point } from './geometry';
 import { type CellGrid, emptyGrid, shiftGrid } from './grid';
 import type { SceneObject } from './object';
+import type { Mesh3D, Scene3D } from './scene3d/types';
 import type { NodeGraph } from './graph/types';
 import type { SkinBone } from './skin';
 
@@ -16,6 +17,11 @@ export interface Layer {
   readonly cells: CellGrid;
   /** Неразрушающие эффекты, общие для всех кадров, см. core/effects.ts. */
   readonly effects: readonly LayerEffect[];
+  /**
+   * 3D-сцена слоя, общая для всех кадров (`core/scene3d`): её рендер, сведённый в ячейки, рисуется
+   * вместо растра слоя. null — обычный слой.
+   */
+  readonly scene: Scene3D | null;
 }
 
 /**
@@ -34,6 +40,8 @@ export interface Document {
   readonly palette: readonly string[];
   readonly layers: readonly Layer[];
   readonly objects: readonly SceneObject[];
+  /** Модели 3D-сцен слоёв, общие для всех кадров: на них ссылаются тела `mesh`. */
+  readonly meshes: readonly Mesh3D[];
   /**
    * Поза рига: входы связей из других моментов времени, см. `core/pose.ts`. Есть только у сцены,
    * вычисленной `evaluate`, и в файл не пишется.
@@ -80,7 +88,16 @@ export function assertDimension(value: number, label: string): void {
 }
 
 export function createLayer(name: string, id: string = newId('layer')): Layer {
-  return { id, name, visible: true, locked: false, opacity: 1, cells: emptyGrid(), effects: [] };
+  return {
+    id,
+    name,
+    visible: true,
+    locked: false,
+    opacity: 1,
+    cells: emptyGrid(),
+    effects: [],
+    scene: null,
+  };
 }
 
 /** Слой можно редактировать, только если он виден и не заблокирован. */
@@ -109,6 +126,7 @@ export function createDocument(options: CreateDocumentOptions = {}): Document {
     palette: DEFAULT_PALETTE,
     layers: [createLayer('Слой 1')],
     objects: [],
+    meshes: [],
   };
 }
 
@@ -173,6 +191,8 @@ export interface CopyIds {
   readonly effects?: ReadonlyMap<string, string>;
   /** Узлы графов объектов копии. */
   readonly nodes?: ReadonlyMap<string, string>;
+  /** Тела 3D-сцены копии слоя. */
+  readonly bodies?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -221,7 +241,12 @@ export function duplicateLayer(
   if (index === -1) return doc;
   const source = doc.layers[index];
   const effects = source.effects.map((e) => ({ ...e, id: ids.effects?.get(e.id) ?? newId('fx') }));
-  const copy: Layer = { ...source, id: copyId, name: `${source.name} copy`, effects };
+  // Тела сцены копии — свои: ключи находят тело по идентификатору.
+  const scene = source.scene && {
+    ...source.scene,
+    nodes: source.scene.nodes.map((n) => ({ ...n, id: ids.bodies?.get(n.id) ?? newId('body') })),
+  };
+  const copy: Layer = { ...source, id: copyId, name: `${source.name} copy`, effects, scene };
   const withLayer = addLayer(doc, copy, index + 1);
   const sources = doc.objects.filter((o) => o.layerId === id);
   const renamed = new Map(sources.map((o) => [o.id, ids.objects?.get(o.id) ?? newId('object')]));
