@@ -19,7 +19,7 @@ import { notify } from './notifyStore';
 
 const state = () => useDocumentStore.getState();
 
-const hasRoomForLayer = (count: number): boolean => {
+export const hasRoomForLayer = (count: number): boolean => {
   if (count < MAX_LAYERS) return true;
   notify(`Не больше ${plural(MAX_LAYERS, { one: 'слоя', few: 'слоёв', many: 'слоёв' })}`, 'error');
   return false;

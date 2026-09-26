@@ -1,5 +1,5 @@
 export type HotkeyGroup =
-  'Файл' | 'Правка' | 'Объекты' | 'Узлы' | 'Анимация' | 'Вид' | 'Инструменты';
+  'Файл' | 'Правка' | 'Объекты' | 'Узлы' | '3D' | 'Анимация' | 'Вид' | 'Инструменты';
 
 export interface Hotkey {
   readonly group: HotkeyGroup;

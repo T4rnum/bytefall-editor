@@ -7,6 +7,7 @@ import {
   Lock,
   LockOpen,
   Plus,
+  Box,
   Trash2,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -21,6 +22,7 @@ import {
 } from '../store/documentActions';
 import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
+import { addLayer3DAction } from '../store/scene3dActions';
 import { toggleKeyAction } from '../store/keyActions';
 import {
   doublePress,
@@ -223,6 +225,15 @@ export function LayersPanel() {
         <>
           <Button icon size="sm" label="Добавить слой" onClick={addLayerAction}>
             <Plus size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Новый 3D-слой: сцена рисуется символами"
+            hotkey="Ctrl+Shift+3"
+            onClick={addLayer3DAction}
+          >
+            <Box size={14} />
           </Button>
           <Button icon size="sm" label="Дублировать слой" onClick={duplicateActiveLayerAction}>
             <Copy size={14} />
