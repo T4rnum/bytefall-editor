@@ -6,7 +6,7 @@ const COLOR_FORMS = { one: 'цвет', few: 'цвета', many: 'цветов' }
 
 /**
  * Своя палитра импорта: цвета списком — через пробел, запятую, с решёткой и без — или из файла
- * палитры Lospec, GIMP, JASC, Paint.NET. Пустая палитра означает цвета картинки.
+ * палитры Lospec, GIMP, JASC, Paint.NET, Adobe (.ase). Пустая палитра означает цвета картинки.
  */
 export function CustomPaletteFields({
   value,

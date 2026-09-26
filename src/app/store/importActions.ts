@@ -1,6 +1,6 @@
 import { evaluate } from '../../core/evaluate';
 import { type ConvertedImage, addImageLayer } from '../../core/imageLayer';
-import { formatPalette, parsePalette } from '../../core/paletteFile';
+import { formatPalette, parseAse, parsePalette } from '../../core/paletteFile';
 import { decodeImage, imageName } from '../io/image';
 import { openImageFile, openPaletteFile } from '../io/files';
 import { useDocumentStore } from './documentStore';
@@ -37,7 +37,10 @@ export async function loadPaletteFileAction(): Promise<string | null> {
   try {
     const file = await openPaletteFile();
     if (!file) return null;
-    const colors = parsePalette(await file.text());
+    // ASE — двоичный файл Adobe, остальные форматы — текст.
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const ase = parseAse(bytes);
+    const colors = ase.length > 0 ? ase : parsePalette(new TextDecoder().decode(bytes));
     if (colors.length > 0) return formatPalette(colors);
     notify(`В файле ${file.name} не нашлось цветов`, 'error');
   } catch (error) {

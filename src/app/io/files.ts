@@ -72,12 +72,12 @@ export async function openImageFile(): Promise<File | null> {
 /** Палитры меньше мегабайта: больше — это не палитра, и читать её целиком незачем. */
 export const MAX_PALETTE_FILE_BYTES = 1024 * 1024;
 
-/** Файл палитры: Lospec, GIMP, JASC, Paint.NET. null, если пользователь отменил диалог. */
+/** Файл палитры: Lospec, GIMP, JASC, Paint.NET, Adobe. null, если пользователь отменил диалог. */
 export async function openPaletteFile(): Promise<File | null> {
   try {
     const file = await fileOpen({
       description: 'Палитра',
-      extensions: ['.hex', '.gpl', '.pal', '.txt'],
+      extensions: ['.hex', '.gpl', '.pal', '.txt', '.ase'],
       mimeTypes: ['text/plain', 'application/octet-stream'],
     });
     if (file.size > MAX_PALETTE_FILE_BYTES) throw new Error('файл больше мегабайта');
