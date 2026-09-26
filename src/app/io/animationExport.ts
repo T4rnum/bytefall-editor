@@ -74,35 +74,3 @@ export function encodeGif(frames: readonly RenderedFrame[], transparent: boolean
   gif.finish();
   return gif.bytes();
 }
-
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('не удалось закодировать PNG'))),
-      'image/png',
-    );
-  });
-}
-
-/** Раскладывает кадры в сетку, близкую к квадрату, и кодирует в PNG. */
-export async function buildSpriteSheet(frames: readonly RenderedFrame[]): Promise<Blob> {
-  const first = frames[0];
-  if (!first) throw new Error('нечего экспортировать');
-  const columns = Math.ceil(Math.sqrt(frames.length));
-  const rows = Math.ceil(frames.length / columns);
-  const canvas = document.createElement('canvas');
-  canvas.width = columns * first.width;
-  canvas.height = rows * first.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('браузер не дал Canvas 2D');
-  frames.forEach((frame, i) => {
-    const pixels = new Uint8ClampedArray(
-      frame.data.buffer,
-      frame.data.byteOffset,
-      frame.data.byteLength,
-    );
-    const image = new ImageData(pixels, frame.width, frame.height);
-    ctx.putImageData(image, (i % columns) * first.width, Math.floor(i / columns) * first.height);
-  });
-  return canvasToBlob(canvas);
-}

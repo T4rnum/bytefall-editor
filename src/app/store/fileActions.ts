@@ -8,11 +8,11 @@ import { bufferToText } from '../../core/text';
 import {
   GIF_MAX_FPS,
   type RenderedFrame,
-  buildSpriteSheet,
   encodeGif,
   gifSamples,
   gifTimings,
 } from '../io/animationExport';
+import { frameArchive, sheetArchive } from '../io/archives';
 import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
@@ -151,14 +151,36 @@ export async function exportGifAction(pixelsPerCell: number): Promise<void> {
   }
 }
 
+/** Архив ZIP из экспорта: листы с атласами или кадры с таймингом. */
+async function saveArchive(bytes: Uint8Array, name: string, done: string): Promise<void> {
+  const blob = new Blob([bytes.slice()], { type: 'application/zip' });
+  if (await saveBlobFile(blob, name, '.zip', 'Архив ZIP')) notify(done);
+}
+
+/** Листы спрайтов PNG с атласами JSON в формате Aseprite — для движков и импортёров. */
 export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
+  const name = safeFileName(animation.name);
   try {
     const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
-    const blob = await buildSpriteSheet(frames);
-    const name = `${safeFileName(animation.name)}-sheet.png`;
-    if (await saveBlobFile(blob, name, '.png', 'Лист спрайтов PNG'))
-      notify('Лист спрайтов сохранён');
+    await saveArchive(
+      await sheetArchive(frames, name),
+      `${name}-sheet.zip`,
+      'Лист спрайтов сохранён',
+    );
+  } catch (error) {
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
+  }
+}
+
+/** Каждый момент экспорта отдельным PNG, тайминг — в JSON рядом. */
+export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
+  const { animation } = useDocumentStore.getState();
+  const name = safeFileName(animation.name);
+  try {
+    const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
+    const bytes = await frameArchive(frames, name, animation.fps);
+    await saveArchive(bytes, `${name}-frames.zip`, 'Кадры сохранены');
   } catch (error) {
     notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }

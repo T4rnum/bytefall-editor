@@ -1,13 +1,10 @@
 import {
+  Download,
   FilePlus,
-  FileText,
-  Film,
   FolderOpen,
   Grid3x3,
-  Image,
   ImagePlus,
   Keyboard,
-  LayoutGrid,
   Maximize,
   Redo2,
   Save,
@@ -21,23 +18,14 @@ import { canRedo, canUndo } from '../../core/history';
 import { renameDocumentAction } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
-import {
-  exportGifAction,
-  exportPngAction,
-  exportSpriteSheetAction,
-  exportTextAction,
-  openDocumentAction,
-  saveDocumentAction,
-} from '../store/fileActions';
+import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
 import { importImageAction } from '../store/importActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
-import { Button, Select, TextField } from '../ui';
+import { Button, TextField } from '../ui';
+import { ExportDialog } from './ExportDialog';
 import { NewDocumentDialog } from './NewDocumentDialog';
 import { ResizeCanvasDialog } from './ResizeCanvasDialog';
-
-const PNG_SCALES = [8, 16, 32, 64] as const;
-const SCALE_OPTIONS = PNG_SCALES.map((s) => ({ value: String(s), label: `${s} px/яч.` }));
 
 export function TopBar() {
   const doc = useDocumentStore((s) => s.doc);
@@ -54,7 +42,8 @@ export function TopBar() {
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   const resizeOpen = useUiStore((s) => s.resizeOpen);
   const setResizeOpen = useUiStore((s) => s.setResizeOpen);
-  const [pngScale, setPngScale] = useState(16);
+  const exportOpen = useUiStore((s) => s.exportOpen);
+  const setExportOpen = useUiStore((s) => s.setExportOpen);
 
   return (
     <header className="topbar">
@@ -108,27 +97,13 @@ export function TopBar() {
       </div>
 
       <div className="topbar-group">
-        <Select
-          value={String(pngScale)}
-          options={SCALE_OPTIONS}
-          ariaLabel="Масштаб экспорта, пикселей на ячейку"
-          onChange={(value) => setPngScale(Number(value))}
-        />
-        <Button icon label="Экспорт кадра в PNG" onClick={() => void exportPngAction(pngScale)}>
-          <Image size={16} />
-        </Button>
-        <Button icon label="Экспорт анимации в GIF" onClick={() => void exportGifAction(pngScale)}>
-          <Film size={16} />
-        </Button>
         <Button
-          icon
-          label="Экспорт листа спрайтов в PNG"
-          onClick={() => void exportSpriteSheetAction(pngScale)}
+          label="Экспорт: PNG, GIF, лист спрайтов, кадры, текст"
+          hotkey="Ctrl+E"
+          onClick={() => setExportOpen(true)}
         >
-          <LayoutGrid size={16} />
-        </Button>
-        <Button icon label="Экспорт кадра в текст" onClick={() => void exportTextAction()}>
-          <FileText size={16} />
+          <Download size={16} />
+          Экспорт
         </Button>
       </div>
 
@@ -183,6 +158,7 @@ export function TopBar() {
 
       <NewDocumentDialog open={newOpen} onClose={() => setNewOpen(false)} />
       {resizeOpen && <ResizeCanvasDialog onClose={() => setResizeOpen(false)} />}
+      {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
     </header>
   );
 }

@@ -25,6 +25,7 @@ interface UiState {
   readonly timelineHeight: number;
   readonly hotkeysOpen: boolean;
   readonly resizeOpen: boolean;
+  readonly exportOpen: boolean;
   /** Открыт ли диалог импорта и с какой картинкой. */
   readonly imageImport: ImageImportSource | null;
   /** Когда автосохранение последний раз легло на диск. null — ещё не писало или не может. */
@@ -35,6 +36,7 @@ interface UiState {
   setTimelineHeight: (height: number) => void;
   setHotkeysOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
+  setExportOpen: (open: boolean) => void;
   setImageImport: (source: ImageImportSource | null) => void;
   setAutosaveStatus: (status: { at: number | null; failed: boolean }) => void;
 }
@@ -51,6 +53,7 @@ export const useUiStore = create<UiState>((set) => ({
   timelineHeight: clampTimeline(readSetting('timelineHeight', DEFAULT_TIMELINE)),
   hotkeysOpen: false,
   resizeOpen: false,
+  exportOpen: false,
   imageImport: null,
   autosavedAt: null,
   autosaveFailed: false,
@@ -66,6 +69,7 @@ export const useUiStore = create<UiState>((set) => ({
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),
+  setExportOpen: (exportOpen) => set({ exportOpen }),
   setImageImport: (imageImport) => set({ imageImport }),
   setAutosaveStatus: ({ at, failed }) => set({ autosavedAt: at, autosaveFailed: failed }),
 }));

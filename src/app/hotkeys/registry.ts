@@ -245,6 +245,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: () => useUiStore.getState().setResizeOpen(true),
   },
   {
+    group: 'Файл',
+    label: 'Экспорт',
+    keys: 'Ctrl+E',
+    run: () => useUiStore.getState().setExportOpen(true),
+  },
+  {
     group: 'Вид',
     label: 'Справка по клавишам',
     keys: '?',
