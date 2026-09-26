@@ -32,7 +32,7 @@ import {
   ungroupSelectedObjectAction,
   updateObjectAction,
 } from '../store/objectActions';
-import { Button, Panel, TextField } from '../ui';
+import { doublePress, Button, Panel, TextField } from '../ui';
 import { ObjectInspector } from './ObjectInspector';
 
 interface RowProps {
@@ -46,6 +46,8 @@ interface RowProps {
 
 function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
   const [editing, setEditing] = useState(false);
+  // Переименование — только если оба нажатия пришлись на эту строку, см. `doublePress`.
+  const [rename] = useState(() => doublePress(() => setEditing(true)));
   const VisibleIcon = object.visible ? Eye : EyeOff;
   const LockIcon = object.locked ? Lock : LockOpen;
   // Кость и контроллер без символов: значок говорит, что это риг, а не пустой объект.
@@ -101,7 +103,8 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
       ) : (
         <span
           className="item-name"
-          onDoubleClick={() => setEditing(true)}
+          onMouseDown={rename.onMouseDown}
+          onDoubleClick={rename.onDoubleClick}
           title="Двойной щелчок — переименовать"
         >
           {object.name}

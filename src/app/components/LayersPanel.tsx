@@ -23,6 +23,7 @@ import { useKeyState } from '../hooks/useKeyState';
 import { useDocumentStore } from '../store/documentStore';
 import { toggleKeyAction } from '../store/keyActions';
 import {
+  doublePress,
   Button,
   Field,
   KeyButton,
@@ -61,6 +62,8 @@ function LayerRow({
   drag: RowDrag;
 }) {
   const [editing, setEditing] = useState(false);
+  // Переименование — только если оба нажатия пришлись на эту строку, см. `doublePress`.
+  const [rename] = useState(() => doublePress(() => setEditing(true)));
   const VisibleIcon = layer.visible ? Eye : EyeOff;
   const LockIcon = layer.locked ? Lock : LockOpen;
   const classes = [
@@ -134,7 +137,8 @@ function LayerRow({
       ) : (
         <span
           className="item-name"
-          onDoubleClick={() => setEditing(true)}
+          onMouseDown={rename.onMouseDown}
+          onDoubleClick={rename.onDoubleClick}
           title="Двойной щелчок — переименовать"
         >
           {layer.name}

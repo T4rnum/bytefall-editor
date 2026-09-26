@@ -22,6 +22,7 @@ export {
 } from './PropertyEditor';
 export { Resizer, type ResizerProps } from './Resizer';
 export { dropsBefore, reorderIndex } from './reorder';
+export { doublePress, type PressEvent } from './doublePress';
 export { Select, optionsOf, type SelectOption, type SelectProps } from './Select';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { TextField, type TextFieldProps } from './TextField';
