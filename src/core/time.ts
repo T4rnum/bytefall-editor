@@ -9,9 +9,12 @@ export const MIN_SCENE_DURATION = 20;
 
 export const DEFAULT_FPS = 20;
 export const MIN_FPS = 1;
-export const MAX_FPS = 60;
+/** Мониторы бывают и на 360 Гц: предел частоты под них, а не под старые 60. */
+export const MAX_FPS = 360;
 /** Частоты, которые предлагает интерфейс. 20 и 50 кадров GIF передаёт без округления задержек. */
-export const FPS_PRESETS: readonly number[] = [10, 12, 15, 20, 24, 25, 30, 50, 60];
+export const FPS_PRESETS: readonly number[] = [
+  10, 12, 15, 20, 24, 25, 30, 50, 60, 90, 120, 144, 165, 240, 360,
+];
 
 /**
  * Момент с точностью до микросекунды: без двоичных хвостов в файле, и ключ, привязанный к
