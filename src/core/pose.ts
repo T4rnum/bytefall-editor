@@ -11,10 +11,14 @@ const angleOf = (m: Affine): number => Math.atan2(m.b, m.a) * DEG;
 const pivotOf = (obj: SceneObject, world: Affine): Point =>
   applyAffine(world, obj.transform.px, obj.transform.py);
 
-/** Поворачивает мир объекта вокруг опоры так, чтобы его ось X смотрела на точку. */
-function aimAt(world: Affine, pivot: Point, point: Point): Affine {
+/**
+ * Поворачивает мир объекта вокруг опоры так, чтобы его ось X стояла под углом `offset` к
+ * направлению на точку.
+ */
+function aimAt(world: Affine, pivot: Point, point: Point, offset: number): Affine {
   if (Math.hypot(point.x - pivot.x, point.y - pivot.y) < 1e-9) return world;
-  const turn = Math.atan2(point.y - pivot.y, point.x - pivot.x) - Math.atan2(world.b, world.a);
+  const toward = Math.atan2(point.y - pivot.y, point.x - pivot.x) + offset / DEG;
+  const turn = toward - Math.atan2(world.b, world.a);
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
   const around: Affine = {
@@ -61,7 +65,7 @@ function resolveAll(
       if (c.kind !== 'aim') continue;
       const point =
         doc.pose?.aims.get(aimKey(obj.id, c.id)) ?? targetPoint(c.target ?? obj.parentId);
-      if (point) world = aimAt(world, pivotOf(obj, world), point);
+      if (point) world = aimAt(world, pivotOf(obj, world), point, c.offset);
     }
     visiting.delete(obj.id);
     out.set(obj.id, world);
@@ -174,4 +178,22 @@ export function temporalPose(
     }
   }
   return parents.size > 0 || aims.size > 0 ? { parents, aims } : undefined;
+}
+
+/**
+ * Угол, который слежение должно держать, чтобы объект остался как есть: ось X объекта сейчас
+ * минус направление на цель. Без цели — родитель; без него — ноль.
+ */
+export function restAimOffset(doc: Document, objectId: string, targetId: string | null): number {
+  const obj = doc.objects.find((o) => o.id === objectId);
+  const id = targetId ?? obj?.parentId ?? null;
+  const target = id === null ? undefined : doc.objects.find((o) => o.id === id);
+  const matrices = objectMatrices(doc);
+  const world = obj && matrices.get(obj.id);
+  const aim = target && matrices.get(target.id);
+  if (!obj || !target || !world || !aim) return 0;
+  const from = pivotOf(obj, world);
+  const to = pivotOf(target, aim);
+  if (Math.hypot(to.x - from.x, to.y - from.y) < 1e-9) return 0;
+  return wrapAngle(angleOf(world) - Math.atan2(to.y - from.y, to.x - from.x) * DEG);
 }

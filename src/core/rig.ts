@@ -2,7 +2,7 @@ import { type Affine, applyAffine } from './affine';
 import { type Constraint, MAX_CONSTRAINTS_PER_OBJECT, createConstraint } from './constraints';
 import { type Document, MAX_DIMENSION } from './document';
 import type { Point } from './geometry';
-import { setParent } from './hierarchy';
+import { removeObject, setParent } from './hierarchy';
 import { type SceneObject, addObject, createObject, findObject, updateObject } from './object';
 import { objectMatrices } from './placement';
 import { type Transform2D, normalizeTransform } from './transform';
@@ -149,4 +149,26 @@ export function addIkControl(
     doc: updateObject(withControl, bone.id, { constraints: [...others, ik] }),
     controlId: control.id,
   };
+}
+
+/**
+ * Убирает связь объекта. Контроллер, к которому она тянулась, уходит вместе с ней, если на него
+ * не смотрит больше ни одна связь и детей у него нет: без связи контроллер — точка, которая
+ * ничего не двигает. Обычный объект-цель остаётся: он и сам по себе рисунок.
+ */
+export function removeConstraint(doc: Document, objectId: string, linkId: string): Document {
+  const obj = findObject(doc, objectId);
+  const link = obj?.constraints.find((c) => c.id === linkId);
+  if (!obj || !link) return doc;
+  const constraints = obj.constraints.filter((c) => c !== link);
+  const next = updateObject(doc, objectId, { constraints });
+  const targetId = link.kind === 'follow' ? null : link.target;
+  const target = targetId === null ? undefined : findObject(next, targetId);
+  if (!target || target.rig?.kind !== 'control') return next;
+  const used = next.objects.some(
+    (o) =>
+      o.parentId === target.id ||
+      o.constraints.some((c) => c.kind !== 'follow' && c.target === target.id),
+  );
+  return used ? next : removeObject(next, target.id);
 }

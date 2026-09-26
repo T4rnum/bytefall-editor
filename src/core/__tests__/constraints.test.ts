@@ -9,6 +9,7 @@ import { keyOf } from '../grid';
 import { type IkLink, solveFabrik } from '../ik';
 import { addObject, createObject, findObject, updateObject } from '../object';
 import { objectMatrices } from '../placement';
+import { restAimOffset } from '../pose';
 import { addRigNode, createBone, createControl } from '../rig';
 import { deserialize, serialize, toFileObject } from '../serialization';
 import { setKey } from '../tracks';
@@ -175,6 +176,29 @@ describe('цепь с задержкой и слежение', () => {
     expect(angle(scene(0), 1000)).toBeCloseTo((Math.atan2(-3.5, 5) * 180) / Math.PI, 4);
     // С запаздыванием в 500 мс в секунду наблюдатель смотрит туда, где ведущий был в 500 мс.
     expect(angle(scene(500), 1000)).toBeCloseTo(-90, 4);
+  });
+});
+
+describe('угол слежения', () => {
+  it('связь не разворачивает звено сразу, а поворачивает на изменение направления', () => {
+    // Звено справа от ведущего: без запомненного угла оно встало бы к нему осью X, вверх ногами.
+    let doc = createDocument({ width: 16, height: 16, background: null });
+    const layerId = doc.layers[0].id;
+    const leader = createObject({ name: 'L', layerId, id: 'L', x: 2, y: 8 });
+    const link = createObject({ name: 'K', layerId, id: 'K', x: 6, y: 8 });
+    doc = addObject(addObject(doc, leader), link);
+    const offset = restAimOffset(doc, 'K', 'L');
+    expect(Math.abs(offset)).toBeCloseTo(180, 6);
+    const aim = { ...createConstraint('aim', 'a'), target: 'L', offset } as Constraint;
+    const aimed = updateObject(doc, 'K', { constraints: [aim] });
+    const angle = (d: typeof doc) => {
+      const m = objectMatrices(d).get('K')!;
+      return (Math.atan2(m.b, m.a) * 180) / Math.PI;
+    };
+    expect(Math.abs(angle(aimed))).toBeCloseTo(0, 6);
+    // Ведущий поднялся так, что направление повернулось на 45°: звено повернулось так же.
+    const raised = updateObject(aimed, 'L', { transform: { ...leader.transform, y: 4 } });
+    expect(angle(raised)).toBeCloseTo(45, 6);
   });
 });
 

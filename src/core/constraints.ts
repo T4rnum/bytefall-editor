@@ -23,13 +23,18 @@ export interface FollowConstraint extends ConstraintCommon {
 }
 
 /**
- * Слежение: объект поворачивается осью X к цели — к тому месту, где она была `lag` мс назад.
- * Без цели смотрит на родителя: звенья верёвки разворачиваются вслед за предыдущим.
+ * Слежение: объект поворачивается вслед за направлением на цель — туда, где она была `lag` мс
+ * назад. Без цели смотрит на родителя: звенья верёвки разворачиваются вслед за предыдущим.
  */
 export interface AimConstraint extends ConstraintCommon {
   readonly kind: 'aim';
   readonly target: string | null;
   readonly lag: number;
+  /**
+   * Угол оси X объекта относительно направления на цель, градусы. Запоминается, когда связь
+   * добавляют или меняют цель: объект не прыгает, а поворачивается, только когда цель уходит.
+   */
+  readonly offset: number;
 }
 
 /** IK: `chain` костей, кончая этой, тянутся концом к цели. Пока цели нет, связь молчит. */
@@ -62,7 +67,7 @@ export const aimKey = (objectId: string, constraintId: string): string =>
 
 const DEFAULTS: { readonly [K in ConstraintKind]: (id: string) => Constraint } = {
   follow: (id) => ({ id, kind: 'follow', enabled: true, delay: 80 }),
-  aim: (id) => ({ id, kind: 'aim', enabled: true, target: null, lag: 0 }),
+  aim: (id) => ({ id, kind: 'aim', enabled: true, target: null, lag: 0, offset: 0 }),
   ik: (id) => ({ id, kind: 'ik', enabled: true, target: null, chain: 2 }),
 };
 

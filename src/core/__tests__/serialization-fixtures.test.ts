@@ -195,7 +195,8 @@ describe('фикстуры формата', () => {
     ]);
     expect(doc.objects.find((o) => o.id === 'object-tail')!.constraints).toEqual([
       { id: 'link-follow', kind: 'follow', enabled: true, delay: 120 },
-      { id: 'link-aim', kind: 'aim', enabled: false, target: null, lag: 40 },
+      // Угол слежения появился позже фикстуры: без него — ноль.
+      { id: 'link-aim', kind: 'aim', enabled: false, target: null, lag: 40, offset: 0 },
     ]);
     expect(frameDocument(deserialize(v9), 0).objects[0].constraints).toEqual([]);
   });

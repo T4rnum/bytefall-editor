@@ -6,7 +6,8 @@ import {
   createConstraint,
 } from '../../core/constraints';
 import { findObject, updateObject } from '../../core/object';
-import { addIkControl, isBone } from '../../core/rig';
+import { restAimOffset } from '../../core/pose';
+import { addIkControl, isBone, removeConstraint } from '../../core/rig';
 import { plural } from '../ui/plural';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
@@ -41,12 +42,20 @@ function hasRoom(links: Links): boolean {
 export function addConstraintAction(objectId: string, kind: ConstraintKind): void {
   const obj = findObject(useDocumentStore.getState().doc, objectId);
   if (!obj || !hasRoom(obj.constraints)) return;
-  const link = createConstraint(kind);
+  const created = createConstraint(kind);
+  // Слежение запоминает, как объект стоит сейчас: иначе он развернулся бы осью X к родителю.
+  const link =
+    created.kind === 'aim'
+      ? { ...created, offset: restAimOffset(useDocumentStore.getState().doc, objectId, null) }
+      : created;
   editLinks(objectId, 'Add constraint', (links) => [...links, link]);
 }
 
+/** Связь уходит во всех кадрах, а с ней — её контроллер, если он больше никому не нужен. */
 export function removeConstraintAction(objectId: string, id: string): void {
-  editLinks(objectId, 'Remove constraint', (links) => links.filter((c) => c.id !== id));
+  const { animation, commitAnimation } = useDocumentStore.getState();
+  const next = mapFrames(animation, (doc) => removeConstraint(doc, objectId, id));
+  if (next !== animation) commitAnimation('Remove constraint', next);
 }
 
 export function updateConstraintAction(
@@ -61,6 +70,15 @@ export function updateConstraintAction(
     (links) => links.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     mergeKey,
   );
+}
+
+/** Новая цель связи. Слежение заново запоминает угол, чтобы объект не прыгнул к новой цели. */
+export function setLinkTargetAction(objectId: string, id: string, target: string | null): void {
+  const { doc } = useDocumentStore.getState();
+  const link = findObject(doc, objectId)?.constraints.find((c) => c.id === id);
+  if (!link || link.kind === 'follow') return;
+  const offset = link.kind === 'aim' ? { offset: restAimOffset(doc, objectId, target) } : {};
+  updateConstraintAction(objectId, id, { target, ...offset });
 }
 
 /**

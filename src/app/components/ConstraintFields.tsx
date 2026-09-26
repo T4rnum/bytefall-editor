@@ -13,6 +13,7 @@ import {
   addConstraintAction,
   addIkControlAction,
   removeConstraintAction,
+  setLinkTargetAction,
   updateConstraintAction,
 } from '../store/constraintActions';
 import { useDocumentStore } from '../store/documentStore';
@@ -36,7 +37,7 @@ interface ItemProps {
   readonly targets: readonly SelectOption<string>[];
 }
 
-type NumberKey = 'delay' | 'lag' | 'chain';
+type NumberKey = 'delay' | 'lag' | 'chain' | 'offset';
 
 /**
  * Число связи: пишет по ходу жеста одной записью истории, сбрасывается к значению новой связи.
@@ -78,7 +79,7 @@ function LinkNumber({
     >
       <NumberField
         value={value}
-        min={field === 'chain' ? 1 : 0}
+        min={field === 'chain' ? 1 : field === 'offset' ? -360 : 0}
         max={max}
         step={step}
         onChange={write}
@@ -94,8 +95,6 @@ function LinkNumber({
 
 /** Одна связь: включатель, удаление и параметры её вида. */
 function LinkItem({ object, link, targets }: ItemProps) {
-  const set = (patch: Record<string, unknown>): void =>
-    updateConstraintAction(object.id, link.id, patch);
   const number = (field: NumberKey, label: string, max: number, step: number) => (
     <LinkNumber object={object} link={link} field={field} label={label} max={max} step={step} />
   );
@@ -107,7 +106,7 @@ function LinkItem({ object, link, targets }: ItemProps) {
           options={targets}
           size="sm"
           ariaLabel="Цель связи"
-          onChange={(id) => set({ target: id === '' ? null : id })}
+          onChange={(id) => setLinkTargetAction(object.id, link.id, id === '' ? null : id)}
         />
       </Field>
     );
@@ -133,6 +132,13 @@ function LinkItem({ object, link, targets }: ItemProps) {
       {target}
       {link.kind === 'follow' && number('delay', 'Задержка, мс', MAX_DELAY, 10)}
       {link.kind === 'aim' && number('lag', 'Запаздывание, мс', MAX_DELAY, 10)}
+      {link.kind === 'aim' && number('offset', 'Угол к цели, °', 360, 5)}
+      {link.kind === 'follow' && (
+        <p className="panel-hint">
+          Звено повторяет движение родителя с опозданием. Видно при проигрывании, когда родитель
+          едет по ключам: на паузе опаздывать нечему.
+        </p>
+      )}
       {link.kind === 'ik' && number('chain', 'Костей в цепочке', MAX_CHAIN, 1)}
     </li>
   );

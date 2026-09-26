@@ -3,13 +3,14 @@ import { createAnimation, frameDocument } from '../animation';
 import { composite } from '../compositor';
 import { createDocument } from '../document';
 import { composeFrame } from '../frame';
-import { findObject } from '../object';
+import { findObject, updateObject } from '../object';
 import { objectMatrix } from '../placement';
 import { moveInDocument } from '../hierarchy';
 import {
   type Bone,
   addIkControl,
   addRigNode,
+  removeConstraint,
   boneEnds,
   createBone,
   createControl,
@@ -132,5 +133,19 @@ describe('кости и контроллеры', () => {
     expect(ends(moved, 'lower').tail.y).toBeCloseTo(12, 3);
     expect(ends(moved, upper.id).head).toEqual({ x: 2, y: 8 });
     expect(addIkControl(doc, 'nope')).toBeNull();
+  });
+
+  it('связь уходит вместе со своим контроллером, чужой и нужный контроллер остаются', () => {
+    const { doc, upper } = arm();
+    const added = addIkControl(doc, 'lower')!;
+    const link = findObject(added.doc, 'lower')!.constraints[0];
+    const without = removeConstraint(added.doc, 'lower', link.id);
+    expect(findObject(without, 'lower')!.constraints).toEqual([]);
+    expect(findObject(without, added.controlId)).toBeUndefined();
+    // Второй IK смотрит на тот же контроллер — удаление первого его не трогает.
+    const twice = updateObject(added.doc, upper.id, {
+      constraints: [{ ...link, id: 'second' }],
+    });
+    expect(findObject(removeConstraint(twice, 'lower', link.id), added.controlId)).toBeDefined();
   });
 });

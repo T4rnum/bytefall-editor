@@ -8,7 +8,13 @@ const delay = z.number().min(0).max(MAX_DELAY);
 /** Связи объекта в файле (версия 9): задержка, слежение и IK. Без цели связь молчит. */
 export const constraintSchema = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('follow'), delay }),
-  z.object({ ...base, kind: z.literal('aim'), target: id.nullable(), lag: delay }),
+  z.object({
+    ...base,
+    kind: z.literal('aim'),
+    target: id.nullable(),
+    lag: delay,
+    offset: z.number().min(-360).max(360).default(0),
+  }),
   z.object({
     ...base,
     kind: z.literal('ik'),
