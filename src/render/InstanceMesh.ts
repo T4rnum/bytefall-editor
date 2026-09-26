@@ -17,6 +17,7 @@ interface Attributes {
   readonly glowStrength: THREE.InstancedBufferAttribute;
   readonly shine: THREE.InstancedBufferAttribute;
   readonly shineMotion: THREE.InstancedBufferAttribute;
+  readonly extra: THREE.InstancedBufferAttribute;
 }
 
 /** Имена атрибутов в шейдере, см. `instanceShader.ts`. */
@@ -31,6 +32,7 @@ const NAMES: Readonly<Record<keyof Attributes, string>> = {
   glowStrength: 'aGlowStrength',
   shine: 'aShine',
   shineMotion: 'aShineMotion',
+  extra: 'aExtra',
 };
 
 const SIZES: Readonly<Record<keyof Attributes, number>> = {
@@ -44,7 +46,16 @@ const SIZES: Readonly<Record<keyof Attributes, number>> = {
   glowStrength: 1,
   shine: 4,
   shineMotion: 4,
+  extra: 3,
 };
+
+/**
+ * Числа подряд из потока в атрибут. Цикл, а не `set(subarray())`: вид на каждый атрибут каждого
+ * символа — лишний объект в кадре, а поток заливается на каждый кадр.
+ */
+function copy(to: Float32Array, at: number, from: Float32Array, start: number, n: number): void {
+  for (let k = 0; k < n; k++) to[at + k] = from[start + k];
+}
 
 /**
  * Свободные символы одним инстансированным вызовом: у каждого свой центр, поворот и масштаб.
@@ -120,18 +131,17 @@ export class InstanceMesh {
       arrays.uv[i * 4 + 1] = rect.v0;
       arrays.uv[i * 4 + 2] = rect.u1;
       arrays.uv[i * 4 + 3] = rect.v1;
-      arrays.fg.set(d.subarray(o + INSTANCE.fg, o + INSTANCE.fg + 4), i * 4);
-      arrays.bg.set(d.subarray(o + INSTANCE.bg, o + INSTANCE.bg + 4), i * 4);
+      copy(arrays.fg, i * 4, d, o + INSTANCE.fg, 4);
+      copy(arrays.bg, i * 4, d, o + INSTANCE.bg, 4);
       const m = o + INSTANCE.material;
-      arrays.outline.set(d.subarray(m + MATERIAL.outline, m + MATERIAL.outline + 4), i * 4);
-      arrays.glow.set(d.subarray(m + MATERIAL.glow, m + MATERIAL.glow + 4), i * 4);
+      copy(arrays.outline, i * 4, d, m + MATERIAL.outline, 4);
+      copy(arrays.glow, i * 4, d, m + MATERIAL.glow, 4);
       arrays.glowStrength[i] = d[m + MATERIAL.glowStrength];
-      arrays.shine.set(d.subarray(m + MATERIAL.shine, m + MATERIAL.shine + 4), i * 4);
+      copy(arrays.shine, i * 4, d, m + MATERIAL.shine, 4);
       // Шаг, скорость и угол блика, а четвёртым — дизеринг: оба читает проход символов.
-      arrays.shineMotion.set(
-        d.subarray(m + MATERIAL.shineMotion, m + MATERIAL.shineMotion + 4),
-        i * 4,
-      );
+      copy(arrays.shineMotion, i * 4, d, m + MATERIAL.shineMotion, 4);
+      // Мягкость свечения, строки развёртки и крупный пиксель — хвост чисел материала.
+      copy(arrays.extra, i * 3, d, m + MATERIAL.glowSoft, 3);
       if (d[m + MATERIAL.outline + 3] > 0 || d[m + MATERIAL.glow + 3] > 0) material = true;
     }
     for (const attr of Object.values(attrs) as THREE.InstancedBufferAttribute[]) {

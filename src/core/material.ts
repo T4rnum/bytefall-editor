@@ -17,6 +17,8 @@ export interface GlowMaterial {
   readonly radius: number;
   /** Насколько плотное свечение: 1 — как сам символ у края, больше — ярче и шире на вид. */
   readonly strength: number;
+  /** Мягким пятном вокруг символа, как свечение постобработки; нет — по форме символа. */
+  readonly soft?: boolean;
 }
 
 /** Блик: светлые полосы бегут по символам под углом, как отражение на стекле. */
@@ -38,11 +40,26 @@ export interface DitherMaterial {
   readonly amount: number;
 }
 
+/** Строки развёртки: каждая вторая строка пикселей шрифта темнее, как на кинескопе. */
+export interface ScanlinesMaterial {
+  /** Насколько темнее, 0..1. */
+  readonly amount: number;
+}
+
+/** Крупные пиксели: символ рисуется блоками в столько пикселей шрифта. */
+export interface PixelsMaterial {
+  /** Сторона блока в пикселях шрифта, 1..8; 1 — как есть. */
+  readonly size: number;
+}
+
 export interface GlyphMaterial {
   readonly outline: OutlineMaterial | null;
   readonly glow: GlowMaterial | null;
   readonly shine: ShineMaterial | null;
   readonly dither: DitherMaterial | null;
+  /** Появились позже остальных частей: у материалов старых файлов их нет. */
+  readonly scanlines?: ScanlinesMaterial | null;
+  readonly pixels?: PixelsMaterial | null;
 }
 
 /** Пиксель шрифта в долях ячейки: Press Start 2P рисует символ на сетке 8×8. */
@@ -61,20 +78,29 @@ export const DEFAULT_SHINE: ShineMaterial = {
   angle: 30,
 };
 export const DEFAULT_DITHER: DitherMaterial = { amount: 0.5 };
+export const DEFAULT_SCANLINES: ScanlinesMaterial = { amount: 0.5 };
+export const DEFAULT_PIXELS: PixelsMaterial = { size: 2 };
 export const MAX_SHINE_SPEED = 256;
+export const MAX_PIXEL_SIZE = 8;
 
 export const hasMaterial = (material: GlyphMaterial | null): material is GlyphMaterial =>
   material !== null &&
   (material.outline !== null ||
     material.glow !== null ||
     material.shine !== null ||
-    material.dither !== null);
+    material.dither !== null ||
+    material.scanlines != null ||
+    material.pixels != null);
 
-/** Числа материала для потока символов, по `MATERIAL_FLOATS` на символ. */
-export const MATERIAL_FLOATS = 17;
+/**
+ * Числа материала для потока символов, по `MATERIAL_FLOATS` на символ. Двадцать — ровно пять
+ * текселей RGBA: так таблица материалов ложится в текстуру рантаймов без добивки.
+ */
+export const MATERIAL_FLOATS = 20;
 /**
  * Смещения внутри чисел материала: контур — цвет и толщина в ячейках, свечение — цвет, радиус
- * и сила, блик — цвет и ширина, затем шаг, скорость и угол в радианах, в конце — дизеринг.
+ * и сила, блик — цвет и ширина, затем шаг, скорость и угол в радианах, дизеринг, мягкость
+ * свечения (1 — пятном), строки развёртки и сторона крупного пикселя в пикселях шрифта.
  */
 export const MATERIAL = {
   outline: 0,
@@ -83,6 +109,9 @@ export const MATERIAL = {
   shine: 9,
   shineMotion: 13,
   dither: 16,
+  glowSoft: 17,
+  scanlines: 18,
+  pixels: 19,
 } as const;
 
 /**
@@ -101,6 +130,7 @@ export function materialFloats(material: GlyphMaterial | null): Float32Array | n
     const c = colorOf(material.glow.color);
     out.set([c.r, c.g, c.b, material.glow.radius], MATERIAL.glow);
     out[MATERIAL.glowStrength] = material.glow.strength;
+    if (material.glow.soft) out[MATERIAL.glowSoft] = 1;
   }
   if (material.shine) {
     const { color, width, spacing, speed, angle } = material.shine;
@@ -108,6 +138,9 @@ export function materialFloats(material: GlyphMaterial | null): Float32Array | n
     out.set([c.r, c.g, c.b, width, spacing, speed, (angle * Math.PI) / 180], MATERIAL.shine);
   }
   if (material.dither) out[MATERIAL.dither] = material.dither.amount;
+  if (material.scanlines) out[MATERIAL.scanlines] = material.scanlines.amount;
+  // Блок в один пиксель — это обычный символ: ноль, и шейдер не квантует.
+  if (material.pixels && material.pixels.size > 1) out[MATERIAL.pixels] = material.pixels.size;
   return out;
 }
 
@@ -121,6 +154,8 @@ export function withMaterialPart(
     glow: material?.glow ?? null,
     shine: material?.shine ?? null,
     dither: material?.dither ?? null,
+    scanlines: material?.scanlines ?? null,
+    pixels: material?.pixels ?? null,
     ...patch,
   };
   return hasMaterial(next) ? next : null;

@@ -11,10 +11,12 @@ namespace Bytefall
     /// </summary>
     public sealed class BytefallAnimation : ScriptableObject
     {
-        public const int Version = 1;
+        public const int Version = 2;
         public const int GlyphBytes = 32;
         /// <summary>Чисел на материал в таблице, раскладка — <c>src/core/material.ts</c>.</summary>
-        public const int MaterialFloats = 17;
+        public const int MaterialFloats = 20;
+        /// <summary>Чисел на материал в файлах версии 1: без мягкости свечения, развёртки и крупных пикселей.</summary>
+        const int V1MaterialFloats = 17;
         /// <summary>Старший бит поля материала: запись — подложка символа (контур и свечение).</summary>
         public const int UnderBit = 0x8000;
         const string Magic = "BYTEFALL";
@@ -113,7 +115,8 @@ namespace Bytefall
                 error = "это не файл .bytefall";
                 return null;
             }
-            if (BitConverter.ToUInt16(bytes, 8) > Version)
+            int version = BitConverter.ToUInt16(bytes, 8);
+            if (version > Version)
             {
                 error = "файл новее рантайма, обновите пакет";
                 return null;
@@ -154,7 +157,7 @@ namespace Bytefall
             anim.atlasColumns = header.atlas.columns;
             anim.atlasRows = header.atlas.rows;
             anim.glyphs = header.atlas.glyphs;
-            anim.materials = header.materials ?? Array.Empty<float>();
+            anim.materials = Widen(header.materials ?? Array.Empty<float>(), version >= 2 ? MaterialFloats : V1MaterialFloats);
             anim.materialTexture = MaterialTexture(anim.materials);
             shader = shader != null ? shader : Shader.Find("Bytefall/Glyph");
             if (shader == null)
@@ -189,15 +192,28 @@ namespace Bytefall
             return total;
         }
 
-        /// <summary>Материалы строками по 5 текселей RGBA float: 17 чисел и три нуля добивки.</summary>
+        /// <summary>
+        /// Таблица старой версии с <paramref name="stride"/> числами на материал — в нынешнюю
+        /// раскладку: хвост, которого в файле не было, — нули.
+        /// </summary>
+        static float[] Widen(float[] values, int stride)
+        {
+            if (stride == MaterialFloats) return values;
+            int count = values.Length / stride;
+            var output = new float[count * MaterialFloats];
+            for (int row = 0; row < count; row++)
+            {
+                Array.Copy(values, row * stride, output, row * MaterialFloats, stride);
+            }
+            return output;
+        }
+
+        /// <summary>Материалы строками по 5 текселей RGBA float: ровно 20 чисел на материал.</summary>
         static Texture2D MaterialTexture(float[] values)
         {
             int count = values.Length / MaterialFloats;
             var texels = new float[Mathf.Max(1, count) * 20];
-            for (int row = 0; row < count; row++)
-            {
-                Array.Copy(values, row * MaterialFloats, texels, row * 20, MaterialFloats);
-            }
+            Array.Copy(values, texels, values.Length);
             var texture = new Texture2D(5, Mathf.Max(1, count), TextureFormat.RGBAFloat, false, true)
             {
                 name = "materials",

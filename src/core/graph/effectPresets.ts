@@ -118,7 +118,7 @@ const FRAGMENTS: Readonly<Record<EffectPresetKind, (b: string) => Fragment>> = {
         link(`${b}~noise`, 'x', `${b}~range`, 'value'),
         link(`${b}~range`, 'value', `${b}~glow`, 'strength'),
       ],
-      node(`${b}~glow`, 'glow', 2, 0, { radius: 1 }, { color: '#83769c' }),
+      node(`${b}~glow`, 'glow', 2, 0, { radius: 1 }, { color: '#83769c', pattern: 'soft' }),
     ),
   vignette: (b) =>
     chain(

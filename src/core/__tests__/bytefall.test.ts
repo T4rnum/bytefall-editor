@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { createAnimation } from '../animation';
 import { makeCell } from '../cell';
-import { GLYPH_BYTES, atlasGrid, packBytefall, unpackBytefall } from '../bytefall';
+import {
+  BYTEFALL_VERSION,
+  GLYPH_BYTES,
+  atlasGrid,
+  packBytefall,
+  unpackBytefall,
+} from '../bytefall';
 import { createDocument } from '../document';
 import { composeFrame } from '../frame';
 import { keyOf } from '../grid';
-import { DEFAULT_GLOW, DEFAULT_OUTLINE, DEFAULT_SHINE, MATERIAL } from '../material';
+import {
+  DEFAULT_GLOW,
+  DEFAULT_OUTLINE,
+  DEFAULT_SHINE,
+  MATERIAL,
+  MATERIAL_FLOATS,
+} from '../material';
 import { addObject, createObject, transformObject, updateObject } from '../object';
 import { mergeRepeats, runtimeFrame, usedGlyphs } from '../runtime';
 import { materialGraph } from './helpers/graphs';
@@ -40,6 +52,28 @@ function scene() {
     cells: new Map([[keyOf(0, 0), makeCell('@', '#ffffff')]]),
   });
   return transformObject(addObject(doc, obj), 'o', { rot: 90 });
+}
+
+/** Тот же файл, записанный версией 1: таблица материалов по 17 чисел. */
+function asVersion1(bytes: Uint8Array): Uint8Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const length = view.getUint32(12, true);
+  const header = JSON.parse(new TextDecoder().decode(bytes.subarray(16, 16 + length))) as {
+    materials: number[];
+  };
+  const rows = header.materials.length / MATERIAL_FLOATS;
+  const materials = Array.from({ length: rows }, (_, r) =>
+    header.materials.slice(r * MATERIAL_FLOATS, r * MATERIAL_FLOATS + 17),
+  ).flat();
+  const json = new TextEncoder().encode(JSON.stringify({ ...header, version: 1, materials }));
+  const out = new Uint8Array(16 + json.length + bytes.length - 16 - length);
+  out.set(bytes.subarray(0, 16));
+  out.set(json, 16);
+  out.set(bytes.subarray(16 + length), 16 + json.length);
+  const outView = new DataView(out.buffer);
+  outView.setUint16(8, 1, true);
+  outView.setUint32(12, json.length, true);
+  return out;
 }
 
 describe('кадр для рантайма', () => {
@@ -82,7 +116,11 @@ describe('файл .bytefall', () => {
       frames,
     });
     const back = unpackBytefall(bytes);
-    expect(back.header).toMatchObject({ format: 'bytefall', version: 1, name: 'сцена' });
+    expect(back.header).toMatchObject({
+      format: 'bytefall',
+      version: BYTEFALL_VERSION,
+      name: 'сцена',
+    });
     expect(back.header.frames).toEqual([
       { time: 0, duration: 100, count: 3 },
       { time: 0, duration: 250, count: 3 },
@@ -143,13 +181,20 @@ describe('файл .bytefall', () => {
       frames: [frame],
     });
     const back = unpackBytefall(bytes);
-    expect(back.header.materials).toHaveLength(17);
+    expect(back.header.materials).toHaveLength(MATERIAL_FLOATS);
     const [a, , under, at] = back.frames[0].glyphs;
     expect(a.material).toBeNull();
     expect(under.under).toBe(true);
     expect(at.under).toBe(false);
     expect(at.material?.[MATERIAL.glow + 3]).toBeCloseTo(DEFAULT_GLOW.radius, 5);
     expect(at.material).toEqual(under.material);
+
+    // Файл версии 1: 17 чисел на материал, хвост читатель добивает нулями.
+    const v1 = asVersion1(bytes);
+    const old = unpackBytefall(v1).frames[0].glyphs[3];
+    expect(old.material).toHaveLength(MATERIAL_FLOATS);
+    expect(old.material?.slice(0, 17)).toEqual(at.material?.slice(0, 17));
+    expect(old.material?.slice(17)).toEqual([0, 0, 0]);
   });
 
   it('бегущий блик не даёт склеить кадры, даже если символы стоят', () => {

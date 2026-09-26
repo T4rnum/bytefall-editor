@@ -1,5 +1,12 @@
 import type { GlyphMaterial } from '../material';
-import { DEFAULT_DITHER, DEFAULT_GLOW, DEFAULT_OUTLINE, DEFAULT_SHINE } from '../material';
+import {
+  DEFAULT_DITHER,
+  DEFAULT_GLOW,
+  DEFAULT_OUTLINE,
+  DEFAULT_PIXELS,
+  DEFAULT_SCANLINES,
+  DEFAULT_SHINE,
+} from '../material';
 import type { SkinBone } from '../skin';
 import { type EffectPresetKind, effectFragment } from './effectPresets';
 import { type DeformerKind, createDeformer } from './legacy';
@@ -16,7 +23,9 @@ export type PresetKind =
   | 'outline'
   | 'glow'
   | 'shine'
-  | 'dither';
+  | 'dither'
+  | 'scanlines'
+  | 'pixels';
 
 export interface Preset {
   readonly kind: PresetKind;
@@ -46,6 +55,8 @@ export const PRESETS: readonly Preset[] = [
   { kind: 'glow', label: 'Свечение', group: 'Материал' },
   { kind: 'shine', label: 'Блик', group: 'Материал' },
   { kind: 'dither', label: 'Дизеринг', group: 'Материал' },
+  { kind: 'scanlines', label: 'Развёртка', group: 'Материал' },
+  { kind: 'pixels', label: 'Пиксели', group: 'Материал' },
 ];
 
 const EMPTY: GlyphMaterial = { outline: null, glow: null, shine: null, dither: null };
@@ -65,6 +76,8 @@ const MATERIALS: Readonly<Record<string, GlyphMaterial>> = {
   glow: { ...EMPTY, glow: DEFAULT_GLOW },
   shine: { ...EMPTY, shine: DEFAULT_SHINE },
   dither: { ...EMPTY, dither: DEFAULT_DITHER },
+  scanlines: { ...EMPTY, scanlines: DEFAULT_SCANLINES },
+  pixels: { ...EMPTY, pixels: DEFAULT_PIXELS },
 };
 
 /**

@@ -21,6 +21,7 @@ const VERTEX_SHADER = /* glsl */ `
   attribute float aGlowStrength;
   attribute vec4 aShine;
   attribute vec4 aShineMotion;
+  attribute vec3 aExtra;
   varying vec2 vCell;
   varying vec2 vDoc;
   varying vec4 vShine;
@@ -31,9 +32,11 @@ const VERTEX_SHADER = /* glsl */ `
   varying vec4 vOutline;
   varying vec4 vGlow;
   varying float vGlowStrength;
+  varying vec3 vExtra;
 
   void main() {
     vRect = aUvRect;
+    vExtra = aExtra;
     vFg = aFg;
     vBg = aBg;
     vOutline = aOutline;
@@ -73,14 +76,24 @@ const FRAGMENT_SHADER = /* glsl */ `
   varying vec4 vOutline;
   varying vec4 vGlow;
   varying float vGlowStrength;
+  /** Мягкость свечения (1 — пятном), строки развёртки, сторона крупного пикселя. */
+  varying vec3 vExtra;
 
   bool insideCell(vec2 cell) {
     return cell.x >= 0.0 && cell.y >= 0.0 && cell.x < 1.0 && cell.y < 1.0;
   }
 
-  /** Покрыт ли пиксель глифом: бинарно, как в сетке, чтобы пиксельный шрифт не размывался. */
+  /**
+   * Покрыт ли пиксель глифом: бинарно, как в сетке, чтобы пиксельный шрифт не размывался. Крупный
+   * пиксель берёт пиксель шрифта посреди своего блока — его центр, а не границу между пикселями,
+   * где выбор текселя у каждого GPU свой. Контур и свечение идут за крупной формой.
+   */
   float cover(vec2 cell) {
     if (!insideCell(cell)) return 0.0;
+    if (vExtra.z > 1.0) {
+      float n = vExtra.z;
+      cell = (min(floor(cell * 8.0 / n) * n + floor(n * 0.5), vec2(7.0)) + 0.5) / 8.0;
+    }
     return step(0.5, texture2D(uAtlas, mix(vRect.xy, vRect.zw, cell)).a);
   }
 
@@ -105,6 +118,16 @@ const FRAGMENT_SHADER = /* glsl */ `
       }
     }
     float alpha = clamp(sum / total * vGlowStrength, 0.0, 1.0) * vFg.a;
+    return vec4(vGlow.rgb * alpha, alpha);
+  }
+
+  /**
+   * Мягкое свечение: пятно вокруг символа без его формы, как свечение постобработки. Внутри
+   * символа — половина силы, как у края формы, к радиусу за краем гаснет по Гауссу.
+   */
+  vec4 softGlow() {
+    float d = max(0.0, length(vCell - 0.5) - 0.35) / max(vGlow.w, 0.001);
+    float alpha = clamp(exp(-2.0 * d * d) * 0.5 * vGlowStrength, 0.0, 1.0) * vFg.a;
     return vec4(vGlow.rgb * alpha, alpha);
   }
 
@@ -146,7 +169,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   void main() {
     vec4 color = vec4(0.0);
     #ifdef UNDER
-      if (vGlow.w > 0.0 && vGlowStrength > 0.0) color = glow();
+      if (vGlow.w > 0.0 && vGlowStrength > 0.0) color = vExtra.x > 0.5 ? softGlow() : glow();
       if (vOutline.w > 0.0 && cover(vCell) < 0.5) color = over(outline(), color);
     #else
       float glyph = cover(vCell);
@@ -157,6 +180,8 @@ const FRAGMENT_SHADER = /* glsl */ `
       glyph *= vFg.a;
       if (insideCell(vCell)) color = vec4(vBg.rgb * vBg.a, vBg.a);
       color = over(vec4(fg * glyph, glyph), color);
+      // Строки развёртки: каждая вторая строка пикселей шрифта темнее, и символ, и фон.
+      if (vExtra.y > 0.0 && mod(floor(vCell.y * 8.0), 2.0) > 0.5) color.rgb *= 1.0 - vExtra.y;
     #endif
     if (color.a <= 0.002) discard;
     gl_FragColor = vec4(color.rgb / color.a, color.a);

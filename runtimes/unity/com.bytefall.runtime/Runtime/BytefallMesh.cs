@@ -52,7 +52,7 @@ namespace Bytefall
                     builder.Quad(center, rot, size, margin, fg, new Vector3(glyph, material, ModeUnder));
                     continue;
                 }
-                if (bg.a > 0f) builder.Quad(center, rot, size, 0f, bg, new Vector3(0, 0, ModeSolid));
+                if (bg.a > 0f) builder.Quad(center, rot, size, 0f, bg, new Vector3(0, material, ModeSolid));
                 if (glyph > 0 && fg.a > 0f) builder.Quad(center, rot, size, 0f, fg, new Vector3(glyph, material, ModeGlyph));
             }
             builder.Fill(mesh);

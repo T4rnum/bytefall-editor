@@ -31,6 +31,8 @@ const mat = (parts: Partial<GlyphMaterial>): GlyphMaterial => ({
   glow: null,
   shine: null,
   dither: null,
+  scanlines: null,
+  pixels: null,
   ...parts,
 });
 
@@ -56,6 +58,15 @@ describe('GPU-материал объекта', () => {
     expect(floats[MATERIAL.dither]).toBe(0.25);
     expect(materialFloats(mat({ glow: DEFAULT_GLOW }))!.slice(0, 4)).toEqual(new Float32Array(4));
     expect(materialFloats(null)).toBeNull();
+    // Мягкое свечение, развёртка и крупные пиксели — в хвосте; блок в один пиксель — ноль.
+    const tail = materialFloats(
+      mat({ glow: { ...glow, soft: true }, scanlines: { amount: 0.4 }, pixels: { size: 3 } }),
+    )!;
+    expect(tail[MATERIAL.glowSoft]).toBe(1);
+    expect(tail[MATERIAL.scanlines]).toBeCloseTo(0.4, 6);
+    expect(tail[MATERIAL.pixels]).toBe(3);
+    expect(materialFloats(mat({ pixels: { size: 1 } }))![MATERIAL.pixels]).toBe(0);
+    expect(hasMaterial(mat({ scanlines: { amount: 0.4 } }))).toBe(true);
     expect(materialFloats(mat({}))).toBeNull();
   });
 

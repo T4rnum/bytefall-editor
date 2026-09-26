@@ -46,7 +46,7 @@ func build(anim: BytefallAnimation, frame: int, origin: Vector2, cell_size: Vect
 			_quad(xf, margin, fg, Vector3(glyph, material, MODE_UNDER))
 			continue
 		if bg.a > 0.0:
-			_quad(xf, 0.0, bg, Vector3(0, 0, MODE_SOLID))
+			_quad(xf, 0.0, bg, Vector3(0, material, MODE_SOLID))
 		if glyph > 0 and fg.a > 0.0:
 			_quad(xf, 0.0, fg, Vector3(glyph, material, MODE_GLYPH))
 	return _mesh()

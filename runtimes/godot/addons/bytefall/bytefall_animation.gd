@@ -7,10 +7,12 @@ extends Resource
 ## [BytefallPlayer]. Раскладка файла описана в `src/core/bytefall.ts` редактора.
 
 const MAGIC := "BYTEFALL"
-const VERSION := 1
+const VERSION := 2
 const GLYPH_BYTES := 32
 ## Чисел на материал в таблице, раскладка — `src/core/material.ts`.
-const MATERIAL_FLOATS := 17
+const MATERIAL_FLOATS := 20
+## Чисел на материал в файлах версии 1: без мягкости свечения, развёртки и крупных пикселей.
+const V1_MATERIAL_FLOATS := 17
 ## Старший бит поля материала: запись — подложка символа (контур и свечение).
 const UNDER_BIT := 0x8000
 
@@ -56,7 +58,8 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	if bytes.size() < 16 or bytes.slice(0, 8).get_string_from_ascii() != MAGIC:
 		push_error("Bytefall: это не файл .bytefall")
 		return null
-	if bytes.decode_u16(8) > VERSION:
+	var version := bytes.decode_u16(8)
+	if version > VERSION:
 		push_error("Bytefall: файл новее рантайма, обновите аддон")
 		return null
 	var at := 12
@@ -84,7 +87,8 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	anim.atlas_columns = int(header.atlas.columns)
 	anim.atlas_rows = int(header.atlas.rows)
 	anim.glyphs = PackedStringArray(header.atlas.glyphs)
-	anim.materials = PackedFloat32Array(header.get("materials", []))
+	var stride := MATERIAL_FLOATS if version >= 2 else V1_MATERIAL_FLOATS
+	anim.materials = _widen(PackedFloat32Array(header.get("materials", [])), stride)
 	anim.material_texture = _material_texture(anim.materials)
 	var total := 0
 	for frame in header.frames:
@@ -100,15 +104,29 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	return anim
 
 
-## Материалы строками по 5 текселей RGBAF: 17 чисел и три нуля добивки.
+## Таблица старой версии с [param stride] числами на материал — в нынешнюю раскладку: хвост,
+## которого в файле не было, — нули.
+@warning_ignore("integer_division")
+static func _widen(values: PackedFloat32Array, stride: int) -> PackedFloat32Array:
+	if stride == MATERIAL_FLOATS:
+		return values
+	var count := values.size() / stride
+	var out := PackedFloat32Array()
+	out.resize(count * MATERIAL_FLOATS)
+	for row in count:
+		for k in stride:
+			out[row * MATERIAL_FLOATS + k] = values[row * stride + k]
+	return out
+
+
+## Материалы строками по 5 текселей RGBAF: ровно 20 чисел на материал.
 @warning_ignore("integer_division")
 static func _material_texture(values: PackedFloat32Array) -> ImageTexture:
 	var count := values.size() / MATERIAL_FLOATS
 	var texels := PackedFloat32Array()
 	texels.resize(maxi(1, count) * 20)
-	for row in count:
-		for k in MATERIAL_FLOATS:
-			texels[row * 20 + k] = values[row * MATERIAL_FLOATS + k]
+	for k in values.size():
+		texels[k] = values[k]
 	var image := Image.create_from_data(
 		5, maxi(1, count), false, Image.FORMAT_RGBAF, texels.to_byte_array()
 	)

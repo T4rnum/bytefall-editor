@@ -17,13 +17,16 @@ import { fromUtf8, utf8 } from './utf8';
  * Материал символа: младшие 15 бит — номер в таблице `materials` заголовка, считая с 1 (0 — без
  * материала), старший бит — подложка (`RuntimeGlyph.under`): рисуется с полем вокруг ячейки,
  * только контур и свечение, фон не рисуется. Таблица — `MATERIAL_FLOATS` чисел на материал подряд
- * в раскладке `MATERIAL` из `core/material.ts`, цвета sRGB.
+ * в раскладке `MATERIAL` из `core/material.ts`, цвета sRGB. В версии 1 чисел было 17: без
+ * мягкости свечения, строк развёртки и крупных пикселей — читатель добивает их нулями.
  *
  * Фон — белая ячейка атласа с цветом фона, символ — его ячейка с цветом символа; материал
  * рантайм считает своим шейдером.
  */
 export const BYTEFALL_MAGIC = 'BYTEFALL';
-export const BYTEFALL_VERSION = 1;
+export const BYTEFALL_VERSION = 2;
+/** Чисел на материал в файлах версии 1. */
+const V1_MATERIAL_FLOATS = 17;
 export const GLYPH_BYTES = 32;
 
 export interface BytefallHeader {
@@ -162,7 +165,13 @@ function readGlyph(view: DataView, at: number, header: BytefallHeader): RuntimeG
   const index = view.getUint16(at + 20, true);
   const flags = view.getUint16(at + 22, true);
   const material = flags & MAX_MATERIALS;
-  const start = (material - 1) * MATERIAL_FLOATS;
+  const stride = header.version >= 2 ? MATERIAL_FLOATS : V1_MATERIAL_FLOATS;
+  const start = (material - 1) * stride;
+  const numbers = (): number[] => {
+    const out = new Array<number>(MATERIAL_FLOATS).fill(0);
+    header.materials.slice(start, start + stride).forEach((v, i) => (out[i] = v));
+    return out;
+  };
   return {
     x: f(0),
     y: f(1),
@@ -172,7 +181,7 @@ function readGlyph(view: DataView, at: number, header: BytefallHeader): RuntimeG
     glyph: index === 0 ? '' : (header.atlas.glyphs[index - 1] ?? ''),
     fg: { r: c(0), g: c(1), b: c(2), a: c(3) },
     bg: { r: c(4), g: c(5), b: c(6), a: c(7) },
-    material: material === 0 ? null : header.materials.slice(start, start + MATERIAL_FLOATS),
+    material: material === 0 ? null : numbers(),
     under: (flags & UNDER_BIT) !== 0,
   };
 }

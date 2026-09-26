@@ -277,8 +277,9 @@ export function fragmentsOfMaterial(objectId: string, m: GlyphMaterial): Fragmen
     out.push(single(node(`${b}~outline`, 'outline', 0, 0, { width }, { color })));
   }
   if (m.glow) {
-    const { color, radius, strength } = m.glow;
-    out.push(single(node(`${b}~glow`, 'glow', 0, 0, { radius, strength }, { color })));
+    const { color, radius, strength, soft } = m.glow;
+    const options: Record<string, OptionValue> = soft ? { color, pattern: 'soft' } : { color };
+    out.push(single(node(`${b}~glow`, 'glow', 0, 0, { radius, strength }, options)));
   }
   if (m.shine) {
     const { color, width, spacing, speed, angle } = m.shine;
@@ -289,5 +290,10 @@ export function fragmentsOfMaterial(objectId: string, m: GlyphMaterial): Fragmen
   if (m.dither) {
     out.push(single(node(`${b}~dither`, 'dither', 0, 0, { amount: m.dither.amount })));
   }
+  if (m.scanlines) {
+    const { amount } = m.scanlines;
+    out.push(single(node(`${b}~scanlines`, 'scanlines', 0, 0, { amount })));
+  }
+  if (m.pixels) out.push(single(node(`${b}~pixels`, 'pixels', 0, 0, { size: m.pixels.size })));
   return out;
 }

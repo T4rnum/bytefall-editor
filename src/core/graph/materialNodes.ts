@@ -3,6 +3,7 @@ import {
   MAX_GLOW_RADIUS,
   MAX_GLOW_STRENGTH,
   MAX_OUTLINE_WIDTH,
+  MAX_PIXEL_SIZE,
   MAX_SHINE_SPEED,
   withMaterialPart,
 } from '../material';
@@ -83,12 +84,25 @@ export const glowNode: NodeImpl = {
       numIn('strength', 'Сила', 1.5, 0, MAX_GLOW_STRENGTH),
     ],
     outputs: [glyphsOut()],
-    options: [{ name: 'color', label: 'Цвет', type: 'color', default: '#ffec27' }],
+    options: [
+      { name: 'color', label: 'Цвет', type: 'color', default: '#ffec27' },
+      {
+        name: 'pattern',
+        label: 'Узор',
+        type: 'enum',
+        default: 'shape',
+        values: [
+          { value: 'shape', label: 'по форме символа' },
+          { value: 'soft', label: 'мягким пятном' },
+        ],
+      },
+    ],
   },
   run: (r) => {
     const color = r.option<string>('color');
+    const soft = r.option<string>('pattern') === 'soft';
     return applyPart(r, ['radius', 'strength'], ([radius, strength]) => ({
-      glow: { color, radius, strength },
+      glow: soft ? { color, radius, strength, soft } : { color, radius, strength },
     }));
   },
 };
@@ -130,4 +144,38 @@ export const ditherNode: NodeImpl = {
     options: [],
   },
   run: (r) => applyPart(r, ['amount'], ([amount]) => ({ dither: { amount } })),
+};
+
+/** Строки развёртки на самом символе: постобработка кинескопа, но только для этого объекта. */
+export const scanlinesNode: NodeImpl = {
+  spec: {
+    kind: 'scanlines',
+    label: 'Развёртка',
+    category: 'material',
+    hint: 'Каждая вторая строка пикселей символа темнее, как на кинескопе',
+    inputs: [glyphsIn(), numIn('amount', 'Насколько темнее', 0.5, 0, 1)],
+    outputs: [glyphsOut()],
+    options: [],
+  },
+  run: (r) => applyPart(r, ['amount'], ([amount]) => ({ scanlines: { amount } })),
+};
+
+/**
+ * Крупные пиксели: символ рисуется блоками в несколько пикселей шрифта. Вместе с дизерингом из
+ * него собирается распад: блоки крупнеют, а узор съедает их.
+ */
+export const pixelsNode: NodeImpl = {
+  spec: {
+    kind: 'pixels',
+    label: 'Пиксели',
+    category: 'material',
+    hint: 'Символ блоками в несколько пикселей шрифта: 1 — как есть, 8 — одна плашка на ячейку',
+    inputs: [glyphsIn(), numIn('size', 'Сторона блока', 2, 1, MAX_PIXEL_SIZE, true)],
+    outputs: [glyphsOut()],
+    options: [],
+  },
+  run: (r) =>
+    applyPart(r, ['size'], ([size]) => ({
+      pixels: { size: Math.round(Math.min(MAX_PIXEL_SIZE, Math.max(1, size))) },
+    })),
 };

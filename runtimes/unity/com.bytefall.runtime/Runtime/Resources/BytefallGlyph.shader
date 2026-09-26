@@ -55,6 +55,8 @@ Shader "Bytefall/Glyph"
                 float4 glow : TEXCOORD4;
                 float4 shine : TEXCOORD5;
                 float4 shineMotion : TEXCOORD6;
+                // Мягкость свечения (1 — пятном), строки развёртки, сторона крупного пикселя.
+                float4 extra : TEXCOORD7;
             };
 
             // Точный перевод sRGB в линейный: у встроенного GammaToLinearSpace приближение.
@@ -93,6 +95,7 @@ Shader "Bytefall/Glyph"
                 o.glow = 0;
                 o.shine = 0;
                 o.shineMotion = 0;
+                o.extra = 0;
                 if (row >= 0.0)
                 {
                     float4 t2 = Material(row, 2);
@@ -101,7 +104,9 @@ Shader "Bytefall/Glyph"
                     o.glow = Material(row, 1);
                     o.modeStrength.y = t2.x;
                     o.shine = float4(t2.yzw, t3.x);
-                    o.shineMotion = float4(t3.yzw, Material(row, 4).x);
+                    float4 t4 = Material(row, 4);
+                    o.shineMotion = float4(t3.yzw, t4.x);
+                    o.extra = float4(t4.yzw, 0);
                     o.outline.rgb = ColorOut(o.outline.rgb);
                     o.glow.rgb = ColorOut(o.glow.rgb);
                     o.shine.rgb = ColorOut(o.shine.rgb);
@@ -115,9 +120,11 @@ Shader "Bytefall/Glyph"
             }
 
             // Покрыт ли пиксель глифом: бинарно. Строки атласа идут сверху, а v в Unity — снизу.
-            float Cover(float4 rect, float2 c)
+            // Крупный пиксель (block > 1) берёт центр пикселя шрифта посреди своего блока.
+            float Cover(float4 rect, float2 c, float block)
             {
                 if (!InsideCell(c)) return 0.0;
+                if (block > 1.0) c = (min(floor(c * 8.0 / block) * block + floor(block * 0.5), 7.0) + 0.5) / 8.0;
                 float2 p = lerp(rect.xy, rect.zw, c);
                 return step(0.5, tex2Dlod(_MainTex, float4(p.x, 1.0 - p.y, 0, 0)).a);
             }
@@ -137,11 +144,19 @@ Shader "Bytefall/Glyph"
                     {
                         float2 s = float2(k, j) / 3.0;
                         float weight = exp(-2.0 * dot(s, s));
-                        sum += weight * Cover(i.rect, i.cellDoc.xy + s * i.glow.w);
+                        sum += weight * Cover(i.rect, i.cellDoc.xy + s * i.glow.w, i.extra.z);
                         total += weight;
                     }
                 }
                 float alpha = saturate(sum / total * i.modeStrength.y) * i.color.a;
+                return float4(i.glow.rgb * alpha, alpha);
+            }
+
+            // Мягкое свечение: пятно вокруг символа без его формы, к радиусу гаснет по Гауссу.
+            float4 SoftGlow(v2f i)
+            {
+                float d = max(0.0, length(i.cellDoc.xy - 0.5) - 0.35) / max(i.glow.w, 0.001);
+                float alpha = saturate(exp(-2.0 * d * d) * 0.5 * i.modeStrength.y) * i.color.a;
                 return float4(i.glow.rgb * alpha, alpha);
             }
 
@@ -153,8 +168,8 @@ Shader "Bytefall/Glyph"
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         float2 dir = float2(dx, dy);
-                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w));
-                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w * 0.5));
+                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w, i.extra.z));
+                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w * 0.5, i.extra.z));
                     }
                 }
                 float alpha = hit * i.color.a;
@@ -181,24 +196,40 @@ Shader "Bytefall/Glyph"
                 return saturate(1.0 - dist / max(i.shine.w * 0.5, 0.001));
             }
 
+            // Строка развёртки: каждая вторая строка пикселей шрифта.
+            bool Scanline(v2f i)
+            {
+                return i.extra.y > 0.0 && fmod(floor(i.cellDoc.y * 8.0), 2.0) > 0.5;
+            }
+
+            // Во сколько темнее строка: редактор умножает цвет sRGB, в линейном проекте — тот же множитель
+            // в линейном пространстве.
+            float3 Darken(v2f i)
+            {
+                return ColorOut((1.0 - i.extra.y).xxx);
+            }
+
             float4 frag(v2f i) : SV_Target
             {
                 float mode = i.modeStrength.x;
                 if (mode > 1.5)
                 {
                     float4 c = 0;
-                    if (i.glow.w > 0.0 && i.modeStrength.y > 0.0) c = Glow(i);
-                    if (i.outline.w > 0.0 && Cover(i.rect, i.cellDoc.xy) < 0.5) c = Over(Outline(i), c);
+                    if (i.glow.w > 0.0 && i.modeStrength.y > 0.0) c = i.extra.x > 0.5 ? SoftGlow(i) : Glow(i);
+                    if (i.outline.w > 0.0 && Cover(i.rect, i.cellDoc.xy, i.extra.z) < 0.5) c = Over(Outline(i), c);
                     return c.a > 0.0 ? float4(c.rgb / c.a, c.a) : 0;
                 }
                 if (mode > 0.5)
                 {
-                    float glyph = Cover(i.rect, i.cellDoc.xy);
+                    float glyph = Cover(i.rect, i.cellDoc.xy, i.extra.z);
                     if (i.shineMotion.w > 0.0 && Bayer4(floor(i.cellDoc.xy * 8.0)) < i.shineMotion.w) glyph = 0.0;
                     float3 fg = i.color.rgb;
                     if (i.shine.w > 0.0) fg = lerp(fg, i.shine.rgb, Shine(i));
+                    if (Scanline(i)) fg *= Darken(i);
                     return float4(fg, glyph * i.color.a);
                 }
+                // Фон под символом с развёрткой темнеет теми же строками.
+                if (Scanline(i)) return float4(i.color.rgb * Darken(i), i.color.a);
                 return i.color;
             }
             ENDCG

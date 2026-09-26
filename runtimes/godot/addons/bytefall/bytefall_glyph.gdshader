@@ -8,7 +8,7 @@ render_mode unshaded;
 
 uniform sampler2D atlas : filter_nearest, repeat_disable;
 // 5 текселей на материал: контур, свечение, (сила свечения, цвет блика), (ширина, шаг,
-// скорость, угол блика), (дизеринг).
+// скорость, угол блика), (дизеринг, мягкость свечения, строки развёртки, крупный пиксель).
 uniform sampler2D materials : filter_nearest, repeat_disable;
 uniform vec2 atlas_grid = vec2(1.0, 1.0);
 // Момент сцены, секунды: по нему бежит блик.
@@ -23,6 +23,8 @@ varying flat vec4 glow_m;
 varying flat float glow_strength;
 varying flat vec4 shine_m;
 varying flat vec4 shine_motion;
+// Мягкость свечения (1 — пятном), строки развёртки, сторона крупного пикселя.
+varying flat vec3 extra;
 
 void vertex() {
 	cell = UV;
@@ -37,6 +39,7 @@ void vertex() {
 	glow_strength = 0.0;
 	shine_m = vec4(0.0);
 	shine_motion = vec4(0.0);
+	extra = vec3(0.0);
 	if (row >= 0) {
 		outline_m = texelFetch(materials, ivec2(0, row), 0);
 		glow_m = texelFetch(materials, ivec2(1, row), 0);
@@ -44,7 +47,9 @@ void vertex() {
 		vec4 t3 = texelFetch(materials, ivec2(3, row), 0);
 		glow_strength = t2.x;
 		shine_m = vec4(t2.yzw, t3.x);
-		shine_motion = vec4(t3.yzw, texelFetch(materials, ivec2(4, row), 0).x);
+		vec4 t4 = texelFetch(materials, ivec2(4, row), 0);
+		shine_motion = vec4(t3.yzw, t4.x);
+		extra = t4.yzw;
 	}
 }
 
@@ -52,9 +57,14 @@ bool inside_cell(vec2 c) {
 	return c.x >= 0.0 && c.y >= 0.0 && c.x < 1.0 && c.y < 1.0;
 }
 
-// Покрыт ли пиксель глифом: бинарно, чтобы пиксельный шрифт не размывался.
+// Покрыт ли пиксель глифом: бинарно, чтобы пиксельный шрифт не размывался. Крупный пиксель
+// берёт центр пикселя шрифта посреди своего блока, не границу между пикселями.
 float cover(vec2 c) {
 	if (!inside_cell(c)) return 0.0;
+	if (extra.z > 1.0) {
+		float n = extra.z;
+		c = (min(floor(c * 8.0 / n) * n + floor(n * 0.5), vec2(7.0)) + 0.5) / 8.0;
+	}
 	return step(0.5, texture(atlas, mix(rect.xy, rect.zw, c)).a);
 }
 
@@ -75,6 +85,13 @@ vec4 glow(float fg_alpha) {
 		}
 	}
 	float alpha = clamp(sum / total * glow_strength, 0.0, 1.0) * fg_alpha;
+	return vec4(glow_m.rgb * alpha, alpha);
+}
+
+// Мягкое свечение: пятно вокруг символа без его формы, к радиусу гаснет по Гауссу.
+vec4 soft_glow(float fg_alpha) {
+	float d = max(0.0, length(cell - 0.5) - 0.35) / max(glow_m.w, 0.001);
+	float alpha = clamp(exp(-2.0 * d * d) * 0.5 * glow_strength, 0.0, 1.0) * fg_alpha;
 	return vec4(glow_m.rgb * alpha, alpha);
 }
 
@@ -111,7 +128,7 @@ float shine() {
 void fragment() {
 	if (mode > 1.5) {
 		vec4 c = vec4(0.0);
-		if (glow_m.w > 0.0 && glow_strength > 0.0) c = glow(COLOR.a);
+		if (glow_m.w > 0.0 && glow_strength > 0.0) c = extra.x > 0.5 ? soft_glow(COLOR.a) : glow(COLOR.a);
 		if (outline_m.w > 0.0 && cover(cell) < 0.5) c = over(outline(COLOR.a), c);
 		COLOR = c.a > 0.0 ? vec4(c.rgb / c.a, c.a) : vec4(0.0);
 	} else if (mode > 0.5) {
@@ -119,6 +136,10 @@ void fragment() {
 		if (shine_motion.w > 0.0 && bayer4(floor(cell * 8.0)) < shine_motion.w) glyph = 0.0;
 		vec3 fg = COLOR.rgb;
 		if (shine_m.w > 0.0) fg = mix(fg, shine_m.rgb, shine());
+		if (extra.y > 0.0 && mod(floor(cell.y * 8.0), 2.0) > 0.5) fg *= 1.0 - extra.y;
 		COLOR = vec4(fg, glyph * COLOR.a);
+	} else if (extra.y > 0.0 && mod(floor(cell.y * 8.0), 2.0) > 0.5) {
+		// Фон под символом с развёрткой темнеет теми же строками.
+		COLOR.rgb *= 1.0 - extra.y;
 	}
 }

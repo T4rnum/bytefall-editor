@@ -18,7 +18,14 @@ import {
 } from './fieldNodes';
 import { fireNode } from './fireNode';
 import { bonesNode, joinNode, particlesNode } from './generatorNodes';
-import { ditherNode, glowNode, outlineNode, shineNode } from './materialNodes';
+import {
+  ditherNode,
+  glowNode,
+  outlineNode,
+  pixelsNode,
+  scanlinesNode,
+  shineNode,
+} from './materialNodes';
 import { gradientNode, noiseNode, waveNode } from './patternNodes';
 import { contourNode, curveNode, scatterNode } from './shapeNodes';
 import { glyphsIn, glyphsOut } from './specs';
@@ -87,6 +94,8 @@ export const NODES: readonly NodeImpl[] = [
   glowNode,
   shineNode,
   ditherNode,
+  scanlinesNode,
+  pixelsNode,
 ];
 
 const BY_KIND = new Map(NODES.map((n) => [n.spec.kind, n]));
