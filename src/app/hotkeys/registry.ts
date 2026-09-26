@@ -6,7 +6,7 @@ import {
   selectAllAction,
 } from '../store/clipboardActions';
 import { focusCellAttrInputAction } from '../store/cellAttrActions';
-import { addIkControlAction } from '../store/constraintActions';
+import { recolorSelectionAction } from '../store/cellTransferActions';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
@@ -14,45 +14,16 @@ import { importImageAction } from '../store/importActions';
 import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import { deleteSelectedKeysAction, keySelectedObjectAction } from '../store/keyActions';
 import { goToStartAction, stepKeyAction } from '../store/timeActions';
-import {
-  addEmptyObjectAction,
-  focusParentSelectAction,
-  groupSelectionAction,
-} from '../store/objectActions';
-import {
-  duplicateSelectedObjectsAction,
-  setSelectedParentAction,
-  stepSelectedObjectsLayerAction,
-  ungroupSelectedObjectsAction,
-} from '../store/objectBatchActions';
-import {
-  resetSelectedRotationAction,
-  resetSelectedScaleAction,
-  rotateSelectedAction,
-} from '../store/transformActions';
-import { escapeEditAction, toggleEditModeAction } from '../store/objectEditActions';
+import { escapeEditAction } from '../store/objectEditActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { TOOLS, getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
 import { type KeyChord, MatchQuality, matchQuality } from './match';
+import { OBJECT_HOTKEYS } from './objectHotkeys';
+import type { Hotkey, HotkeyGroup } from './types';
 
-export type HotkeyGroup = 'Файл' | 'Правка' | 'Объекты' | 'Анимация' | 'Вид' | 'Инструменты';
-
-export interface Hotkey {
-  readonly group: HotkeyGroup;
-  readonly label: string;
-  /** Запись клавиш: она же показывается в справке и она же разбирается в обработчик. */
-  readonly keys: string;
-  /** Показывать ли в справке: дубли вроде Ctrl+Y её только засоряют. */
-  readonly hidden?: boolean;
-  /**
-   * Сочетание действует, только пока верно условие, и тогда оно важнее инструмента: Delete при
-   * выделенных ключах удаляет ключи, а не объект, выбранный инструментом.
-   */
-  readonly when?: () => boolean;
-  readonly run: () => void;
-}
+export type { Hotkey, HotkeyGroup } from './types';
 
 const editor = () => useEditorStore.getState();
 const hasSelectedKeys = (): boolean => editor().selectedKeys.length > 0;
@@ -128,20 +99,6 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
   },
   { group: 'Правка', label: 'Отмена действия', keys: 'Escape', run: cancelEverything },
 
-  { group: 'Объекты', label: 'Собрать объект', keys: 'Ctrl+G', run: groupSelectionAction },
-  {
-    group: 'Объекты',
-    label: 'Править символы объекта изнутри',
-    keys: 'Tab',
-    run: toggleEditModeAction,
-  },
-  {
-    group: 'Объекты',
-    label: 'Разобрать объект',
-    keys: 'Ctrl+Shift+G',
-    run: ungroupSelectedObjectsAction,
-  },
-  { group: 'Объекты', label: 'Дублировать', keys: 'Ctrl+D', run: duplicateSelectedObjectsAction },
   {
     group: 'Правка',
     label: 'Свойства выделенных ячеек',
@@ -149,57 +106,13 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     run: focusCellAttrInputAction,
   },
   {
-    group: 'Объекты',
-    label: 'Перенести на слой выше',
-    keys: 'Alt+]',
-    run: () => stepSelectedObjectsLayerAction(1),
+    group: 'Правка',
+    label: 'Перекрасить выделенное цветами кисти',
+    keys: 'Alt+Backspace',
+    run: recolorSelectionAction,
   },
-  {
-    group: 'Объекты',
-    label: 'Перенести на слой ниже',
-    keys: 'Alt+[',
-    run: () => stepSelectedObjectsLayerAction(-1),
-  },
-  {
-    group: 'Объекты',
-    label: 'Повернуть на 15° по часовой',
-    keys: ']',
-    run: () => rotateSelectedAction(15),
-  },
-  {
-    group: 'Объекты',
-    label: 'Повернуть на 15° против часовой',
-    keys: '[',
-    run: () => rotateSelectedAction(-15),
-  },
-  {
-    group: 'Объекты',
-    label: 'Повернуть на 90° по часовой',
-    keys: 'Shift+]',
-    run: () => rotateSelectedAction(90),
-  },
-  {
-    group: 'Объекты',
-    label: 'Повернуть на 90° против часовой',
-    keys: 'Shift+[',
-    run: () => rotateSelectedAction(-90),
-  },
-  { group: 'Объекты', label: 'Сбросить поворот', keys: 'Alt+R', run: resetSelectedRotationAction },
-  { group: 'Объекты', label: 'Пустой объект', keys: 'Shift+A', run: addEmptyObjectAction },
-  { group: 'Объекты', label: 'Выбрать родителя', keys: 'Ctrl+P', run: focusParentSelectAction },
-  {
-    group: 'Объекты',
-    label: 'Отвязать от родителя',
-    keys: 'Alt+P',
-    run: () => setSelectedParentAction(null),
-  },
-  { group: 'Объекты', label: 'Сбросить масштаб', keys: 'Alt+S', run: resetSelectedScaleAction },
-  {
-    group: 'Объекты',
-    label: 'IK к новому контроллеру у выбранной кости',
-    keys: 'Shift+I',
-    run: addIkControlAction,
-  },
+
+  ...OBJECT_HOTKEYS,
 
   { group: 'Анимация', label: 'Играть и пауза', keys: 'Enter', run: togglePlaybackAction },
   { group: 'Анимация', label: 'Предыдущий кадр', keys: ',', run: () => stepFrameAction(-1) },

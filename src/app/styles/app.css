@@ -305,6 +305,20 @@ select {
   opacity: 0.5;
 }
 
+/** Действия с объектом прямо сейчас: под списком объектов. */
+.edit-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.edit-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .item-row.is-hidden .item-name {
   color: var(--text-dim);
   text-decoration: line-through;

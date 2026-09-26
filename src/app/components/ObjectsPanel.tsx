@@ -39,6 +39,7 @@ import {
 } from '../store/objectBatchActions';
 import { doublePress, Button, Panel, TextField, plural } from '../ui';
 import { OBJECTS } from './groupTargets';
+import { ObjectEditBar } from './ObjectEditBar';
 import { ObjectInspector } from './ObjectInspector';
 
 interface RowProps {
@@ -284,6 +285,7 @@ export function ObjectsPanel() {
           ))}
         </ul>
       )}
+      <ObjectEditBar />
       {many && (
         <p className="panel-hint">
           Выбрано {plural(count, OBJECTS)}. Удаление, дублирование, перенос на слой, родитель, связи

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ArrowLeftRight, Plus } from 'lucide-react';
+import { ArrowLeftRight, PaintBucket, Plus } from 'lucide-react';
 import { normalizeHex } from '../../core/color';
 import {
   addPaletteColorAction,
@@ -7,6 +7,7 @@ import {
   setBackgroundAction,
 } from '../store/documentActions';
 import { useDocumentStore } from '../store/documentStore';
+import { recolorSelectionAction } from '../store/cellTransferActions';
 import { activeBrush, useEditorStore } from '../store/editorStore';
 import { Button, ColorField, Field, Panel } from '../ui';
 import { SLOT_LABELS } from './BrushPanel';
@@ -25,6 +26,9 @@ export function ColorPanel() {
   const slot = useEditorStore((s) => s.activeBrush);
   const palette = useDocumentStore((s) => s.doc.palette);
   const background = useDocumentStore((s) => s.doc.background);
+  const hasSelection = useEditorStore((s) =>
+    s.editingObjectId ? s.glyphSelection.length > 0 : s.selection !== null,
+  );
 
   return (
     <Panel
@@ -32,9 +36,21 @@ export function ColorPanel() {
       title="Цвета"
       badge={SLOT_LABELS[slot]}
       actions={
-        <Button icon size="sm" label="Поменять цвета местами" hotkey="X" onClick={swapColors}>
-          <ArrowLeftRight size={14} />
-        </Button>
+        <>
+          <Button
+            icon
+            size="sm"
+            label="Перекрасить выделенное этими цветами: символы остаются"
+            hotkey="Alt+Backspace"
+            disabled={!hasSelection}
+            onClick={recolorSelectionAction}
+          >
+            <PaintBucket size={14} />
+          </Button>
+          <Button icon size="sm" label="Поменять цвета местами" hotkey="X" onClick={swapColors}>
+            <ArrowLeftRight size={14} />
+          </Button>
+        </>
       }
     >
       <div className="color-pair">
