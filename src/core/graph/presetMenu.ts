@@ -1,6 +1,7 @@
 import type { GlyphMaterial } from '../material';
 import { DEFAULT_DITHER, DEFAULT_GLOW, DEFAULT_OUTLINE, DEFAULT_SHINE } from '../material';
 import type { SkinBone } from '../skin';
+import { type EffectPresetKind, effectFragment } from './effectPresets';
 import { type DeformerKind, createDeformer } from './legacy';
 import { type Fragment, fragmentOfDeformer, fragmentsOfMaterial } from './presets';
 
@@ -9,15 +10,28 @@ import { type Fragment, fragmentOfDeformer, fragmentsOfMaterial } from './preset
  * готовые цепочки из словаря: «Волна» — синус на сдвиг, её можно разобрать и пересобрать.
  */
 export type PresetKind =
-  Exclude<DeformerKind, 'skin'> | 'bones' | 'outline' | 'glow' | 'shine' | 'dither';
+  | Exclude<DeformerKind, 'skin'>
+  | EffectPresetKind
+  | 'bones'
+  | 'outline'
+  | 'glow'
+  | 'shine'
+  | 'dither';
 
 export interface Preset {
   readonly kind: PresetKind;
   readonly label: string;
-  readonly group: 'Движение' | 'Цвет и символ' | 'Материал';
+  readonly group: 'Эффекты' | 'Движение' | 'Цвет и символ' | 'Материал';
 }
 
 export const PRESETS: readonly Preset[] = [
+  { kind: 'fire', label: 'Огонь', group: 'Эффекты' },
+  { kind: 'pulse', label: 'Пульс', group: 'Эффекты' },
+  { kind: 'flicker', label: 'Мерцание', group: 'Эффекты' },
+  { kind: 'cycle', label: 'Смена символов', group: 'Эффекты' },
+  { kind: 'aura', label: 'Аура', group: 'Эффекты' },
+  { kind: 'vignette', label: 'Виньетка', group: 'Эффекты' },
+  { kind: 'dissolve', label: 'Растворение', group: 'Эффекты' },
   { kind: 'wave', label: 'Волна', group: 'Движение' },
   { kind: 'jitter', label: 'Дрожание', group: 'Движение' },
   { kind: 'twist', label: 'Вихрь', group: 'Движение' },
@@ -36,6 +50,16 @@ export const PRESETS: readonly Preset[] = [
 
 const EMPTY: GlyphMaterial = { outline: null, glow: null, shine: null, dither: null };
 
+const EFFECTS: ReadonlySet<string> = new Set<EffectPresetKind>([
+  'fire',
+  'pulse',
+  'flicker',
+  'cycle',
+  'aura',
+  'vignette',
+  'dissolve',
+]);
+
 const MATERIALS: Readonly<Record<string, GlyphMaterial>> = {
   outline: { ...EMPTY, outline: DEFAULT_OUTLINE },
   glow: { ...EMPTY, glow: DEFAULT_GLOW },
@@ -53,6 +77,7 @@ export function presetFragment(
   bones: readonly SkinBone[] = [],
 ): Fragment {
   if (kind === 'bones') return fragmentOfDeformer({ ...createDeformer('skin', base), bones });
+  if (EFFECTS.has(kind)) return effectFragment(kind as EffectPresetKind, base);
   const material = MATERIALS[kind] as GlyphMaterial | undefined;
   if (material) return fragmentsOfMaterial(base, material)[0];
   return fragmentOfDeformer(createDeformer(kind as Exclude<DeformerKind, 'skin'>, base));

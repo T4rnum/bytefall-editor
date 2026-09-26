@@ -1,4 +1,5 @@
-import { chainGraph } from '../../graph/build';
+import { chainGraph, emptyGraph } from '../../graph/build';
+import { addNode, connect, createNode } from '../../graph/edit';
 import { evaluateGraph } from '../../graph/evaluate';
 import type { Deformer } from '../../graph/legacy';
 import { fragmentOfDeformer, fragmentsOfMaterial } from '../../graph/presets';
@@ -21,4 +22,18 @@ export function runStack(
   center = { x: 0.5, y: 0.5 },
 ): GlyphPose[] {
   return evaluateGraph(graphOf(...deformers), poses, { time, center, cells: new Map() });
+}
+
+/** Граф из узлов и связей по строкам «из.выход → в.вход». */
+export function wired(nodes: [string, string][], links: string[]): NodeGraph {
+  let g = emptyGraph();
+  g = { ...g, links: [] };
+  for (const [id, kind] of nodes) g = addNode(g, createNode(kind, 0, 0, id));
+  for (const l of links) {
+    const [from, to] = l.split(' → ');
+    const [a, out] = from.split('.');
+    const [b, input] = to.split('.');
+    g = connect(g, { node: a, out }, { node: b, in: input });
+  }
+  return g;
 }

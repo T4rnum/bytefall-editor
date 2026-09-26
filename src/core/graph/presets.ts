@@ -25,7 +25,7 @@ export interface Fragment {
 export const COLUMN = 220;
 export const ROW = 160;
 
-function node(
+export function node(
   id: string,
   kind: string,
   col: number,
@@ -37,7 +37,7 @@ function node(
   return { id, kind, muted, x: col * COLUMN, y: row * ROW, values, options };
 }
 
-const link = (from: string, out: string, to: string, input: string): GraphLink => ({
+export const link = (from: string, out: string, to: string, input: string): GraphLink => ({
   from,
   out,
   to,

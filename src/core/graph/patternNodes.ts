@@ -56,12 +56,31 @@ export const waveNode: NodeImpl = {
   animated: (node, linked) => linked('period') || (node.values.period ?? 1000) > 0,
 };
 
+/** Плавная ступень 0..1: у шума по площади и во времени нет изломов на узлах решётки. */
+const smooth = (t: number): number => t * t * (3 - 2 * t);
+
+/** Шум по площади: хэш в узлах решётки, между ними — плавная смесь соседей. */
+function latticeNoise(x: number, y: number, t: number): number {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = smooth(x - x0);
+  const fy = smooth(y - y0);
+  const top = hashNoise(x0, y0, t) + (hashNoise(x0 + 1, y0, t) - hashNoise(x0, y0, t)) * fx;
+  const bottom =
+    hashNoise(x0, y0 + 1, t) + (hashNoise(x0 + 1, y0 + 1, t) - hashNoise(x0, y0 + 1, t)) * fx;
+  return top + (bottom - top) * fy;
+}
+
 /**
- * Шум символа по его исходной ячейке, куда бы его ни унесло раньше по графу. Частица берёт свой
- * номер, иначе все искры одной ячейки дрожали бы как одна; строки −1 у ячеек не бывает.
+ * Шум символа по его исходной ячейке, куда бы его ни унесло раньше по графу: при масштабе 1 —
+ * свой у каждой ячейки, крупнее — пятнами в столько ячеек. Частица берёт свой номер, иначе все
+ * искры одной ячейки дрожали бы как одна; строки −1 у ячеек не бывает.
  */
-const poseNoise = (p: GlyphPose, t: number): number =>
-  p.particle === null ? hashNoise(xOf(p.key), yOf(p.key), t) : hashNoise(p.particle, -1, t);
+function poseNoise(p: GlyphPose, t: number, scale: number): number {
+  if (p.particle !== null) return hashNoise(p.particle, -1, t);
+  if (scale <= 1) return hashNoise(xOf(p.key), yOf(p.key), t);
+  return latticeNoise(xOf(p.key) / scale, yOf(p.key) / scale, t);
+}
 
 export const noiseNode: NodeImpl = {
   spec: {
@@ -69,7 +88,10 @@ export const noiseNode: NodeImpl = {
     label: 'Шум',
     category: 'field',
     hint: 'Случайное число от −1 до 1 у каждого символа, три независимых; меняется раз в период',
-    inputs: [numIn('period', 'Период, мс', 100, 0, PERIOD_MAX)],
+    inputs: [
+      numIn('period', 'Период, мс', 100, 0, PERIOD_MAX),
+      numIn('scale', 'Масштаб', 1, 1, 256),
+    ],
     outputs: [numOut('x', 'X'), numOut('y', 'Y'), numOut('z', 'Z')],
     options: [
       {
@@ -81,26 +103,43 @@ export const noiseNode: NodeImpl = {
         max: 2147483647,
         integer: true,
       },
+      {
+        name: 'motion',
+        label: 'Смена',
+        type: 'enum',
+        default: 'step',
+        values: [
+          { value: 'step', label: 'рывком' },
+          { value: 'flow', label: 'плавно' },
+        ],
+      },
     ],
   },
   run: (r) => {
     const salt = Math.imul(r.option<number>('seed') | 0, 7919);
-    const period = r.num('period');
+    const flow = r.option<string>('motion') === 'flow';
+    const [period, scale] = [r.num('period'), r.num('scale')];
     const { time } = r.ctx;
-    const tickOf = (v: number): number => (v > 0 ? Math.floor(time / Math.max(1, v)) : 0);
     const channel =
       (n: number): Field =>
       (poses) => {
         const out = new Float64Array(poses.length);
-        if (typeof period === 'number') {
-          // Период один на всех: такт тоже один, считается раз на кадр.
-          const t = tickOf(period) * 3 + n + salt;
-          for (let i = 0; i < out.length; i++) out[i] = poseNoise(poses[i], t) * 2 - 1;
+        if (!flow && typeof period === 'number' && scale === 1) {
+          // Частый случай — дрожание: такт один на всех и считается раз на кадр.
+          const t = (period > 0 ? Math.floor(time / Math.max(1, period)) : 0) * 3 + n + salt;
+          for (let i = 0; i < out.length; i++) out[i] = poseNoise(poses[i], t, 1) * 2 - 1;
           return out;
         }
-        const periods = period(poses);
+        const periods = sample(period, poses);
+        const scales = sample(scale, poses);
         for (let i = 0; i < out.length; i++) {
-          out[i] = poseNoise(poses[i], tickOf(periods[i]) * 3 + n + salt) * 2 - 1;
+          const v = periods[i];
+          const tick = v > 0 ? time / Math.max(1, v) : 0;
+          const t0 = Math.floor(tick);
+          const at = (t: number): number => poseNoise(poses[i], t * 3 + n + salt, scales[i]);
+          // Плавно — от такта к такту без рывка; рывком — новое число раз в период.
+          const value = flow ? at(t0) + (at(t0 + 1) - at(t0)) * smooth(tick - t0) : at(t0);
+          out[i] = value * 2 - 1;
         }
         return out;
       };

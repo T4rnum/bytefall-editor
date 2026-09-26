@@ -1,4 +1,5 @@
 import { colorOf } from '../cellBuffer';
+import type { Rgba } from '../color';
 import { MAX_SCALE, MIN_SCALE } from '../transform';
 import { FREE, glyphsIn, glyphsOut, numIn } from './specs';
 import { type NodeImpl, sample } from './types';
@@ -151,19 +152,33 @@ export const glyphNode: NodeImpl = {
     hint: 'Меняет символ на символ из ряда: число 0 — первый, 1 — последний',
     inputs: [glyphsIn(), numIn('factor', 'Где в ряду', 0, -FREE, FREE)],
     outputs: [glyphsOut()],
-    options: [{ name: 'ramp', label: 'Ряд', type: 'text', default: '.:-=+*#%@', maxLength: 64 }],
+    options: [
+      { name: 'ramp', label: 'Ряд', type: 'text', default: '.:-=+*#%@', maxLength: 64 },
+      {
+        name: 'overflow',
+        label: 'За краями',
+        type: 'enum',
+        default: 'clamp',
+        values: [
+          { value: 'clamp', label: 'крайний символ' },
+          { value: 'repeat', label: 'по кругу' },
+        ],
+      },
+    ],
   },
   run: (r) => {
     const poses = r.glyphs('glyphs');
     const ramp = [...r.option<string>('ramp')];
     if (ramp.length === 0) return { glyphs: poses };
     const factor = sample(r.num('factor'), poses);
-    const last = ramp.length - 1;
+    const n = ramp.length;
+    const repeat = r.option<string>('overflow') === 'repeat';
     for (let i = 0; i < poses.length; i++) {
       const p = poses[i];
       if (p.glyph === '') continue;
-      const index = Math.floor(factor[i] * ramp.length);
-      p.glyph = ramp[Math.min(last, Math.max(0, index))];
+      const index = Math.floor(factor[i] * n);
+      // По кругу ряд идёт дальше с начала: так символы перебираются со временем без конца.
+      p.glyph = ramp[repeat ? ((index % n) + n) % n : Math.min(n - 1, Math.max(0, index))];
     }
     return { glyphs: poses };
   },
@@ -194,6 +209,45 @@ export const bendNode: NodeImpl = {
       p.x = cx + reach * Math.sin(theta);
       p.y = cy + radius - reach * Math.cos(theta);
       p.rot += (theta * 180) / Math.PI;
+    }
+    return { glyphs: poses };
+  },
+};
+
+/**
+ * Свет: яркость и непрозрачность символа — множителями. Из него собираются пульс, мерцание,
+ * виньетка и затухание; цвет по палитре меняет «Цвет», а не он.
+ */
+export const lightNode: NodeImpl = {
+  spec: {
+    kind: 'light',
+    label: 'Свет',
+    category: 'action',
+    hint: 'Умножает яркость и непрозрачность символов: 1 — как было, 0 — чёрный и невидимый',
+    inputs: [
+      glyphsIn(),
+      numIn('brightness', 'Яркость', 1, 0, 8),
+      numIn('opacity', 'Непрозрачность', 1, 0, 1),
+    ],
+    outputs: [glyphsOut()],
+    options: [],
+  },
+  run: (r) => {
+    const poses = r.glyphs('glyphs');
+    const [light, opacity] = ['brightness', 'opacity'].map((n) => sample(r.num(n), poses));
+    const lit = (c: Rgba, k: number, a: number): Rgba => ({
+      r: Math.min(1, c.r * k),
+      g: Math.min(1, c.g * k),
+      b: Math.min(1, c.b * k),
+      a: c.a * a,
+    });
+    for (let i = 0; i < poses.length; i++) {
+      const p = poses[i];
+      const k = Math.max(0, light[i]);
+      const a = Math.min(1, Math.max(0, opacity[i]));
+      if (k === 1 && a === 1) continue;
+      p.fg = lit(p.fg, k, a);
+      if (p.bg.a > 0) p.bg = lit(p.bg, k, a);
     }
     return { glyphs: poses };
   },

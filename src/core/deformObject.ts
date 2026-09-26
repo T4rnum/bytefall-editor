@@ -88,9 +88,11 @@ export function rasterizeDeformed(
     const y = Math.floor(m.f);
     if (x < clip.x || y < clip.y || x >= clip.x + clip.w || y >= clip.y + clip.h) continue;
     const fg = toHex(p.fg);
-    // Частица родом не из ячейки: у неё только символ и цвет, фона нет.
+    // Рождённый узлом символ — не из ячейки: у него свои символ, цвет и фон, если он есть.
     const source: Cell =
-      p.particle === null ? (obj.cells.get(p.key) as Cell) : { glyph: p.glyph, fg, bg: null };
+      p.particle === null
+        ? (obj.cells.get(p.key) as Cell)
+        : { glyph: p.glyph, fg, bg: p.bg.a > 0 ? toHex(p.bg) : null };
     const same = fg === source.fg && p.glyph === source.glyph;
     visit(x, y, same ? source : { ...source, glyph: p.glyph, fg });
   }

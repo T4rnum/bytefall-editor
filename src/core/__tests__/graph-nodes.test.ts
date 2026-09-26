@@ -1,25 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { emptyGraph } from '../graph/build';
-import { addNode, connect, createNode, setNodeOption, setNodeValue } from '../graph/edit';
+import { setNodeOption, setNodeValue } from '../graph/edit';
 import { evaluateGraph, isAnimatedGraph } from '../graph/evaluate';
-import { INPUT_NODE, type NodeGraph, OUTPUT_NODE } from '../graph/types';
+import { INPUT_NODE, OUTPUT_NODE } from '../graph/types';
+import { wired as graph } from './helpers/graphs';
 import { ROWS_CENTER, poseRows } from './helpers/poseScene';
 
 const ctx = (time = 0) => ({ time, center: ROWS_CENTER, cells: new Map() });
-
-/** Граф из узлов и связей по строкам «из.выход → в.вход». */
-function graph(nodes: [string, string][], links: string[]): NodeGraph {
-  let g = emptyGraph();
-  g = { ...g, links: [] };
-  for (const [id, kind] of nodes) g = addNode(g, createNode(kind, 0, 0, id));
-  for (const l of links) {
-    const [from, to] = l.split(' → ');
-    const [a, out] = from.split('.');
-    const [b, input] = to.split('.');
-    g = connect(g, { node: a, out }, { node: b, in: input });
-  }
-  return g;
-}
 
 describe('узлы графа', () => {
   it('частицы своей веткой не получают свечение объекта', () => {
