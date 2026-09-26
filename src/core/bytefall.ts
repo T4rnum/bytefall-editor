@@ -1,3 +1,4 @@
+import { MATERIAL_FLOATS } from './material';
 import type { RuntimeFrame, RuntimeGlyph } from './runtime';
 import { fromUtf8, utf8 } from './utf8';
 
@@ -10,11 +11,16 @@ import { fromUtf8, utf8 } from './utf8';
  * - длина атласа u32 и атлас PNG: ячейки `cell` пикселей, `columns` в строке, ячейка 0 залита
  *   белым — по ней рисуются фоны, символ `glyphs[i]` лежит в ячейке `i + 1`;
  * - кадры подряд, по `count` символов в каждом, символ — 32 байта: x, y, поворот, sx, sy во
- *   float32, номер ячейки атласа u16 (0 — только фон), запас u16, цвет символа и фона по RGBA
+ *   float32, номер ячейки атласа u16 (0 — только фон), материал u16, цвет символа и фона по RGBA
  *   байтами.
  *
- * Рантайму нужен один материал «текстура × цвет вершины»: фон — белая ячейка с цветом фона,
- * символ — его ячейка с цветом символа.
+ * Материал символа: младшие 15 бит — номер в таблице `materials` заголовка, считая с 1 (0 — без
+ * материала), старший бит — подложка (`RuntimeGlyph.under`): рисуется с полем вокруг ячейки,
+ * только контур и свечение, фон не рисуется. Таблица — `MATERIAL_FLOATS` чисел на материал подряд
+ * в раскладке `MATERIAL` из `core/material.ts`, цвета sRGB.
+ *
+ * Фон — белая ячейка атласа с цветом фона, символ — его ячейка с цветом символа; материал
+ * рантайм считает своим шейдером.
  */
 export const BYTEFALL_MAGIC = 'BYTEFALL';
 export const BYTEFALL_VERSION = 1;
@@ -36,7 +42,14 @@ export interface BytefallHeader {
     readonly rows: number;
     readonly glyphs: readonly string[];
   };
-  readonly frames: readonly { readonly duration: number; readonly count: number }[];
+  /** Таблица материалов, по `MATERIAL_FLOATS` чисел подряд. */
+  readonly materials: readonly number[];
+  /** Кадры: момент сцены и длительность в мс, число символов. */
+  readonly frames: readonly {
+    readonly time: number;
+    readonly duration: number;
+    readonly count: number;
+  }[];
 }
 
 export interface BytefallFile {
@@ -61,26 +74,61 @@ export function atlasGrid(glyphCount: number, cell: number): { columns: number; 
 
 const byte = (v: number): number => Math.round(Math.min(1, Math.max(0, v)) * 255);
 
-function writeGlyph(view: DataView, at: number, g: RuntimeGlyph, index: number): void {
+const UNDER_BIT = 0x8000;
+const MAX_MATERIALS = UNDER_BIT - 1;
+
+function writeGlyph(
+  view: DataView,
+  at: number,
+  g: RuntimeGlyph,
+  index: number,
+  material: number,
+): void {
   [g.x, g.y, g.rot, g.sx, g.sy].forEach((v, i) => view.setFloat32(at + i * 4, v, true));
   view.setUint16(at + 20, index, true);
-  view.setUint16(at + 22, 0, true);
+  view.setUint16(at + 22, material | (g.under ? UNDER_BIT : 0), true);
   [g.fg.r, g.fg.g, g.fg.b, g.fg.a, g.bg.r, g.bg.g, g.bg.b, g.bg.a].forEach((v, i) =>
     view.setUint8(at + 24 + i, byte(v)),
   );
 }
 
-/** Упаковывает файл. Заголовок строится из кадров: число символов у каждого — по факту. */
+/** Таблица материалов кадров: одинаковые — одной записью. Номера с 1, 0 — без материала. */
+function materialTable(frames: readonly RuntimeFrame[]): {
+  readonly flat: number[];
+  readonly index: Map<string, number>;
+} {
+  const flat: number[] = [];
+  const index = new Map<string, number>();
+  for (const frame of frames) {
+    for (const { material } of frame.glyphs) {
+      if (!material) continue;
+      const key = material.join(',');
+      if (index.has(key)) continue;
+      if (index.size >= MAX_MATERIALS) throw new Error('Too many distinct materials');
+      index.set(key, index.size + 1);
+      flat.push(...material);
+    }
+  }
+  return { flat, index };
+}
+
+/** Упаковывает файл. Заголовок строится из кадров: число символов и материалы — по факту. */
 export function packBytefall(file: {
-  readonly header: Omit<BytefallHeader, 'format' | 'version' | 'frames'>;
+  readonly header: Omit<BytefallHeader, 'format' | 'version' | 'frames' | 'materials'>;
   readonly atlasPng: Uint8Array;
   readonly frames: readonly RuntimeFrame[];
 }): Uint8Array {
+  const materials = materialTable(file.frames);
   const header: BytefallHeader = {
     ...file.header,
     format: 'bytefall',
     version: BYTEFALL_VERSION,
-    frames: file.frames.map((f) => ({ duration: f.duration, count: f.glyphs.length })),
+    materials: materials.flat,
+    frames: file.frames.map((f) => ({
+      time: f.time,
+      duration: f.duration,
+      count: f.glyphs.length,
+    })),
   };
   const json = utf8(JSON.stringify(header));
   const glyphs = file.frames.reduce((sum, f) => sum + f.glyphs.length, 0);
@@ -99,26 +147,33 @@ export function packBytefall(file: {
   const index = new Map(header.atlas.glyphs.map((g, i) => [g, i + 1]));
   for (const frame of file.frames) {
     for (const g of frame.glyphs) {
-      writeGlyph(view, at, g, g.glyph === '' ? 0 : (index.get(g.glyph) ?? 0));
+      const cell = g.glyph === '' ? 0 : (index.get(g.glyph) ?? 0);
+      const material = g.material ? (materials.index.get(g.material.join(',')) ?? 0) : 0;
+      writeGlyph(view, at, g, cell, material);
       at += GLYPH_BYTES;
     }
   }
   return out;
 }
 
-function readGlyph(view: DataView, at: number, glyphs: readonly string[]): RuntimeGlyph {
+function readGlyph(view: DataView, at: number, header: BytefallHeader): RuntimeGlyph {
   const f = (i: number): number => view.getFloat32(at + i * 4, true);
   const c = (i: number): number => view.getUint8(at + 24 + i) / 255;
   const index = view.getUint16(at + 20, true);
+  const flags = view.getUint16(at + 22, true);
+  const material = flags & MAX_MATERIALS;
+  const start = (material - 1) * MATERIAL_FLOATS;
   return {
     x: f(0),
     y: f(1),
     rot: f(2),
     sx: f(3),
     sy: f(4),
-    glyph: index === 0 ? '' : (glyphs[index - 1] ?? ''),
+    glyph: index === 0 ? '' : (header.atlas.glyphs[index - 1] ?? ''),
     fg: { r: c(0), g: c(1), b: c(2), a: c(3) },
     bg: { r: c(4), g: c(5), b: c(6), a: c(7) },
+    material: material === 0 ? null : header.materials.slice(start, start + MATERIAL_FLOATS),
+    under: (flags & UNDER_BIT) !== 0,
   };
 }
 
@@ -137,13 +192,13 @@ export function unpackBytefall(bytes: Uint8Array): BytefallFile {
   const atlasLength = view.getUint32(at, true);
   const atlasPng = bytes.slice(at + 4, at + 4 + atlasLength);
   at += 4 + atlasLength;
-  const frames = header.frames.map(({ duration, count }) => {
+  const frames = header.frames.map(({ time, duration, count }) => {
     if (at + count * GLYPH_BYTES > bytes.length) throw new Error('Truncated .bytefall file');
     const glyphs = Array.from({ length: count }, (_, i) =>
-      readGlyph(view, at + i * GLYPH_BYTES, header.atlas.glyphs),
+      readGlyph(view, at + i * GLYPH_BYTES, header),
     );
     at += count * GLYPH_BYTES;
-    return { duration, glyphs };
+    return { time, duration, glyphs };
   });
   return { header, atlasPng, frames };
 }

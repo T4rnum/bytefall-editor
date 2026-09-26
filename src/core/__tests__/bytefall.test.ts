@@ -5,8 +5,21 @@ import { GLYPH_BYTES, atlasGrid, packBytefall, unpackBytefall } from '../bytefal
 import { createDocument } from '../document';
 import { composeFrame } from '../frame';
 import { keyOf } from '../grid';
-import { addObject, createObject, transformObject } from '../object';
+import { DEFAULT_GLOW, DEFAULT_OUTLINE, DEFAULT_SHINE, MATERIAL } from '../material';
+import { addObject, createObject, transformObject, updateObject } from '../object';
 import { mergeRepeats, runtimeFrame, usedGlyphs } from '../runtime';
+
+/** Сцена со свечением и контуром у объекта «@» и, по желанию, бегущим бликом. */
+function glowing(shine = false) {
+  return updateObject(scene(), 'o', {
+    material: {
+      outline: DEFAULT_OUTLINE,
+      glow: DEFAULT_GLOW,
+      shine: shine ? DEFAULT_SHINE : null,
+      dither: null,
+    },
+  });
+}
 
 /** Холст 8×4: на слое «AB» с синим фоном под «A», объект «@», повёрнутый на 90°. */
 function scene() {
@@ -70,16 +83,17 @@ describe('файл .bytefall', () => {
     const back = unpackBytefall(bytes);
     expect(back.header).toMatchObject({ format: 'bytefall', version: 1, name: 'сцена' });
     expect(back.header.frames).toEqual([
-      { duration: 100, count: 3 },
-      { duration: 250, count: 3 },
+      { time: 0, duration: 100, count: 3 },
+      { time: 0, duration: 250, count: 3 },
     ]);
+    expect(back.header.materials).toEqual([]);
     expect([...back.atlasPng]).toEqual([...png]);
     expect(back.frames[1].glyphs.map((g) => g.glyph)).toEqual(['A', 'B', '@']);
     expect(back.frames[0].glyphs[0].bg).toEqual({ r: 0, g: 0, b: 1, a: 1 });
     expect(back.frames[0].glyphs[2].rot).toBeCloseTo(Math.PI / 2, 5);
     // Символы — ровно 32 байта каждый, в хвосте файла.
-    expect(bytes.length % 4).toBe(0);
-    expect(bytes.length).toBeGreaterThanOrEqual(6 * GLYPH_BYTES);
+    const json = new DataView(bytes.buffer).getUint32(12, true);
+    expect(bytes.length).toBe(16 + json + 4 + png.length + 6 * GLYPH_BYTES);
   });
 
   it('чужой и оборванный файл — ошибка, а не мусор', () => {
@@ -105,5 +119,42 @@ describe('файл .bytefall', () => {
     expect(atlasGrid(3, 32)).toEqual({ columns: 2, rows: 2 });
     expect(atlasGrid(95, 32)).toEqual({ columns: 10, rows: 10 });
     expect(() => atlasGrid(128 * 128, 32)).toThrow(/Too many/);
+  });
+
+  it('материалы: таблица в заголовке, подложки перед символами прохода', () => {
+    const frame = runtimeFrame(composeFrame(glowing()), 100);
+    expect(frame.glyphs.map((g) => `${g.glyph}${g.under ? '_' : ''}`)).toEqual([
+      'A',
+      'B',
+      '@_',
+      '@',
+    ]);
+    const bytes = packBytefall({
+      header: {
+        name: 's',
+        width: 8,
+        height: 4,
+        background: null,
+        fps: 20,
+        atlas: { cell: 8, columns: 2, rows: 2, glyphs: usedGlyphs([frame]) },
+      },
+      atlasPng: new Uint8Array(0),
+      frames: [frame],
+    });
+    const back = unpackBytefall(bytes);
+    expect(back.header.materials).toHaveLength(17);
+    const [a, , under, at] = back.frames[0].glyphs;
+    expect(a.material).toBeNull();
+    expect(under.under).toBe(true);
+    expect(at.under).toBe(false);
+    expect(at.material?.[MATERIAL.glow + 3]).toBeCloseTo(DEFAULT_GLOW.radius, 5);
+    expect(at.material).toEqual(under.material);
+  });
+
+  it('бегущий блик не даёт склеить кадры, даже если символы стоят', () => {
+    const still = runtimeFrame(composeFrame(glowing()), 50);
+    expect(mergeRepeats([still, still])).toHaveLength(1);
+    const shining = runtimeFrame(composeFrame(glowing(true)), 50);
+    expect(mergeRepeats([shining, shining])).toHaveLength(2);
   });
 });

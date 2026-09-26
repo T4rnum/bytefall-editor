@@ -9,6 +9,10 @@ extends Resource
 const MAGIC := "BYTEFALL"
 const VERSION := 1
 const GLYPH_BYTES := 32
+## Чисел на материал в таблице, раскладка — `src/core/material.ts`.
+const MATERIAL_FLOATS := 17
+## Старший бит поля материала: запись — подложка символа (контур и свечение).
+const UNDER_BIT := 0x8000
 
 ## Размер холста в ячейках.
 @export var canvas_size := Vector2i.ZERO
@@ -20,6 +24,12 @@ const GLYPH_BYTES := 32
 @export var atlas_columns := 1
 @export var atlas_rows := 1
 @export var glyphs := PackedStringArray()
+## Таблица материалов, по [constant MATERIAL_FLOATS] чисел подряд.
+@export var materials := PackedFloat32Array()
+## Та же таблица текстурой для шейдера: 5 текселей RGBA на материал, строка на материал.
+@export var material_texture: Texture2D
+## Момент сцены каждого кадра, мс: по нему бежит блик.
+@export var times := PackedFloat32Array()
 ## Длительность каждого кадра, мс.
 @export var durations := PackedFloat32Array()
 ## Начало кадра в [member data] в символах; последний элемент — число всех символов.
@@ -74,8 +84,11 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	anim.atlas_columns = int(header.atlas.columns)
 	anim.atlas_rows = int(header.atlas.rows)
 	anim.glyphs = PackedStringArray(header.atlas.glyphs)
+	anim.materials = PackedFloat32Array(header.get("materials", []))
+	anim.material_texture = _material_texture(anim.materials)
 	var total := 0
 	for frame in header.frames:
+		anim.times.append(float(frame.get("time", 0.0)))
 		anim.durations.append(float(frame.duration))
 		anim.offsets.append(total)
 		total += int(frame.count)
@@ -85,6 +98,28 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 		return null
 	anim.data = bytes.slice(at, at + total * GLYPH_BYTES)
 	return anim
+
+
+## Материалы строками по 5 текселей RGBAF: 17 чисел и три нуля добивки.
+@warning_ignore("integer_division")
+static func _material_texture(values: PackedFloat32Array) -> ImageTexture:
+	var count := values.size() / MATERIAL_FLOATS
+	var texels := PackedFloat32Array()
+	texels.resize(maxi(1, count) * 20)
+	for row in count:
+		for k in MATERIAL_FLOATS:
+			texels[row * 20 + k] = values[row * MATERIAL_FLOATS + k]
+	var image := Image.create_from_data(
+		5, maxi(1, count), false, Image.FORMAT_RGBAF, texels.to_byte_array()
+	)
+	return ImageTexture.create_from_image(image)
+
+
+## Число материала [param index] (с 1) по смещению [param offset] раскладки.
+func material_value(index: int, offset: int) -> float:
+	if index <= 0:
+		return 0.0
+	return materials[(index - 1) * MATERIAL_FLOATS + offset]
 
 
 ## Читает файл `.bytefall` по пути. В экспортированной игре сырых файлов нет:

@@ -6,7 +6,8 @@ namespace Bytefall
 {
     /// <summary>
     /// Играет <see cref="BytefallAnimation"/>: кадр — один меш из квадов, фон и символ на символ,
-    /// рисуется одним вызовом. Меш кадра строится при первом показе и дальше берётся из кэша.
+    /// рисуется одним вызовом шейдера <c>Bytefall/Glyph</c> вместе с контуром, свечением, бликом
+    /// и дизерингом. Меш кадра строится при первом показе и дальше берётся из кэша.
     /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -35,9 +36,11 @@ namespace Bytefall
         public float Time { get; private set; }
         public int Frame { get; private set; }
 
+        static readonly int FrameTimeId = Shader.PropertyToID("_FrameTime");
         readonly Dictionary<int, Mesh> _meshes = new Dictionary<int, Mesh>();
         MeshFilter _filter;
         MeshRenderer _renderer;
+        MaterialPropertyBlock _block;
 
         public BytefallAnimation Animation
         {
@@ -129,6 +132,12 @@ namespace Bytefall
                 _meshes[Frame] = mesh;
             }
             _filter.sharedMesh = mesh;
+            if (_renderer == null) return;
+            // Момент сцены кадра — для бегущего блика; у каждого проигрывателя свой.
+            _block ??= new MaterialPropertyBlock();
+            _renderer.GetPropertyBlock(_block);
+            _block.SetFloat(FrameTimeId, _animation.times.Length > Frame ? _animation.times[Frame] / 1000f : 0f);
+            _renderer.SetPropertyBlock(_block);
         }
 
         BytefallMesh.Options Options() => new BytefallMesh.Options
@@ -137,7 +146,6 @@ namespace Bytefall
             centered = centered,
             drawBackground = drawBackground,
             tint = tint,
-            linear = QualitySettings.activeColorSpace == ColorSpace.Linear,
         };
 
         void ClearMeshes()
