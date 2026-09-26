@@ -30,6 +30,7 @@ import {
   resetSelectedScaleAction,
   rotateSelectedAction,
 } from '../store/transformActions';
+import { escapeEditAction, toggleEditModeAction } from '../store/objectEditActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { TOOLS, getTool } from '../tools';
@@ -56,10 +57,14 @@ export interface Hotkey {
 const editor = () => useEditorStore.getState();
 const hasSelectedKeys = (): boolean => editor().selectedKeys.length > 0;
 
-/** Отмена текущего действия: снимает всё, что можно снять, не трогая документ. */
+/**
+ * Отмена текущего действия: снимает всё, что можно снять, не трогая документ. В правке изнутри
+ * — по шагу: выделение символов, потом сама правка, а объект остаётся выбранным.
+ */
 function cancelEverything(): void {
   const state = editor();
   getTool(state.tool).cancel?.(buildToolEnv());
+  if (escapeEditAction()) return;
   state.setSelection(null);
   state.setTextCursor(null);
   state.setSelectedObject(null);
@@ -124,6 +129,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
   { group: 'Правка', label: 'Отмена действия', keys: 'Escape', run: cancelEverything },
 
   { group: 'Объекты', label: 'Собрать объект', keys: 'Ctrl+G', run: groupSelectionAction },
+  {
+    group: 'Объекты',
+    label: 'Править символы объекта изнутри',
+    keys: 'Tab',
+    run: toggleEditModeAction,
+  },
   {
     group: 'Объекты',
     label: 'Разобрать объект',

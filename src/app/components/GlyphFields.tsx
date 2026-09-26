@@ -58,20 +58,23 @@ const ROWS: readonly Row[] = [
 const GLYPHS = { one: 'символ', few: 'символа', many: 'символов' } as const;
 
 /**
- * Поворот, размер и смещение выделенных символов объекта. Символы выделяют рамкой, лассо или
- * палочкой поверх выбранного объекта. Поле показывает значение первого из них, а правка ложится
+ * Поворот, размер и смещение выделенных символов объекта. Символы выделяют в правке изнутри
+ * (Tab) рамкой, лассо или палочкой. Поле показывает значение первого из них, а правка ложится
  * на все сразу. Символ остаётся в своей ячейке: правка меняет только то, как он нарисован.
  */
 export function GlyphFields({ object }: { readonly object: SceneObject }) {
   const doc = useDocumentStore((s) => s.doc);
-  const selection = useEditorStore((s) => s.selection);
+  const editing = useEditorStore((s) => s.editingObjectId === object.id);
+  const glyphSelection = useEditorStore((s) => s.glyphSelection);
   const gesture = useRef(0);
-  const glyphs = glyphsOf(doc, object.id, selection);
+  const glyphs = glyphsOf(doc, editing ? object.id : null, glyphSelection);
 
   if (!glyphs) {
     return (
       <span className="dim">
-        Чтобы повернуть отдельные символы, выдели их рамкой, лассо или палочкой.
+        {editing
+          ? 'Выдели символы рамкой, лассо или палочкой, чтобы повернуть их по отдельности.'
+          : 'Чтобы повернуть отдельные символы, войди в правку объекта (Tab) и выдели их.'}
       </span>
     );
   }

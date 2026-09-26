@@ -1,7 +1,10 @@
 import type { Cell } from '../../core/cell';
 import type { Document, Layer } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import type { CellEdits } from '../../core/grid';
+import type { PlacedGlyph } from '../../core/glyphPick';
+import type { CellEdits, CellGrid, CellKey } from '../../core/grid';
+import type { SceneObject } from '../../core/object';
+import type { EditArea } from '../../core/objectEdit';
 import type { Selection } from '../../core/selection';
 
 export type ToolId =
@@ -19,11 +22,42 @@ export type ToolId =
   | 'object'
   | 'bone';
 
+/**
+ * Сетка, в которой рисуют: активный слой в размер холста или, в правке изнутри, область правки
+ * объекта. Ячейки — от (0, 0) до (width, height), не включая.
+ */
+export interface DrawTarget {
+  readonly cells: CellGrid;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Правка объекта изнутри (Tab): его символы, их выделение и перенос по его сетке. */
+export interface EditSession {
+  readonly object: SceneObject;
+  readonly area: EditArea;
+  /** Символы объекта там, где их видно в момент сцены. Считаются при первом обращении. */
+  placed(): readonly PlacedGlyph[];
+  /** Выделенные символы — ключи ячеек объекта. */
+  readonly glyphs: readonly CellKey[];
+  setGlyphs(keys: readonly CellKey[]): void;
+  /** Рамка или путь лассо, пока их тянут: замкнутый контур в документе. */
+  setMarquee(loop: readonly Point[] | null): void;
+  /** Ячейка области правки под точкой документа. */
+  cellAt(point: Point): Point | null;
+  /** Перенос выделенных символов на (dx, dy) ячеек объекта: черновиком и коммитом. */
+  previewMove(dx: number, dy: number): void;
+  commitMove(dx: number, dy: number): void;
+}
+
 /** Всё, что инструменту нужно от редактора. Собирается заново на каждое событие. */
 export interface ToolEnv {
   readonly doc: Document;
-  /** Активный слой, если его можно редактировать, иначе null. */
+  /** Активный слой, если его можно редактировать, иначе null. В правке изнутри — слой объекта. */
   readonly layer: Layer | null;
+  readonly target: DrawTarget;
+  /** Правка объекта изнутри или null, если её нет. */
+  readonly editing: EditSession | null;
   /** Активная кисть: та, что показана в панелях символа и цвета. */
   readonly brush: Cell;
   /**
@@ -84,6 +118,11 @@ export interface Tool {
    * они не рисуют, а переносят ячейки, и перенос как раз уводит их за пределы прежней маски.
    */
   readonly ignoresSelection?: boolean;
+  /**
+   * Инструмент рисует ячейки. В правке изнутри он получает ячейку сетки объекта, а не холста, и
+   * рисует в ней, как бы объект ни был повёрнут.
+   */
+  readonly drawsCells?: boolean;
   onPointerDown?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerMove?: (env: ToolEnv, info: PointerInfo) => void;
   onPointerUp?: (env: ToolEnv, info: PointerInfo) => void;

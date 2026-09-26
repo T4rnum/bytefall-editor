@@ -25,8 +25,9 @@ function snapLine(anchor: Point, cell: Point): Point {
   return constrainSquare(anchor, cell);
 }
 
-const inDoc = (env: ToolEnv, p: Point): boolean =>
-  inBounds(p.x, p.y, env.doc.width, env.doc.height);
+/** Внутри сетки рисования: холста или, в правке изнутри, области правки объекта. */
+const inTarget = (env: ToolEnv, p: Point): boolean =>
+  inBounds(p.x, p.y, env.target.width, env.target.height);
 
 /** Карандаш и ластик: непрерывный штрих, у каждой кнопки мыши своя кисть. */
 export function createStrokeTool(id: 'pencil' | 'eraser', label: string, hotkey: string): Tool {
@@ -36,7 +37,7 @@ export function createStrokeTool(id: 'pencil' | 'eraser', label: string, hotkey:
 
   const addPoints = (env: ToolEnv, points: Iterable<Point>): void => {
     if (!edits) return;
-    for (const p of points) if (inDoc(env, p)) edits.set(keyOf(p.x, p.y), value);
+    for (const p of points) if (inTarget(env, p)) edits.set(keyOf(p.x, p.y), value);
     env.setPreview(new Map(edits));
   };
 
@@ -45,6 +46,7 @@ export function createStrokeTool(id: 'pencil' | 'eraser', label: string, hotkey:
     label,
     hotkey,
     cursor: 'crosshair',
+    drawsCells: true,
     onPointerDown(env, info) {
       if (!env.layer) return;
       value = id === 'eraser' ? null : env.brushFor(info.button);
@@ -88,7 +90,7 @@ function createShapeTool(
   const update = (env: ToolEnv, info: PointerInfo): void => {
     if (!anchor) return;
     const end = info.shift ? constrain(anchor, info.cell) : info.cell;
-    const points = shape(anchor, end, fillable && env.shapeFill).filter((p) => inDoc(env, p));
+    const points = shape(anchor, end, fillable && env.shapeFill).filter((p) => inTarget(env, p));
     current = editsFromPoints(points, value);
     env.setPreview(current);
   };
@@ -98,6 +100,7 @@ function createShapeTool(
     label,
     hotkey,
     cursor: 'crosshair',
+    drawsCells: true,
     onPointerDown(env, info) {
       if (!env.layer) return;
       anchor = info.cell;
@@ -136,10 +139,11 @@ export function createFillTool(): Tool {
     label: 'Заливка',
     hotkey: 'f',
     cursor: 'crosshair',
+    drawsCells: true,
     onPointerDown(env, info) {
-      if (!env.layer || !inDoc(env, info.cell)) return;
-      const { width, height } = env.doc;
-      const points = floodFill(env.layer.cells, width, height, info.cell.x, info.cell.y);
+      if (!env.layer || !inTarget(env, info.cell)) return;
+      const { cells, width, height } = env.target;
+      const points = floodFill(cells, width, height, info.cell.x, info.cell.y);
       env.commit(editsFromPoints(points, env.brushFor(info.button)), 'Fill');
     },
   };

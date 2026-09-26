@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeCell } from '../cell';
 import { createDocument } from '../document';
 import { type CellKey, applyEdits, emptyGrid, keyOf } from '../grid';
-import { addObject, createObject, findObject, transformObject } from '../object';
-import { effectiveOverride, glyphsInSelection, updateGlyphOverrides } from '../overrides';
-import { objectMatrix } from '../placement';
-import { selectionFromRect } from '../selection';
+import { addObject, createObject, findObject } from '../object';
+import { effectiveOverride, updateGlyphOverrides } from '../overrides';
 
 /** Полоска «ABC» в (2, 3) на холсте 8×8. */
 function setup() {
@@ -21,30 +19,6 @@ function setup() {
   const obj = createObject({ name: 'bar', layerId: doc.layers[0].id, x: 2, y: 3, cells });
   return { doc: addObject(doc, obj), id: obj.id };
 }
-
-const rect = (x: number, y: number, w: number, h: number) =>
-  selectionFromRect({ x, y, w, h }, 8, 8)!;
-
-describe('glyphsInSelection', () => {
-  it('символы под выделенными ячейками, в локальных ключах', () => {
-    const { doc, id } = setup();
-    const obj = findObject(doc, id)!;
-    const keys = glyphsInSelection(obj, objectMatrix(doc, obj), rect(3, 0, 5, 8));
-    expect(keys).toEqual([keyOf(1, 0), keyOf(2, 0)]);
-    expect(glyphsInSelection(obj, objectMatrix(doc, obj), rect(0, 0, 2, 8))).toEqual([]);
-  });
-
-  it('у повёрнутого объекта выделяется то, что видно под рамкой', () => {
-    const { doc, id } = setup();
-    const turned = transformObject(doc, id, { rot: 90 });
-    const obj = findObject(turned, id)!;
-    // Полоска встала столбцом x = 3, y = 2…4, «A» сверху.
-    expect(glyphsInSelection(obj, objectMatrix(turned, obj), rect(3, 2, 1, 1))).toEqual([
-      keyOf(0, 0),
-    ]);
-    expect(glyphsInSelection(obj, objectMatrix(turned, obj), rect(2, 3, 1, 1))).toEqual([]);
-  });
-});
 
 describe('updateGlyphOverrides', () => {
   const keys: CellKey[] = [keyOf(0, 0), keyOf(2, 0)];

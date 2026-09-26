@@ -606,6 +606,12 @@ select {
   color: var(--danger);
 }
 
+/** Режим, в котором инструменты работают иначе, чем обычно: правка объекта изнутри. */
+.status-item--accent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .status-item--info {
   color: var(--text);
 }

@@ -2,7 +2,13 @@ import * as THREE from 'three';
 import type { Point } from '../core/geometry';
 import { type Checker, createChecker } from './checker';
 import { type GizmoLayer, type GizmoMarks, createGizmoLayer } from './gizmo';
-import { type LineMarks, createLineMarks, loopSegments } from './lineMarks';
+import {
+  type LineMarks,
+  type QuadFill,
+  createLineMarks,
+  createQuadFill,
+  loopSegments,
+} from './lineMarks';
 import { RENDER_ORDER } from './order';
 import { type RigLayer, type RigMarks, createRigLayer } from './rigLayer';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
@@ -51,6 +57,18 @@ function disposeObject(obj: Plane | Outline | Lines): void {
   obj.material.dispose();
 }
 
+/**
+ * Графика правки объекта изнутри, всё отрезками в координатах документа: сетка области правки,
+ * рамки выделенных символов, рамка или лассо, пока их тянут, и курсор в клетке объекта.
+ */
+export interface EditMarks {
+  readonly grid: readonly Point[];
+  /** Выделенные символы четырьмя углами: рамка и полупрозрачная заливка. */
+  readonly glyphs: readonly (readonly Point[])[];
+  readonly marquee: readonly Point[];
+  readonly cursor: readonly Point[];
+}
+
 /** Служебная графика поверх сетки: фон холста, подложка, линии сетки, курсор, выделение. */
 export class Overlay {
   readonly group = new THREE.Group();
@@ -59,6 +77,12 @@ export class Overlay {
   private readonly cursor: Outline;
   private readonly selection: SelectionLayer;
   private readonly objectOutlines: LineMarks;
+  private readonly editGrid: LineMarks;
+  private readonly glyphMarks: LineMarks;
+  private readonly glyphFill: QuadFill;
+  private readonly marquee: LineMarks;
+  private readonly editCursor: LineMarks;
+  private hasEdit = false;
   private readonly gizmo: GizmoLayer;
   private readonly rig: RigLayer;
   private gridLines: Lines | null = null;
@@ -81,6 +105,11 @@ export class Overlay {
     this.checker = createChecker();
     this.selection = createSelectionLayer(ACCENT_COLOR);
     this.objectOutlines = createLineMarks(OBJECT_COLOR, 1, RENDER_ORDER.marks);
+    this.editGrid = createLineMarks(OBJECT_COLOR, 0.22, RENDER_ORDER.gridLines);
+    this.glyphMarks = createLineMarks(ACCENT_COLOR, 1, RENDER_ORDER.marks);
+    this.glyphFill = createQuadFill(ACCENT_COLOR, 0.28, RENDER_ORDER.marks);
+    this.marquee = createLineMarks(ACCENT_COLOR, 0.8, RENDER_ORDER.marks);
+    this.editCursor = createLineMarks('#ffffff', 0.9, RENDER_ORDER.cursor);
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = RENDER_ORDER.cursor;
     this.gizmo = createGizmoLayer({
@@ -94,6 +123,11 @@ export class Overlay {
       this.checker.mesh,
       this.selection.mesh,
       this.objectOutlines.mesh,
+      this.editGrid.mesh,
+      this.glyphFill.mesh,
+      this.glyphMarks.mesh,
+      this.marquee.mesh,
+      this.editCursor.mesh,
       this.rig.group,
       this.gizmo.group,
       this.cursor,
@@ -150,6 +184,17 @@ export class Overlay {
     this.applyVisibility();
   }
 
+  /** Графика правки изнутри; null — правки нет. */
+  setEditMarks(marks: EditMarks | null): void {
+    this.hasEdit = marks !== null;
+    this.editGrid.set(marks?.grid ?? []);
+    this.glyphMarks.set(loopSegments(marks?.glyphs ?? []));
+    this.glyphFill.set(marks?.glyphs ?? []);
+    this.marquee.set(marks?.marquee ?? []);
+    this.editCursor.set(marks?.cursor ?? []);
+    this.applyVisibility();
+  }
+
   /** Ручки трансформа выбранного объекта. null — гизмо не показывается. */
   setGizmo(marks: GizmoMarks | null): void {
     this.hasGizmo = marks !== null;
@@ -184,6 +229,10 @@ export class Overlay {
     this.cursor.visible = chrome && this.cursorCell !== null;
     this.selection.mesh.visible = chrome && this.hasSelection;
     this.objectOutlines.mesh.visible = chrome && this.hasObject;
+    for (const marks of [this.editGrid, this.glyphMarks, this.marquee, this.editCursor]) {
+      marks.mesh.visible = chrome && this.hasEdit;
+    }
+    this.glyphFill.mesh.visible = chrome && this.hasEdit;
     this.gizmo.group.visible = chrome && this.hasGizmo;
     this.rig.group.visible = chrome && this.hasRig;
   }
@@ -208,6 +257,10 @@ export class Overlay {
   dispose(): void {
     for (const obj of [this.background, this.cursor]) disposeObject(obj);
     this.objectOutlines.dispose();
+    for (const marks of [this.editGrid, this.glyphMarks, this.marquee, this.editCursor]) {
+      marks.dispose();
+    }
+    this.glyphFill.dispose();
     this.selection.dispose();
     this.checker.dispose();
     this.gizmo.dispose();

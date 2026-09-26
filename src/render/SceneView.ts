@@ -8,7 +8,7 @@ import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
 import { FrameMeshes } from './FrameMeshes';
 import type { GizmoMarks } from './gizmo';
-import { Overlay } from './Overlay';
+import { type EditMarks, Overlay } from './Overlay';
 import type { RigMarks } from './rigLayer';
 import {
   DEFAULT_POST,
@@ -135,6 +135,11 @@ export class SceneView {
 
   setObjectOutlines(quads: readonly (readonly Point[])[]): void {
     this.overlay.setObjectOutlines(quads);
+    this.requestRender();
+  }
+
+  setEditMarks(marks: EditMarks | null): void {
+    this.overlay.setEditMarks(marks);
     this.requestRender();
   }
 

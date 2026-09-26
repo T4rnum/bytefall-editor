@@ -31,7 +31,14 @@ function setup(locked = false) {
     locked,
   };
   useDocumentStore.getState().replaceAnimation(createAnimation(addObject(base, obj)));
-  useEditorStore.setState({ tool: 'object', selectedObjectId: obj.id, selection: null });
+  useEditorStore.setState({
+    tool: 'object',
+    selectedObjectId: obj.id,
+    selectedObjectIds: [obj.id],
+    selection: null,
+    editingObjectId: null,
+    glyphSelection: [],
+  });
   return obj.id;
 }
 
@@ -47,11 +54,12 @@ describe('поворот клавишами', () => {
     expect(object().transform.rot).toBe(0);
   });
 
-  it('с выделением над объектом крутятся только выделенные символы, каждый от своего угла', () => {
+  it('в правке изнутри крутятся только выделенные символы, каждый от своего угла', () => {
     // Выделены «B» и «C».
-    useEditorStore.setState({ selection: selectionFromRect({ x: 3, y: 2, w: 2, h: 1 }, 12, 6) });
+    const id = object().id;
+    useEditorStore.setState({ editingObjectId: id, glyphSelection: [keyOf(1, 0), keyOf(2, 0)] });
     rotateSelectedAction(15);
-    useEditorStore.setState({ selection: selectionFromRect({ x: 4, y: 2, w: 1, h: 1 }, 12, 6) });
+    useEditorStore.setState({ glyphSelection: [keyOf(2, 0)] });
     rotateSelectedAction(15);
     expect(object().transform.rot).toBe(0);
     expect(object().overrides.get(keyOf(1, 0))).toEqual({ rot: 15 });
@@ -61,9 +69,10 @@ describe('поворот клавишами', () => {
     expect(object().overrides.get(keyOf(1, 0))).toEqual({ rot: 15 });
   });
 
-  it('выделение мимо объекта — снова объект целиком; масштаб снимается так же', () => {
-    useEditorStore.setState({ selection: selectionFromRect({ x: 9, y: 4, w: 2, h: 1 }, 12, 6) });
+  it('вне правки выделение ячеек символов не трогает; масштаб снимается так же', () => {
+    useEditorStore.setState({ selection: selectionFromRect({ x: 3, y: 2, w: 2, h: 1 }, 12, 6) });
     rotateSelectedAction(-15);
+    expect(object().overrides.size).toBe(0);
     expect(object().transform.rot).toBe(-15);
     useDocumentStore.getState().commitStructural('scale', {
       ...useDocumentStore.getState().doc,
@@ -76,7 +85,7 @@ describe('поворот клавишами', () => {
   it('запертый объект не крутится ни целиком, ни по символам', () => {
     const id = setup(true);
     rotateSelectedAction(15);
-    useEditorStore.setState({ selection: selectionFromRect({ x: 2, y: 2, w: 4, h: 1 }, 12, 6) });
+    useEditorStore.setState({ editingObjectId: id, glyphSelection: [keyOf(0, 0), keyOf(1, 0)] });
     rotateSelectedAction(15);
     const obj = findObject(useDocumentStore.getState().doc, id)!;
     expect(obj.transform.rot).toBe(0);

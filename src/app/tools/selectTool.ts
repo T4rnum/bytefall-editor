@@ -10,6 +10,7 @@ import {
   selectionFromPoints,
   translateSelection,
 } from '../../core/selection';
+import { createGlyphSelector } from './glyphSelection';
 import type { PointerInfo, Tool, ToolEnv } from './types';
 
 /** Shift добавляет к выделению, Alt вычитает, без модификаторов жест заменяет прежнее. */
@@ -28,7 +29,8 @@ interface SelectionGesture {
 
 /**
  * Общая часть всех выделений: накопление пути, модификаторы и перенос содержимого.
- * Перетаскивание внутри готового выделения двигает ячейки, а не начинает новое.
+ * Перетаскивание внутри готового выделения двигает ячейки, а не начинает новое. В правке
+ * объекта изнутри жест выделяет его символы, см. `glyphSelection.ts`.
  */
 function createSelectionTool(
   id: 'select' | 'lasso' | 'wand',
@@ -44,6 +46,9 @@ function createSelectionTool(
   let anchor: Point = { x: 0, y: 0 };
   let origin: Selection | null = null;
   let moved = false;
+  const glyphs = createGlyphSelector(id);
+  /** Жест начался в правке изнутри: до отпускания он весь про символы. */
+  let glyphGesture = false;
 
   const show = (env: ToolEnv, cells: Point[]): void => {
     const next = selectionFromPoints(cells, env.doc.width, env.doc.height);
@@ -63,6 +68,11 @@ function createSelectionTool(
     ownsAlt: true,
     ignoresSelection: true,
     onPointerDown(env, info) {
+      glyphGesture = env.editing !== null;
+      if (glyphGesture) {
+        glyphs.down(env, info, modeOf(info));
+        return;
+      }
       moved = false;
       anchor = info.cell;
       const sel = env.selection;
@@ -84,6 +94,10 @@ function createSelectionTool(
       show(env, gesture.live(env, path));
     },
     onPointerMove(env, info) {
+      if (glyphGesture) {
+        glyphs.move(env, info);
+        return;
+      }
       if (mode === 'draw') {
         moved = true;
         track(info);
@@ -98,6 +112,11 @@ function createSelectionTool(
       }
     },
     onPointerUp(env, info) {
+      if (glyphGesture) {
+        glyphGesture = false;
+        glyphs.up(env, info);
+        return;
+      }
       if (mode === 'draw') {
         track(info);
         // Щелчок без движения и без модификаторов снимает выделение: так у всех редакторов.
@@ -124,6 +143,11 @@ function createSelectionTool(
       path = [];
     },
     cancel(env) {
+      if (glyphGesture) {
+        glyphGesture = false;
+        glyphs.cancel(env);
+        return;
+      }
       env.setPreview(null);
       if (mode === 'move' && origin) env.setSelection(origin);
       if (mode === 'draw') env.setSelection(base);

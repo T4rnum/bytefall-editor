@@ -72,6 +72,8 @@ export function makeToolEnv(
   const env: ToolEnv = {
     doc,
     layer,
+    target: { cells: layer?.cells ?? new Map(), width: doc.width, height: doc.height },
+    editing: null,
     brush: brushes[0] ?? makeCell(''),
     brushFor: (button) => brushes[button === 2 ? 1 : 0],
     shapeFill,

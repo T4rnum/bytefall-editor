@@ -4,7 +4,10 @@ import { useEditorStore } from '../store/editorStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { useUiStore } from '../store/uiStore';
 import { getTool } from '../tools';
-import { TIP_ATTR } from '../ui';
+import { TIP_ATTR, plural } from '../ui';
+import { OBJECTS } from './groupTargets';
+
+const GLYPHS = { one: 'символ', few: 'символа', many: 'символов' } as const;
 
 const clock = (at: number): string =>
   new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -17,6 +20,9 @@ export function StatusBar() {
   const tool = useEditorStore((s) => s.tool);
   const textCursor = useEditorStore((s) => s.textCursor);
   const selectedObjectId = useEditorStore((s) => s.selectedObjectId);
+  const count = useEditorStore((s) => s.selectedObjectIds.length);
+  const editing = useEditorStore((s) => s.editingObjectId !== null);
+  const glyphCount = useEditorStore((s) => s.glyphSelection.length);
   const dirty = useDocumentStore((s) => s.dirty);
   const autosavedAt = useUiStore((s) => s.autosavedAt);
   const autosaveFailed = useUiStore((s) => s.autosaveFailed);
@@ -42,7 +48,22 @@ export function StatusBar() {
           выделено {selection.bounds.w}×{selection.bounds.h} · {selection.size}
         </span>
       )}
-      {selectedObject && <span className="status-item">объект {selectedObject.name}</span>}
+      {selectedObject && !editing && (
+        <span className="status-item">
+          {count > 1 ? `выбрано ${plural(count, OBJECTS)}` : `объект ${selectedObject.name}`}
+        </span>
+      )}
+      {selectedObject && editing && (
+        <span
+          className="status-item status-item--accent"
+          {...{
+            [TIP_ATTR]:
+              'Инструменты рисуют в сетке объекта, выделение ловит его символы. Tab или Escape — выйти',
+          }}
+        >
+          правка «{selectedObject.name}»{glyphCount > 0 && ` · ${plural(glyphCount, GLYPHS)}`}
+        </span>
+      )}
       <span className="status-item">
         {getTool(tool).label}
         {tool === 'text' && textCursor && ' · ввод'}

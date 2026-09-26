@@ -1,8 +1,7 @@
-import { type PointerEvent as ReactPointerEvent, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { type Ghost, effectsSignature } from '../../core/compositor';
 import { evaluate } from '../../core/evaluate';
 import { type ComposedFrame, composeFrame } from '../../core/frame';
-import { inBounds } from '../../core/geometry';
 import { type SceneObject, canEditObject, findObject } from '../../core/object';
 import { existingSelection } from '../../core/objectSelection';
 import { objectMatrix, objectQuad } from '../../core/placement';
@@ -10,22 +9,15 @@ import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import { spriteTiming } from '../../core/timeline';
 import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { SceneView } from '../../render/SceneView';
-import { isEditableTarget } from '../hooks/useHotkeys';
 import { notify } from '../store/notifyStore';
 import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
-import { useUiStore } from '../store/uiStore';
-import { cancelCameraTween, setActiveView, zoomWheelAction } from '../store/viewActions';
-import { type PointerInfo, getTool, pickAt } from '../tools';
-import { buildToolEnv } from '../tools/env';
+import { setActiveView } from '../store/viewActions';
+import { getTool } from '../tools';
+import { editMarks } from './editMarks';
+import { type Drag, useViewportPointer } from './useViewportPointer';
 import { gizmoLayout } from '../tools/gizmo';
 import { rigLayout } from '../tools/rig';
-
-type Drag =
-  | { readonly kind: 'tool'; readonly pointerId: number }
-  | { readonly kind: 'pan'; readonly pointerId: number; lastX: number; lastY: number };
-
-const WHEEL_ZOOM_SPEED = 0.0015;
 
 /** Хост WebGL-сцены. Подписан на сторы напрямую, чтобы не гонять React-рендер на каждое движение мыши. */
 export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
@@ -33,7 +25,6 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
   const viewRef = useRef<SceneView | null>(null);
   const frameRef = useRef<ComposedFrame | null>(null);
   const dragRef = useRef<Drag | null>(null);
-  const spaceRef = useRef(false);
   const tool = useEditorStore((s) => s.tool);
 
   useEffect(() => {
@@ -147,6 +138,12 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       view.setRig(rigLayout(doc, selectedObjectId, camera.zoom));
     };
 
+    /** Сетка объекта, выделенные символы и курсор правки изнутри — по тому, что на экране. */
+    const syncEditMarks = (): void => {
+      const editor = useEditorStore.getState();
+      view.setEditMarks(editMarks(currentDoc(), editor, useDocumentStore.getState().time));
+    };
+
     /**
      * Холст, фон и сетка — по тому, что на экране. Черновик может быть другого размера: импорт
      * картинки с подгонкой холста показывает результат ещё до вставки.
@@ -172,10 +169,13 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         const alive = existingSelection(state.doc, editor.selectedObjectIds);
         if (alive.length !== editor.selectedObjectIds.length) editor.setSelectedObjects(alive);
         syncObjectOutline();
+        syncEditMarks();
       } else if (state.time !== prev.time && !effectsUnchanged()) {
         // Сцена та же, но момент другой: эффекты могли смениться.
         recomposite();
       }
+      // Символы деформированного объекта в правке движутся со временем, а с ними и их рамки.
+      if (prev && state.time !== prev.time) syncEditMarks();
       if (state.epoch !== lastEpoch) {
         lastEpoch = state.epoch;
         const editor = useEditorStore.getState();
@@ -239,11 +239,30 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         !prev ||
         state.cursorCell !== prev.cursorCell ||
         state.textCursor !== prev.textCursor ||
-        state.tool !== prev.tool
+        state.tool !== prev.tool ||
+        state.editingObjectId !== prev.editingObjectId
       ) {
+        // В правке изнутри клетку под указателем рисующего инструмента показывает сетка объекта.
+        const inObject = state.editingObjectId !== null && getTool(state.tool).drawsCells;
         view.setCursor(
-          state.tool === 'text' && state.textCursor ? state.textCursor : state.cursorCell,
+          inObject
+            ? null
+            : state.tool === 'text' && state.textCursor
+              ? state.textCursor
+              : state.cursorCell,
         );
+      }
+      if (
+        !prev ||
+        state.editingObjectId !== prev.editingObjectId ||
+        state.glyphSelection !== prev.glyphSelection ||
+        state.marquee !== prev.marquee ||
+        state.cursorPoint !== prev.cursorPoint ||
+        state.textCursor !== prev.textCursor ||
+        state.tool !== prev.tool ||
+        state.draft !== prev.draft
+      ) {
+        syncEditMarks();
       }
     };
 
@@ -252,32 +271,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const unsubscribeDoc = useDocumentStore.subscribe(syncDocument);
     const unsubscribeEditor = useEditorStore.subscribe(syncEditor);
 
-    const onWheel = (event: WheelEvent): void => {
-      event.preventDefault();
-      const rect = container.getBoundingClientRect();
-      zoomWheelAction(
-        event.clientX - rect.left,
-        event.clientY - rect.top,
-        Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED),
-      );
-    };
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== ' ' || isEditableTarget(event.target)) return;
-      const editor = useEditorStore.getState();
-      // Пока печатается текст, пробел принадлежит текстовому инструменту.
-      const typing = editor.tool === 'text' && editor.textCursor !== null;
-      spaceRef.current = event.type === 'keydown' && !typing;
-      container.classList.toggle('is-panning', spaceRef.current);
-      if (event.type === 'keydown' && !typing) event.preventDefault();
-    };
-    container.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKey);
-
     return () => {
-      container.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKey);
       unsubscribeDoc();
       unsubscribeEditor();
       setActiveView(null);
@@ -286,114 +280,18 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     };
   }, [atlas]);
 
-  const pointerInfo = (event: ReactPointerEvent): PointerInfo | null => {
-    const view = viewRef.current;
-    const container = containerRef.current;
-    if (!view || !container) return null;
-    const rect = container.getBoundingClientRect();
-    const world = view.screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-    // Мир смотрит осью Y вверх, документ — вниз.
-    const point = { x: world.x, y: -world.y };
-    const cell = { x: Math.floor(point.x), y: Math.floor(point.y) };
-    return {
-      cell,
-      point,
-      button: event.button,
-      shift: event.shiftKey,
-      alt: event.altKey,
-      ctrl: event.ctrlKey || event.metaKey,
-    };
-  };
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (dragRef.current) return;
-    // Любое действие на холсте останавливает проигрывание и снимает выделение ключей: Delete
-    // снова относится к холсту.
-    const editorState = useEditorStore.getState();
-    if (editorState.isPlaying) editorState.setPlaying(false);
-    if (editorState.selectedKeys.length > 0) editorState.setSelectedKeys([]);
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Синтетические события без активного указателя: захват необязателен.
-    }
-    // Пока открыт импорт картинки, холст только смотрят: любая кнопка двигает вид.
-    if (event.button === 1 || spaceRef.current || useUiStore.getState().imageImport) {
-      dragRef.current = {
-        kind: 'pan',
-        pointerId: event.pointerId,
-        lastX: event.clientX,
-        lastY: event.clientY,
-      };
-      return;
-    }
-    if (event.button !== 0 && event.button !== 2) return;
-    const info = pointerInfo(event);
-    if (!info) return;
-    const tool = getTool(useEditorStore.getState().tool);
-    if (event.altKey && !tool.ownsAlt) {
-      pickAt(buildToolEnv(), info.cell, event.button);
-      return;
-    }
-    dragRef.current = { kind: 'tool', pointerId: event.pointerId };
-    tool.onPointerDown?.(buildToolEnv(), info);
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    const info = pointerInfo(event);
-    if (!info) return;
-    const { doc } = useDocumentStore.getState();
-    const editor = useEditorStore.getState();
-    editor.setCursorCell(
-      inBounds(info.cell.x, info.cell.y, doc.width, doc.height) ? info.cell : null,
-    );
-
-    const drag = dragRef.current;
-    if (!drag) {
-      // Без нажатой кнопки инструмент подсказывает курсором, что под указателем можно схватить.
-      const current = getTool(editor.tool);
-      const hover = current.hoverCursor?.(buildToolEnv(), info) ?? null;
-      event.currentTarget.style.cursor = hover ?? current.cursor;
-      return;
-    }
-    if (drag.pointerId !== event.pointerId) return;
-    if (drag.kind === 'pan') {
-      // Панорамирование ведёт камеру само: начатый кнопкой переход надо оборвать.
-      cancelCameraTween();
-      const { camera, setCamera } = editor;
-      setCamera({
-        ...camera,
-        centerX: camera.centerX - (event.clientX - drag.lastX) / camera.zoom,
-        centerY: camera.centerY + (event.clientY - drag.lastY) / camera.zoom,
-      });
-      drag.lastX = event.clientX;
-      drag.lastY = event.clientY;
-      return;
-    }
-    getTool(editor.tool).onPointerMove?.(buildToolEnv(), info);
-  };
-
-  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean): void => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    dragRef.current = null;
-    if (drag.kind !== 'tool') return;
-    const current = getTool(useEditorStore.getState().tool);
-    const info = pointerInfo(event);
-    if (cancelled || !info) current.cancel?.(buildToolEnv());
-    else current.onPointerUp?.(buildToolEnv(), info);
-  };
+  const pointer = useViewportPointer({ viewRef, containerRef, dragRef });
 
   return (
     <div
       ref={containerRef}
       className="viewport"
       style={{ cursor: getTool(tool).cursor }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={(e) => finishDrag(e, false)}
-      onPointerCancel={(e) => finishDrag(e, true)}
-      onPointerLeave={() => useEditorStore.getState().setCursorCell(null)}
+      onPointerDown={pointer.down}
+      onPointerMove={pointer.move}
+      onPointerUp={(e) => pointer.finish(e, false)}
+      onPointerCancel={(e) => pointer.finish(e, true)}
+      onPointerLeave={pointer.leave}
       onContextMenu={(e) => e.preventDefault()}
     />
   );

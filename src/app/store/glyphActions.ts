@@ -1,9 +1,7 @@
 import type { Document } from '../../core/document';
 import type { CellKey } from '../../core/grid';
 import { type SceneObject, canEditObject, findObject } from '../../core/object';
-import { glyphsInSelection, updateGlyphOverrides } from '../../core/overrides';
-import { objectMatrix } from '../../core/placement';
-import type { Selection } from '../../core/selection';
+import { updateGlyphOverrides } from '../../core/overrides';
 import type { GlyphOverride } from '../../core/transform';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
@@ -11,30 +9,29 @@ import { notify } from './notifyStore';
 
 export interface SelectedGlyphs {
   readonly object: SceneObject;
-  /** Локальные ключи символов объекта, видимых в выделенных ячейках. */
+  /** Ключи выделенных символов — ячейки объекта. */
   readonly keys: readonly CellKey[];
 }
 
 /**
- * Символы выбранного объекта под текущим выделением. Выделение и объект живут отдельно: символы
- * выделяют той же рамкой, лассо или палочкой, что и ячейки, а объект выбирают инструментом
- * объектов. Вместе они и дают «эти символы этого объекта».
+ * Выделенные символы объекта в правке изнутри (Tab): их выделяют рамкой, лассо или палочкой там,
+ * где их видно. Вне правки выделенных символов нет, и правка ложится на объект целиком.
  */
 export function glyphsOf(
   doc: Document,
-  selectedObjectId: string | null,
-  selection: Selection | null,
+  editingObjectId: string | null,
+  glyphSelection: readonly CellKey[],
 ): SelectedGlyphs | null {
-  if (!selection || !selectedObjectId) return null;
-  const object = findObject(doc, selectedObjectId);
+  if (!editingObjectId) return null;
+  const object = findObject(doc, editingObjectId);
   if (!object) return null;
-  const keys = glyphsInSelection(object, objectMatrix(doc, object), selection);
+  const keys = glyphSelection.filter((k) => object.cells.has(k));
   return keys.length > 0 ? { object, keys } : null;
 }
 
 export function selectedGlyphs(): SelectedGlyphs | null {
-  const { selectedObjectId, selection } = useEditorStore.getState();
-  return glyphsOf(useDocumentStore.getState().doc, selectedObjectId, selection);
+  const { editingObjectId, glyphSelection } = useEditorStore.getState();
+  return glyphsOf(useDocumentStore.getState().doc, editingObjectId, glyphSelection);
 }
 
 /**

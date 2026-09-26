@@ -10,7 +10,8 @@ export function createTextTool(): Tool {
   let lineStart = 0;
 
   const moveTo = (env: ToolEnv, x: number, y: number): void => {
-    env.setTextCursor({ x: clamp(x, 0, env.doc.width - 1), y: clamp(y, 0, env.doc.height - 1) });
+    const { width, height } = env.target;
+    env.setTextCursor({ x: clamp(x, 0, width - 1), y: clamp(y, 0, height - 1) });
   };
 
   const write = (env: ToolEnv, at: Point, key: string): void => {
@@ -26,8 +27,10 @@ export function createTextTool(): Tool {
     label: 'Текст',
     hotkey: 't',
     cursor: 'text',
+    // Курсор и ввод — в сетке рисования: в правке изнутри текст пишется в объект.
+    drawsCells: true,
     onPointerDown(env, info) {
-      if (!inBounds(info.cell.x, info.cell.y, env.doc.width, env.doc.height)) return;
+      if (!inBounds(info.cell.x, info.cell.y, env.target.width, env.target.height)) return;
       lineStart = info.cell.x;
       env.setTextCursor(info.cell);
     },

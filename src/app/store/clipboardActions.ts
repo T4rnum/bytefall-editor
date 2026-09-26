@@ -15,6 +15,7 @@ import {
   selectedObject,
 } from './objectActions';
 import { deleteSelectedObjectsAction } from './objectBatchActions';
+import { deleteSelectedGlyphsAction, selectAllGlyphsAction } from './objectEditActions';
 
 /**
  * Что копировать, решает инструмент: у инструмента объектов — выбранный объект, у остальных —
@@ -42,6 +43,8 @@ export function copyAction(): void {
  * подсвечен, но не удалялся. Запертый объект не удаляется, и об этом говорит сообщение.
  */
 export function deleteSelectionAction(): void {
+  // В правке изнутри Delete стирает выделенные символы объекта, а не объект и не ячейки холста.
+  if (deleteSelectedGlyphsAction()) return;
   const { selection } = useEditorStore.getState();
   if (selectedObject() && (objectsInFocus() || !selection)) {
     deleteSelectedObjectsAction();
@@ -84,6 +87,7 @@ function pasteCells(clip: Clip): void {
 }
 
 export function selectAllAction(): void {
+  if (selectAllGlyphsAction()) return;
   const { doc } = useDocumentStore.getState();
   const all = selectionFromRect({ x: 0, y: 0, w: doc.width, h: doc.height }, doc.width, doc.height);
   useEditorStore.getState().setSelection(all);

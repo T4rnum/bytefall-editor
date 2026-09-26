@@ -3,6 +3,7 @@ import { DEFAULT_FG } from '../../core/cell';
 import type { Preview } from '../../core/compositor';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
+import type { CellKey } from '../../core/grid';
 import type { SceneObject } from '../../core/object';
 import type { Clip, Selection } from '../../core/selection';
 import type { KeyRef } from '../../core/tracks';
@@ -54,6 +55,17 @@ export interface EditorState {
    * пуст, только когда ничего не выбрано.
    */
   readonly selectedObjectIds: readonly string[];
+  /**
+   * Объект в режиме правки изнутри (Tab): инструменты рисуют в его сетке, выделение ловит его
+   * символы. Всегда главный выбранный: смена выбора выходит из режима.
+   */
+  readonly editingObjectId: string | null;
+  /** Выделенные символы объекта в режиме правки — ключи его ячеек по возрастанию. */
+  readonly glyphSelection: readonly CellKey[];
+  /** Точка указателя в документе, пока идёт правка изнутри: по ней рисуется курсор в сетке объекта. */
+  readonly cursorPoint: Point | null;
+  /** Рамка или лассо выделения символов, пока их тянут: контур в документе. */
+  readonly marquee: readonly Point[] | null;
   /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
   readonly draft: Document | null;
   readonly isPlaying: boolean;
@@ -94,6 +106,11 @@ export interface EditorState {
   setSelectedObject: (id: string | null) => void;
   /** Выбирает несколько объектов, главным становится последний. */
   setSelectedObjects: (ids: readonly string[]) => void;
+  /** Входит в правку объекта изнутри или выходит из неё; выделение символов сбрасывается. */
+  setEditing: (id: string | null) => void;
+  setGlyphSelection: (keys: readonly CellKey[]) => void;
+  setCursorPoint: (point: Point | null) => void;
+  setMarquee: (loop: readonly Point[] | null) => void;
   setDraft: (doc: Document | null) => void;
   setPlaying: (playing: boolean) => void;
   setSelectedKeys: (keys: readonly KeyRef[]) => void;
@@ -114,6 +131,15 @@ export const activeBrush = (s: EditorState): Brush => s.brushes[s.activeBrush];
  * это и есть ластик, см. `isBlankCell`.
  */
 export const brushOf = (s: EditorState, button: number): Brush => s.brushes[button === 2 ? 1 : 0];
+
+/** Правка изнутри живёт, пока её объект главный в выборе; иначе режим снимается. */
+function keepEditing(
+  s: EditorState,
+  primary: string | null,
+): Pick<EditorState, 'editingObjectId' | 'glyphSelection'> | Record<string, never> {
+  if (s.editingObjectId === null || s.editingObjectId === primary) return {};
+  return { editingObjectId: null, glyphSelection: [] };
+}
 
 /** Точечная правка активной кисти: остальные поля и вторая кисть остаются теми же. */
 function patchActive(s: EditorState, patch: Partial<Brush>): Pick<EditorState, 'brushes'> {
@@ -141,6 +167,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   textCursor: null,
   selectedObjectId: null,
   selectedObjectIds: [],
+  editingObjectId: null,
+  glyphSelection: [],
+  cursorPoint: null,
+  marquee: null,
   draft: null,
   isPlaying: false,
   selectedKeys: [],
@@ -170,9 +200,30 @@ export const useEditorStore = create<EditorState>((set) => ({
   setClipboard: (clipboard) => set({ clipboard }),
   setPreview: (preview) => set({ preview }),
   setTextCursor: (textCursor) => set({ textCursor }),
-  setSelectedObject: (id) => set({ selectedObjectId: id, selectedObjectIds: id ? [id] : [] }),
+  setSelectedObject: (id) =>
+    set((s) => ({
+      selectedObjectId: id,
+      selectedObjectIds: id ? [id] : [],
+      ...keepEditing(s, id),
+    })),
   setSelectedObjects: (ids) =>
-    set({ selectedObjectId: ids[ids.length - 1] ?? null, selectedObjectIds: [...ids] }),
+    set((s) => {
+      const primary = ids[ids.length - 1] ?? null;
+      return { selectedObjectId: primary, selectedObjectIds: [...ids], ...keepEditing(s, primary) };
+    }),
+  // Текстовый курсор и черновик живут в сетке того, что правили: при смене режима им не место.
+  setEditing: (editingObjectId) =>
+    set({
+      editingObjectId,
+      glyphSelection: [],
+      cursorPoint: null,
+      textCursor: null,
+      draft: null,
+      preview: null,
+    }),
+  setGlyphSelection: (glyphSelection) => set({ glyphSelection }),
+  setCursorPoint: (cursorPoint) => set({ cursorPoint }),
+  setMarquee: (marquee) => set({ marquee }),
   setDraft: (draft) => set({ draft }),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setSelectedKeys: (selectedKeys) => set({ selectedKeys }),

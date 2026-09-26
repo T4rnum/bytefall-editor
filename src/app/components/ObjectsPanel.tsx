@@ -11,6 +11,7 @@ import {
   Group,
   Lock,
   LockOpen,
+  PencilLine,
   Plus,
   Trash2,
   Ungroup,
@@ -29,6 +30,7 @@ import {
   groupSelectionAction,
   updateObjectAction,
 } from '../store/objectActions';
+import { toggleEditModeAction } from '../store/objectEditActions';
 import {
   deleteSelectedObjectsAction,
   duplicateSelectedObjectsAction,
@@ -131,6 +133,7 @@ export function ObjectsPanel() {
   const doc = useDocumentStore((s) => s.doc);
   const selectedId = useEditorStore((s) => s.selectedObjectId);
   const selectedIds = useEditorStore((s) => s.selectedObjectIds);
+  const editing = useEditorStore((s) => s.editingObjectId !== null);
   const hasSelection = useEditorStore((s) => s.selection !== null);
   const objectInClipboard = useEditorStore((s) => s.clipboard?.kind === 'object');
   const outline = objectOutline(doc);
@@ -166,6 +169,21 @@ export function ObjectsPanel() {
             onClick={groupSelectionAction}
           >
             <Group size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            active={editing}
+            label={
+              editing
+                ? 'Выйти из правки символов'
+                : 'Править символы изнутри: рисовать в сетке объекта, выделять его символы'
+            }
+            hotkey="Tab"
+            disabled={!selected || selected.rig !== null}
+            onClick={toggleEditModeAction}
+          >
+            <PencilLine size={14} />
           </Button>
           <Button
             icon

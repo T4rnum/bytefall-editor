@@ -1,38 +1,7 @@
-import { type Affine, invertAffine } from './affine';
 import type { Document } from './document';
-import { intersectRects } from './geometry';
-import { type CellKey, gridBounds } from './grid';
-import { type SceneObject, findObject, updateObject } from './object';
-import { coveringRect, sourceKey } from './rasterize';
-import { type Selection, selectionContains } from './selection';
+import type { CellKey } from './grid';
+import { findObject, updateObject } from './object';
 import { type GlyphOverride, type GlyphOverrides, normalizeOverride } from './transform';
-
-/**
- * Символы объекта, которые видны в выделенных ячейках документа, — локальные ключи в порядке
- * возрастания. Ячейка документа отдаёт тот символ, что в ней нарисован: так же, как при
- * растеризации, поэтому у повёрнутого объекта выделяется ровно то, что видно под рамкой.
- * Обходится только пересечение выделения с рамкой объекта, а не весь холст.
- */
-export function glyphsInSelection(
-  obj: SceneObject,
-  world: Affine,
-  selection: Selection,
-): CellKey[] {
-  const bounds = gridBounds(obj.cells);
-  const inverse = invertAffine(world);
-  if (!bounds || !inverse) return [];
-  const box = intersectRects(coveringRect(world, bounds), selection.bounds);
-  if (!box) return [];
-  const found = new Set<CellKey>();
-  for (let y = box.y; y < box.y + box.h; y++) {
-    for (let x = box.x; x < box.x + box.w; x++) {
-      if (!selectionContains(selection, x, y)) continue;
-      const key = sourceKey(inverse, x, y);
-      if (key !== null && obj.cells.has(key)) found.add(key);
-    }
-  }
-  return [...found].sort((a, b) => a - b);
-}
 
 /**
  * Правит символы объекта по одному: `update` получает текущую правку символа, где пропущенные

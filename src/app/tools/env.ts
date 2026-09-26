@@ -1,8 +1,10 @@
 import { type Cell, isBlankCell, makeCell } from '../../core/cell';
 import type { CellEdits } from '../../core/grid';
 import { clipEditsToSelection } from '../../core/selection';
+import { findLayer } from '../../core/document';
 import { editableActiveLayer, useDocumentStore } from '../store/documentStore';
 import { type Brush, activeBrush, brushOf, useEditorStore } from '../store/editorStore';
+import { buildEditContext } from './editSession';
 import { getTool } from './index';
 import type { ToolEnv } from './types';
 
@@ -16,20 +18,31 @@ const toCell = (b: Brush): Cell | null => {
 export function buildToolEnv(): ToolEnv {
   const docState = useDocumentStore.getState();
   const editor = useEditorStore.getState();
-  const layer = editableActiveLayer(docState);
   const active = activeBrush(editor);
+  // Правка изнутри: рисуют в сетке объекта, а выделение — это его символы, а не ячейки холста.
+  const edit = buildEditContext(docState.doc, editor, docState.time);
+  const layer = edit
+    ? (findLayer(docState.doc, edit.session.object.layerId) ?? null)
+    : editableActiveLayer(docState);
   // Пока выделение есть, кисть работает только внутри него. Сами инструменты выделения из
   // этого правила выведены: перенос ячеек обязан выходить за прежнюю маску.
-  const mask = getTool(editor.tool).ignoresSelection ? null : editor.selection;
+  const mask = getTool(editor.tool).ignoresSelection || edit ? null : editor.selection;
   const clip = (edits: CellEdits): CellEdits => (mask ? clipEditsToSelection(edits, mask) : edits);
+  const { doc } = docState;
   return {
-    doc: docState.doc,
+    doc,
     layer,
+    target: edit?.target ?? {
+      cells: layer?.cells ?? new Map(),
+      width: doc.width,
+      height: doc.height,
+    },
+    editing: edit?.session ?? null,
     brush: makeCell(active.glyph, active.fg, active.bg),
     brushFor: (button) => toCell(brushOf(editor, button)),
     shapeFill: editor.shapeFill,
     wandContiguous: editor.wandContiguous,
-    selection: editor.selection,
+    selection: edit ? null : editor.selection,
     textCursor: editor.textCursor,
     selectedObjectId: editor.selectedObjectId,
     selectedObjectIds:
@@ -39,10 +52,13 @@ export function buildToolEnv(): ToolEnv {
           ? [editor.selectedObjectId]
           : [],
     zoom: editor.camera.zoom,
-    setPreview: (edits) =>
-      editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null),
+    setPreview: (edits) => {
+      if (edit) edit.preview(edits);
+      else editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null);
+    },
     commit: (edits, label) => {
-      if (layer) docState.commitCells(layer.id, clip(edits), label);
+      if (edit) edit.commit(edits, label);
+      else if (layer) docState.commitCells(layer.id, clip(edits), label);
     },
     setSelection: editor.setSelection,
     pick: (cell, button = 0) => {
