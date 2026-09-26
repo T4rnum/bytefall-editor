@@ -4,6 +4,7 @@ import { exportSamples, hasMotion } from '../../core/timeline';
 import { GIF_MAX_FPS, gifSamples } from '../io/animationExport';
 import { useDocumentStore } from '../store/documentStore';
 import {
+  exportBytefallAction,
   exportFramesAction,
   exportGifAction,
   exportPngAction,
@@ -12,7 +13,7 @@ import {
 } from '../store/fileActions';
 import { Button, Field, Select, plural, readSetting, writeSetting } from '../ui';
 
-type Format = 'png' | 'gif' | 'sheet' | 'frames' | 'text';
+type Format = 'png' | 'gif' | 'sheet' | 'frames' | 'bytefall' | 'text';
 
 const FORMATS: readonly { value: Format; label: string; hint: string }[] = [
   { value: 'png', label: 'Кадр PNG', hint: 'Сцена в момент указателя — со свечением и контуром.' },
@@ -27,6 +28,11 @@ const FORMATS: readonly { value: Format; label: string; hint: string }[] = [
     hint: 'PNG с атласом JSON в формате Aseprite: его понимают Unity, Godot и Phaser.',
   },
   { value: 'frames', label: 'Кадры PNG', hint: 'Каждый кадр отдельным файлом, тайминг — в JSON.' },
+  {
+    value: 'bytefall',
+    label: 'Для движка',
+    hint: 'Файл .bytefall для рантаймов Godot и Unity: символы и цвета вместо пикселей, чёткие при любом масштабе. Свечение, контур и постэффекты пока не переносятся.',
+  },
   { value: 'text', label: 'Текст', hint: 'Символы кадра без цвета — для терминала и заметок.' },
 ];
 
@@ -69,6 +75,8 @@ function summary(choice: Choice): string {
     }
     case 'frames':
       return `${plural(count, FRAMES)} по ${w}×${h} пикс. в архиве ZIP`;
+    case 'bytefall':
+      return `${plural(count, FRAMES)}, холст ${doc.width}×${doc.height} символов`;
     case 'text':
       return `${doc.width}×${doc.height} символов`;
   }
@@ -80,6 +88,7 @@ function run(choice: Choice): void {
     gif: () => exportGifAction(choice.scale),
     sheet: () => exportSpriteSheetAction(choice.scale),
     frames: () => exportFramesAction(choice.scale),
+    bytefall: () => exportBytefallAction(),
     text: () => exportTextAction(),
   };
   void actions[choice.format]();
@@ -121,7 +130,7 @@ export function ExportDialog({ onClose }: { readonly onClose: () => void }) {
           <Select
             value={String(choice.scale)}
             options={SCALES}
-            disabled={choice.format === 'text'}
+            disabled={choice.format === 'text' || choice.format === 'bytefall'}
             ariaLabel="Пикселей на ячейку"
             onChange={(value) => setChoice((c) => ({ ...c, scale: Number(value) }))}
           />

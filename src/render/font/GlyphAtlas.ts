@@ -176,6 +176,41 @@ export class GlyphAtlas {
     return value;
   }
 
+  /**
+   * Отдельный лист для рантайма движка (`core/bytefall.ts`): ячейка 0 залита белым, символ
+   * `glyphs[i]` — в ячейке `i + 1`. Альфа бинарная, как у `cover` в шейдере: пиксельный шрифт
+   * в движке не размоется и не даст полупрозрачной каймы.
+   */
+  sheet(glyphs: readonly string[], columns: number): HTMLCanvasElement {
+    const size = this.cellSize;
+    const canvas = document.createElement('canvas');
+    canvas.width = columns * size;
+    canvas.height = Math.ceil((glyphs.length + 1) / columns) * size;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Canvas 2D is not available');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    glyphs.forEach((glyph, i) => {
+      const x = ((i + 1) % columns) * size;
+      const y = Math.floor((i + 1) / columns) * size;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, size, size);
+      ctx.clip();
+      this.paint(ctx, glyph, x, y);
+      ctx.restore();
+    });
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const px = image.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const on = px[i + 3] >= 128 ? 255 : 0;
+      px[i] = px[i + 1] = px[i + 2] = 255;
+      px[i + 3] = on;
+    }
+    ctx.putImageData(image, 0, 0);
+    return canvas;
+  }
+
   /** Холст для замеров читается часто, поэтому браузеру сразу сказано держать его в памяти. */
   private scratchContext(): CanvasRenderingContext2D | null {
     if (this.scratch) return this.scratch;

@@ -53,7 +53,7 @@ export class SceneView {
 
   constructor(
     private readonly container: HTMLElement,
-    private readonly atlas: GlyphAtlas,
+    readonly atlas: GlyphAtlas,
   ) {
     THREE.ColorManagement.enabled = false;
     this.renderer = new THREE.WebGLRenderer({

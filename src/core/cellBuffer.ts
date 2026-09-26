@@ -36,7 +36,7 @@ export function colorOf(hex: string): Rgba {
   return color;
 }
 
-function readRgba(arr: Float32Array, i: number): Rgba {
+export function readRgba(arr: Float32Array, i: number): Rgba {
   const o = i * 4;
   return { r: arr[o], g: arr[o + 1], b: arr[o + 2], a: arr[o + 3] };
 }

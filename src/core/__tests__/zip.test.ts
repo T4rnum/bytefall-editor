@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { crc32, utf8, writeZip } from '../zip';
+import { fromUtf8, utf8 } from '../utf8';
+import { crc32, writeZip } from '../zip';
 
 /** Записи архива, прочитанные по центральному каталогу, как их читает любой архиватор. */
 function readZip(zip: Uint8Array): { name: string; data: Uint8Array; crc: number }[] {
@@ -45,9 +46,11 @@ describe('ZIP без сжатия', () => {
     expect(entries[1].crc).toBe(crc32(utf8('{"frames":[]}')));
   });
 
-  it('UTF-8 кодирует все плоскости Юникода', () => {
+  it('UTF-8 кодирует все плоскости Юникода и читается обратно', () => {
     expect([...utf8('Aя€😀')]).toEqual([
       0x41, 0xd1, 0x8f, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0x80,
     ]);
+    expect(fromUtf8(utf8('Aя€😀 «█»'))).toBe('Aя€😀 «█»');
+    expect(fromUtf8(new Uint8Array([0x41, 0xd1]))).toBe('A�');
   });
 });

@@ -1,8 +1,10 @@
 import { type Animation, createAnimation } from '../../core/animation';
+import { atlasGrid, packBytefall } from '../../core/bytefall';
 import { composite } from '../../core/compositor';
 import { type ComposedFrame, composeAt } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { safeFileName } from '../../core/filename';
+import { type RuntimeFrame, runtimeFrame, usedGlyphs } from '../../core/runtime';
 import { exportSamples, hasMotion, sceneDuration } from '../../core/timeline';
 import { bufferToText } from '../../core/text';
 import {
@@ -12,7 +14,7 @@ import {
   gifSamples,
   gifTimings,
 } from '../io/animationExport';
-import { frameArchive, sheetArchive } from '../io/archives';
+import { canvasPng, frameArchive, sheetArchive } from '../io/archives';
 import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
@@ -181,6 +183,47 @@ export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
     const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
     const bytes = await frameArchive(frames, name, animation.fps);
     await saveArchive(bytes, `${name}-frames.zip`, 'Кадры сохранены');
+  } catch (error) {
+    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
+  }
+}
+
+/**
+ * Файл `.bytefall` для рантаймов Godot и Unity: атлас символов и поток символов на каждый момент
+ * экспорта. Кадры считает тот же `composeAt`, что и экран; огонь и деформеры уже в них.
+ */
+export async function exportBytefallAction(): Promise<void> {
+  const { animation } = useDocumentStore.getState();
+  const name = safeFileName(animation.name);
+  try {
+    const view = getActiveView();
+    if (!view) throw new Error('холст ещё не готов');
+    let previous: ComposedFrame | null = null;
+    const frames: RuntimeFrame[] = exportSamples(animation).map(({ time, delay }) => {
+      const frame: ComposedFrame = composeAt(animation, time, previous);
+      previous = frame;
+      return runtimeFrame(frame, delay);
+    });
+    const glyphs = usedGlyphs(frames);
+    const cell = view.atlas.cellSize;
+    const grid = atlasGrid(glyphs.length, cell);
+    const atlasPng = await canvasPng(view.atlas.sheet(glyphs, grid.columns));
+    const bytes = packBytefall({
+      header: {
+        name: animation.name,
+        width: animation.width,
+        height: animation.height,
+        background: animation.background,
+        fps: animation.fps,
+        atlas: { cell, ...grid, glyphs },
+      },
+      atlasPng,
+      frames,
+    });
+    const blob = new Blob([bytes.slice()], { type: 'application/octet-stream' });
+    if (await saveBlobFile(blob, `${name}.bytefall`, '.bytefall', 'Анимация для движка')) {
+      notify('Файл для движка сохранён');
+    }
   } catch (error) {
     notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
   }

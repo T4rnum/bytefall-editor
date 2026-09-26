@@ -3,6 +3,8 @@
  * уходит одним файлом. PNG уже сжат, поэтому метод «хранить» ничего не теряет, а писатель
  * укладывается в сотню строк без зависимости.
  */
+import { utf8 } from './utf8';
+
 export interface ZipEntry {
   readonly name: string;
   readonly data: Uint8Array;
@@ -22,21 +24,6 @@ export function crc32(data: Uint8Array): number {
   let crc = 0xffffffff;
   for (const byte of data) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
-}
-
-/** Имя файла в UTF-8: у записи стоит флаг Unicode, и архиваторы читают кириллицу. */
-export function utf8(text: string): Uint8Array {
-  const out: number[] = [];
-  for (const ch of text) {
-    const c = ch.codePointAt(0) as number;
-    if (c < 0x80) out.push(c);
-    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
-    else if (c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
-    else {
-      out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
-    }
-  }
-  return new Uint8Array(out);
 }
 
 /** Время и дата в формате DOS: с точностью до двух секунд, с 1980 года. */

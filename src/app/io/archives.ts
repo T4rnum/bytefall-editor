@@ -1,8 +1,20 @@
 import { sheetAtlas, sheetLayouts } from '../../core/spriteSheet';
-import { type ZipEntry, utf8, writeZip } from '../../core/zip';
+import { utf8 } from '../../core/utf8';
+import { type ZipEntry, writeZip } from '../../core/zip';
 import type { RenderedFrame } from './animationExport';
 
-/** Холст нужного размера и PNG из него: кодирует браузер. */
+/** PNG из холста: кодирует браузер. */
+export async function canvasPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('не удалось закодировать PNG'))),
+      'image/png',
+    ),
+  );
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/** Холст нужного размера и PNG из него. */
 async function png(
   width: number,
   height: number,
@@ -14,13 +26,7 @@ async function png(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('браузер не дал Canvas 2D');
   draw(ctx);
-  const blob = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('не удалось закодировать PNG'))),
-      'image/png',
-    ),
-  );
-  return new Uint8Array(await blob.arrayBuffer());
+  return canvasPng(canvas);
 }
 
 function putFrame(ctx: CanvasRenderingContext2D, frame: RenderedFrame, x: number, y: number): void {
