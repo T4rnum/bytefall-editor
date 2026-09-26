@@ -80,6 +80,18 @@
   --motion: 140ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* ── Редактор узлов: шапка по роду узла, гнездо по типу связи ───────── */
+  --node-io: #8c3c4c;
+  --node-field: #3a6599;
+  --node-action: #2f7d5c;
+  --node-generator: #7a4fa8;
+  --node-material: #a8662f;
+  --node-utility: #5a5a68;
+  --socket-glyphs: #3fd4a8;
+  --socket-number: #a0a0ad;
+  --node-link: #7d7d8a;
+  --node-grid: rgb(255 255 255 / 4%);
+
   /* ── Слои по z ──────────────────────────────────────────────────────── */
   --z-popover: 100;
   --z-tooltip: 200;

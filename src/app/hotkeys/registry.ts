@@ -20,6 +20,7 @@ import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { TOOLS, getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
 import { type KeyChord, MatchQuality, matchQuality } from './match';
+import { NODE_HOTKEYS } from './nodeHotkeys';
 import { OBJECT_HOTKEYS } from './objectHotkeys';
 import type { Hotkey, HotkeyGroup } from './types';
 
@@ -212,7 +213,7 @@ const TOOL_HOTKEYS: readonly Hotkey[] = TOOLS.map((tool) => ({
   run: () => editor().setTool(tool.id),
 }));
 
-export const HOTKEYS: readonly Hotkey[] = [...STATIC_HOTKEYS, ...TOOL_HOTKEYS];
+export const HOTKEYS: readonly Hotkey[] = [...STATIC_HOTKEYS, ...NODE_HOTKEYS, ...TOOL_HOTKEYS];
 
 /**
  * Самое уверенное совпадение. Порядок объявления решает только при равной уверенности, поэтому
@@ -240,6 +241,7 @@ export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [
   'Инструменты',
   'Правка',
   'Объекты',
+  'Узлы',
   'Анимация',
   'Вид',
   'Файл',

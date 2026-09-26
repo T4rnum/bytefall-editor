@@ -36,6 +36,7 @@ import { setFpsAction, setSceneDurationAction } from '../../store/timeActions';
 import { Button, KeyButton, NumberField, Select } from '../../ui';
 import { EASES, selectedEase } from '../../timeline/eases';
 import { formatSeconds } from '../../timeline/timelineMath';
+import { BottomViewTabs } from '../nodes/NodePanel';
 
 /** Характер выделенных ключей; перерисовка — когда меняются ключи или выделение. */
 function useSelectedEase(): string {
@@ -241,6 +242,7 @@ function FrameControls() {
 export function TimelineToolbar({ onFit }: { readonly onFit: () => void }) {
   return (
     <div className="timeline-toolbar">
+      <BottomViewTabs />
       <PlaybackControls />
       <KeyControls />
       <SceneControls onFit={onFit} />

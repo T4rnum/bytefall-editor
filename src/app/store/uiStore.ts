@@ -15,6 +15,9 @@ const MIN_TIMELINE = 120;
 const MAX_TIMELINE = 520;
 const DEFAULT_TIMELINE = 200;
 
+/** Что показывает нижняя область: время сцены или узлы выбранного объекта. */
+export type BottomView = 'timeline' | 'nodes';
+
 const clampTimeline = (height: number): number =>
   Math.min(MAX_TIMELINE, Math.max(MIN_TIMELINE, Math.round(height)));
 
@@ -23,6 +26,7 @@ interface UiState {
   readonly sidebarWidth: number;
   /** Высота таймлайна в пикселях. */
   readonly timelineHeight: number;
+  readonly bottomView: BottomView;
   readonly hotkeysOpen: boolean;
   readonly resizeOpen: boolean;
   readonly exportOpen: boolean;
@@ -34,6 +38,7 @@ interface UiState {
   readonly autosaveFailed: boolean;
   setSidebarWidth: (width: number) => void;
   setTimelineHeight: (height: number) => void;
+  setBottomView: (view: BottomView) => void;
   setHotkeysOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
@@ -51,6 +56,7 @@ export const useUiStore = create<UiState>((set) => ({
     Math.max(MIN_SIDEBAR, readSetting('sidebarWidth', DEFAULT_SIDEBAR)),
   ),
   timelineHeight: clampTimeline(readSetting('timelineHeight', DEFAULT_TIMELINE)),
+  bottomView: readSetting<BottomView>('bottomView', 'timeline') === 'nodes' ? 'nodes' : 'timeline',
   hotkeysOpen: false,
   resizeOpen: false,
   exportOpen: false,
@@ -66,6 +72,10 @@ export const useUiStore = create<UiState>((set) => ({
     const clamped = clampTimeline(height);
     writeSetting('timelineHeight', clamped);
     set({ timelineHeight: clamped });
+  },
+  setBottomView: (bottomView) => {
+    writeSetting('bottomView', bottomView);
+    set({ bottomView });
   },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),

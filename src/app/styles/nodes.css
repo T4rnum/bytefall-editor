@@ -1,0 +1,280 @@
+/**
+ * Редактор узлов: поле с точечной сеткой, узлы и провода. Размеры узла приходят переменными из
+ * `nodes/nodeLayout.ts` — по тем же числам считаются гнёзда связей, и провод входит ровно в гнездо.
+ */
+.node-panel {
+  position: relative;
+}
+
+.node-panel-object {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-editor {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--workspace);
+  background-image: radial-gradient(circle, var(--node-grid) 1px, transparent 1.5px);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.node-editor:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.node-editor--empty {
+  display: grid;
+  place-items: center;
+}
+
+.node-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* ── Провода ─────────────────────────────────────────────────────────── */
+.node-links {
+  position: absolute;
+  overflow: visible;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.node-link {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.node-link--glyphs {
+  stroke: var(--socket-glyphs);
+}
+
+.node-link--number {
+  stroke: var(--socket-number);
+}
+
+.node-link.is-muted {
+  opacity: 0.35;
+}
+
+.node-link.is-pending {
+  stroke-dasharray: 6 4;
+}
+
+/* ── Узел ────────────────────────────────────────────────────────────── */
+.node {
+  --node-accent: var(--node-utility);
+  --field-w: 60px;
+
+  position: absolute;
+  width: var(--node-w);
+  padding-bottom: var(--node-pad);
+  background: var(--panel-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--text-sm);
+}
+
+.node.is-selected {
+  border-color: var(--accent);
+}
+
+.node.is-muted {
+  opacity: 0.55;
+}
+
+.node--input,
+.node--output {
+  --node-accent: var(--node-io);
+}
+
+.node--field {
+  --node-accent: var(--node-field);
+}
+
+.node--action {
+  --node-accent: var(--node-action);
+}
+
+.node--generator {
+  --node-accent: var(--node-generator);
+}
+
+.node--material {
+  --node-accent: var(--node-material);
+}
+
+.node-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--node-head-h);
+  padding: 0 var(--space-4);
+  background: var(--node-accent);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  color: var(--text);
+  cursor: grab;
+}
+
+.node-title {
+  flex: 1;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-muted {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
+.node-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--node-row-h);
+  padding: 0 var(--space-5);
+}
+
+.node-row > .field {
+  flex: 1;
+}
+
+/* Настройка с широким полем в узле — в строку: у ряда своя высота. */
+.node-row .field--stacked {
+  flex-direction: row;
+  align-items: center;
+}
+
+.node-row .field--stacked .field-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.node-row .textfield {
+  width: 100%;
+  min-width: 0;
+}
+
+.node-row--out {
+  justify-content: flex-end;
+}
+
+.node-label {
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Гнёзда ──────────────────────────────────────────────────────────── */
+.node-socket {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border: 1px solid var(--bg);
+  border-radius: 50%;
+  cursor: crosshair;
+}
+
+.node-socket--in {
+  left: -6px;
+}
+
+.node-socket--out {
+  right: -6px;
+}
+
+.node-socket--glyphs {
+  background: var(--socket-glyphs);
+}
+
+.node-socket--number {
+  background: var(--socket-number);
+}
+
+.node-socket:hover {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ── Рамка выделения ─────────────────────────────────────────────────── */
+.node-select-box {
+  position: absolute;
+  background: var(--state-selected);
+  border: 1px dashed var(--accent);
+  pointer-events: none;
+}
+
+/* ── Меню «Добавить» ─────────────────────────────────────────────────── */
+.node-menu {
+  position: absolute;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 220px;
+  max-height: calc(100% - var(--space-4));
+  padding: var(--space-3);
+  background: var(--panel-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-popover);
+}
+
+.node-menu-list {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.node-menu-heading {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.node-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.node-menu-item:hover,
+.node-menu-item:focus-visible {
+  background: var(--state-hover);
+  outline: none;
+}
+
+.node-menu-empty {
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

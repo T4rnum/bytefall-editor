@@ -25,6 +25,7 @@ export { dropsBefore, reorderIndex } from './reorder';
 export { doublePress, type PressEvent } from './doublePress';
 export { Select, optionsOf, type SelectOption, type SelectProps } from './Select';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
+export { SearchField, type SearchFieldProps } from './SearchField';
 export { TextField, type TextFieldProps } from './TextField';
 export { TIP_ATTR, TooltipLayer } from './Tooltip';
 export { readSetting, writeSetting } from './persist';

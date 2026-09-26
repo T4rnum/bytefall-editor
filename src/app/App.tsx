@@ -10,6 +10,7 @@ import { HotkeysDialog } from './components/HotkeysDialog';
 import { ImportImageDialog } from './components/ImportImageDialog';
 import { LayersPanel } from './components/LayersPanel';
 import { LookPanel } from './components/LookPanel';
+import { NodePanel } from './components/nodes/NodePanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
 import { RecoveryDialog } from './components/RecoveryDialog';
 import { StatusBar } from './components/StatusBar';
@@ -36,6 +37,7 @@ export function App() {
   const sidebarWidth = useUiStore((s) => s.sidebarWidth);
   const timelineHeight = useUiStore((s) => s.timelineHeight);
   const setTimelineHeight = useUiStore((s) => s.setTimelineHeight);
+  const bottomView = useUiStore((s) => s.bottomView);
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth);
   const hotkeysOpen = useUiStore((s) => s.hotkeysOpen);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
@@ -86,15 +88,15 @@ export function App() {
           <GlyphPanel />
         </aside>
       </div>
-      {/* Таймлайн растёт при движении вверх, поэтому знак смещения отрицательный. */}
+      {/* Нижняя панель растёт при движении вверх, поэтому знак смещения отрицательный. */}
       <Resizer
         value={timelineHeight}
         onChange={setTimelineHeight}
         direction="horizontal"
         sign={-1}
-        ariaLabel="Высота таймлайна"
+        ariaLabel="Высота нижней панели"
       />
-      <TimelinePanel atlas={atlas} />
+      {bottomView === 'nodes' ? <NodePanel /> : <TimelinePanel atlas={atlas} />}
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
       <RecoveryDialog />

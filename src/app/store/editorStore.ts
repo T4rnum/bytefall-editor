@@ -73,6 +73,8 @@ export interface EditorState {
   readonly isPlaying: boolean;
   /** Выделенные ключи в таймлайне. Delete удаляет их, пока они выделены. */
   readonly selectedKeys: readonly KeyRef[];
+  /** Выделенные узлы в редакторе узлов выбранного объекта. */
+  readonly selectedNodes: readonly string[];
   /** Показывать соседние кадры полупрозрачно. */
   readonly onionSkin: boolean;
   /**
@@ -117,6 +119,7 @@ export interface EditorState {
   setDraft: (doc: Document | null) => void;
   setPlaying: (playing: boolean) => void;
   setSelectedKeys: (keys: readonly KeyRef[]) => void;
+  setSelectedNodes: (ids: readonly string[]) => void;
   setOnionSkin: (enabled: boolean) => void;
   setEffectsLive: (live: boolean) => void;
   setEffectTime: (time: number) => void;
@@ -178,6 +181,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   draft: null,
   isPlaying: false,
   selectedKeys: [],
+  selectedNodes: [],
   onionSkin: false,
   effectsLive: false,
   effectTime: 0,
@@ -232,6 +236,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setDraft: (draft) => set({ draft }),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setSelectedKeys: (selectedKeys) => set({ selectedKeys }),
+  setSelectedNodes: (selectedNodes) => set({ selectedNodes }),
   setOnionSkin: (onionSkin) => set({ onionSkin }),
   setEffectsLive: (effectsLive) => set({ effectsLive }),
   setEffectTime: (effectTime) => set({ effectTime }),

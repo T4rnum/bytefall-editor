@@ -94,23 +94,48 @@ export function addNodeAction(objectId: string, kind: string, x: number, y: numb
 }
 
 export function removeNodeAction(objectId: string, nodeId: string): void {
-  editGraph(objectId, 'Remove node', (g) => removeNode(g, nodeId));
+  removeNodesAction(objectId, [nodeId]);
 }
 
-export function connectAction(objectId: string, from: OutRef, to: InRef): void {
-  editGraph(objectId, 'Connect', (g) => connect(g, from, to));
+/** Несколько узлов одной записью: поток через каждый не рвётся. */
+export function removeNodesAction(objectId: string, nodeIds: readonly string[]): void {
+  editGraph(objectId, 'Remove nodes', (g) => nodeIds.reduce(removeNode, g));
+}
+
+/**
+ * Связь выхода со входом одной записью. `detached` — вход, с которого связь сняли, чтобы
+ * перетащить: связь уходит с него, даже если новый вход тот же.
+ */
+export function linkAction(objectId: string, from: OutRef, to: InRef, detached?: InRef): void {
+  editGraph(objectId, 'Connect', (g) => connect(detached ? disconnect(g, detached) : g, from, to));
 }
 
 export function disconnectAction(objectId: string, to: InRef): void {
   editGraph(objectId, 'Disconnect', (g) => disconnect(g, to));
 }
 
-export function moveNodeAction(objectId: string, nodeId: string, x: number, y: number): void {
-  editGraph(objectId, 'Move node', (g) => moveNode(g, nodeId, x, y));
+/** Узлы на новые места одной записью: перетаскивание нескольких — одна правка. */
+export function moveNodesAction(
+  objectId: string,
+  moves: readonly { readonly id: string; readonly x: number; readonly y: number }[],
+): void {
+  editGraph(objectId, 'Move nodes', (g) =>
+    moves.reduce((acc, m) => moveNode(acc, m.id, m.x, m.y), g),
+  );
 }
 
 export function setNodeMutedAction(objectId: string, nodeId: string, muted: boolean): void {
-  editGraph(objectId, muted ? 'Mute node' : 'Unmute node', (g) => setNodeMuted(g, nodeId, muted));
+  setNodesMutedAction(objectId, [nodeId], muted);
+}
+
+export function setNodesMutedAction(
+  objectId: string,
+  nodeIds: readonly string[],
+  muted: boolean,
+): void {
+  editGraph(objectId, muted ? 'Mute nodes' : 'Unmute nodes', (g) =>
+    nodeIds.reduce((acc, id) => setNodeMuted(acc, id, muted), g),
+  );
 }
 
 /**

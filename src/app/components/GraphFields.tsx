@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react';
+import { Plus, Workflow, X } from 'lucide-react';
 import { useState } from 'react';
 import { nodeSpec } from '../../core/graph/nodes';
 import { PRESETS, type PresetKind } from '../../core/graph/presetMenu';
@@ -11,6 +11,7 @@ import {
 } from '../../core/graph/types';
 import type { SceneObject } from '../../core/object';
 import { addPresetAction, removeNodeAction, setNodeMutedAction } from '../store/graphActions';
+import { useUiStore } from '../store/uiStore';
 import { Button, Checkbox, Field, Select, type SelectOption, plural } from '../ui';
 import { OBJECTS, useGroupTargets } from './groupTargets';
 import { InputField, OptionField } from './NodeFields';
@@ -123,6 +124,15 @@ export function GraphFields({ object }: { readonly object: SceneObject }) {
           onClick={() => addPresetAction(targets, kind)}
         >
           <Plus size={14} />
+        </Button>
+        <Button
+          icon
+          size="sm"
+          label="Граф узлов внизу: связи, ветки, свои цепочки"
+          hotkey="N"
+          onClick={() => useUiStore.getState().setBottomView('nodes')}
+        >
+          <Workflow size={14} />
         </Button>
       </div>
       {graph && nodes.length > 0 && (

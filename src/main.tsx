@@ -5,6 +5,7 @@ import './app/styles/tokens.css';
 import './app/styles/ui.css';
 import './app/styles/app.css';
 import './app/styles/timeline.css';
+import './app/styles/nodes.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element #root is missing');
