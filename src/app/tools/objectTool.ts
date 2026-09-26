@@ -1,7 +1,7 @@
 import type { Affine } from '../../core/affine';
 import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
-import { moveInDocument, removeObject } from '../../core/hierarchy';
+import { moveInDocument } from '../../core/hierarchy';
 import { type SceneObject, canEditObject, findObject, transformObject } from '../../core/object';
 import { objectAt, objectMatrix } from '../../core/placement';
 import { isBone } from '../../core/rig';
@@ -216,13 +216,6 @@ export function createObjectTool(): Tool {
           return nudge(0, -step);
         case 'ArrowDown':
           return nudge(0, step);
-        case 'Delete':
-        case 'Backspace':
-          if (canEditObject(env.doc, obj)) {
-            env.commitDocument('Delete object', removeObject(env.doc, id));
-            env.setSelectedObject(null);
-          }
-          return true;
         case 'Escape':
           // Отмена жеста: объект остаётся выбранным, черновик сбрасывается.
           if (gesture) stop(env);

@@ -72,7 +72,7 @@ describe('object tool cancel', () => {
 });
 
 describe('object tool keyboard', () => {
-  it('nudges, deletes and deselects the selected object', () => {
+  it('nudges and deselects the selected object; Delete is left to the shared action', () => {
     const { doc, id } = setup();
     const { env, calls } = makeToolEnv(doc, { selectedObjectId: id });
     const tool = createObjectTool();
@@ -81,10 +81,10 @@ describe('object tool keyboard', () => {
     expect(tool.onKeyDown?.(env, key('ArrowDown', { shiftKey: true }))).toBe(true);
     expect(findObject(calls.docCommits[1].doc, id)).toMatchObject({ transform: { x: 2, y: 12 } });
     expect(tool.onKeyDown?.(env, key('ArrowRight', { ctrlKey: true }))).toBe(false);
-    expect(tool.onKeyDown?.(env, key('Delete'))).toBe(true);
-    expect(findObject(calls.docCommits[2].doc, id)).toBeUndefined();
+    // Delete удаляет объект при любом инструменте: это общее действие, а не инструмента.
+    expect(tool.onKeyDown?.(env, key('Delete'))).toBe(false);
     expect(tool.onKeyDown?.(env, key('Escape'))).toBe(true);
-    expect(calls.selected).toEqual([null, null]);
+    expect(calls.selected).toEqual([null]);
     expect(tool.onKeyDown?.(makeToolEnv(doc).env, key('ArrowRight'))).toBe(false);
   });
 });

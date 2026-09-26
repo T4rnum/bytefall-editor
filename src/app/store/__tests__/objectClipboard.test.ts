@@ -5,11 +5,12 @@ import { addLayer, createDocument, createLayer } from '../../../core/document';
 import { applyEdits, emptyGrid, keyOf } from '../../../core/grid';
 import { addObject, createObject, findObject } from '../../../core/object';
 import { selectionFromRect } from '../../../core/selection';
-import { copyAction, cutAction, pasteAction } from '../clipboardActions';
+import { copyAction, cutAction, deleteSelectionAction, pasteAction } from '../clipboardActions';
 import { updateLayerAction } from '../documentActions';
 import { useDocumentStore } from '../documentStore';
 import { useEditorStore } from '../editorStore';
 import { moveSelectedObjectToLayerAction, stepSelectedObjectLayerAction } from '../objectActions';
+import { useNotifyStore } from '../notifyStore';
 
 const doc = () => useDocumentStore.getState().doc;
 const editor = () => useEditorStore.getState();
@@ -141,5 +142,36 @@ describe('перенос объекта на другой слой', () => {
     const second = frameDocument(useDocumentStore.getState().animation, 1);
     expect(second.objects).toHaveLength(0);
     expect(findObject(doc(), hero.id)?.layerId).toBe(topId);
+  });
+});
+
+describe('Delete и выбранный объект', () => {
+  beforeEach(setup);
+
+  it('объект, выбранный при карандаше, удаляется, если ячейки не выделены', () => {
+    useEditorStore.setState({ tool: 'pencil' });
+    deleteSelectionAction();
+    expect(doc().objects).toEqual([]);
+    expect(editor().selectedObjectId).toBeNull();
+  });
+
+  it('при карандаше с выделением удаляются ячейки, а объект остаётся', () => {
+    useEditorStore.setState({
+      tool: 'pencil',
+      selection: selectionFromRect({ x: 0, y: 0, w: 2, h: 2 }, 16, 8),
+    });
+    deleteSelectionAction();
+    expect(doc().objects).toHaveLength(1);
+  });
+
+  it('запертый объект не удаляется, и об этом говорит сообщение', () => {
+    const id = editor().selectedObjectId!;
+    useDocumentStore.getState().commitStructural('lock', {
+      ...doc(),
+      objects: doc().objects.map((o) => (o.id === id ? { ...o, locked: true } : o)),
+    });
+    deleteSelectionAction();
+    expect(doc().objects).toHaveLength(1);
+    expect(useNotifyStore.getState().message).toMatch(/заперт/);
   });
 });
