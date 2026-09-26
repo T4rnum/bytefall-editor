@@ -5,7 +5,7 @@ import { type Rgba, TRANSPARENT, tintColor, withAlpha } from './color';
 import { type CellKey, xOf, yOf } from './grid';
 import { deformedPoses, isDeformed, poseMatrix } from './deformObject';
 import { tintOf } from './look';
-import { MATERIAL_FLOATS, materialFloats } from './material';
+import { type GlyphMaterial, MATERIAL_FLOATS, materialFloats } from './material';
 import type { SceneObject } from './object';
 import { glyphMatrix } from './transform';
 
@@ -82,13 +82,20 @@ export class GlyphBatchBuilder {
   private count = 0;
   private readonly index = new Map<string, number>();
   private readonly glyphs: string[] = [];
-  private material: Float32Array | null = null;
 
   get size(): number {
     return this.count;
   }
 
-  push(m: Affine, glyph: string, fg: Rgba, bg: Rgba, pose = decomposeAffine(m)): void {
+  /** `material` — числа GPU-материала символа (`materialFloats`); null — без материала. */
+  push(
+    m: Affine,
+    glyph: string,
+    fg: Rgba,
+    bg: Rgba,
+    pose = decomposeAffine(m),
+    material: Float32Array | null = null,
+  ): void {
     if ((this.count + 1) * INSTANCE_FLOATS > this.data.length) {
       const grown = new Float32Array(this.data.length * 2);
       grown.set(this.data);
@@ -110,14 +117,9 @@ export class GlyphBatchBuilder {
     d[o + INSTANCE.glyph] = id;
     writeRgba(d, o + INSTANCE.fg, fg);
     writeRgba(d, o + INSTANCE.bg, bg);
-    if (this.material) d.set(this.material, o + INSTANCE.material);
+    if (material) d.set(material, o + INSTANCE.material);
     else d.fill(0, o + INSTANCE.material, o + INSTANCE_FLOATS);
     this.count++;
-  }
-
-  /** Материал для символов, которые придут дальше: он общий на объект. */
-  useMaterial(material: Float32Array | null): void {
-    this.material = material;
   }
 
   finish(): GlyphBatch {
@@ -129,14 +131,17 @@ export class GlyphBatchBuilder {
   }
 }
 
-/** Числа материала на объект: материал неизменяемый, поэтому кэш по ссылке на него. */
-const materialCache = new WeakMap<object, Float32Array | null>();
-function materialOf(obj: SceneObject): Float32Array | null {
-  if (obj.material === null) return null;
-  let floats = materialCache.get(obj.material);
+/**
+ * Числа материала символа. Материал неизменяемый, и узел графа даёт один объект на все символы,
+ * что прошли его одинаковыми, поэтому кэш по ссылке считает числа раз на материал.
+ */
+const materialCache = new WeakMap<GlyphMaterial, Float32Array | null>();
+function floatsOf(material: GlyphMaterial | null | undefined): Float32Array | null {
+  if (!material) return null;
+  let floats = materialCache.get(material);
   if (floats === undefined) {
-    floats = materialFloats(obj.material);
-    materialCache.set(obj.material, floats);
+    floats = materialFloats(material);
+    materialCache.set(material, floats);
   }
   return floats;
 }
@@ -167,15 +172,22 @@ export function pushObjectGlyphs(
   time = 0,
   rig?: ReadonlyMap<string, Affine>,
 ): void {
-  builder.useMaterial(materialOf(obj));
   const pose = decomposeAffine(world);
   const alpha = opacity * obj.opacity;
   const tint = tintOf(obj);
   const paint = (hex: string): Rgba => withAlpha(tintColor(colorOf(hex), tint), alpha);
   if (isDeformed(obj)) {
     const tinted = (c: Rgba): Rgba => withAlpha(tintColor(c, tint), alpha);
+    // Соседние символы почти всегда с одним материалом: числа берутся из кэша раз на серию.
+    let material: GlyphMaterial | null = null;
+    let floats: Float32Array | null = null;
     for (const p of deformedPoses(obj, time, rig)) {
-      builder.push(poseMatrix(world, p), p.glyph, tinted(p.fg), tinted(p.bg));
+      if (p.material !== material) {
+        material = p.material;
+        floats = floatsOf(material);
+      }
+      const m = poseMatrix(world, p);
+      builder.push(m, p.glyph, tinted(p.fg), tinted(p.bg), decomposeAffine(m), floats);
     }
     return;
   }

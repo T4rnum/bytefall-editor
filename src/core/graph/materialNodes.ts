@@ -7,7 +7,7 @@ import {
   withMaterialPart,
 } from '../material';
 import { glyphsIn, glyphsOut, numIn } from './specs';
-import { type GlyphPose, type NodeImpl, type NodeRun, type NumberSource, valueAt } from './types';
+import { type GlyphPose, type NodeImpl, type NodeRun, sample } from './types';
 
 /**
  * Материал — вид символа на GPU (`render/instanceShader.ts`): контур, свечение, блик, дизеринг.
@@ -28,18 +28,27 @@ function applyPart(
   make: (values: readonly number[]) => Part,
 ): { glyphs: GlyphPose[] } {
   const poses = r.glyphs('glyphs');
-  const sources: NumberSource[] = names.map((n) => r.num(n));
+  const sources = names.map((n) => r.num(n));
   const shared = sources.every((s) => typeof s === 'number');
-  const cache = new Map<GlyphMaterial | null, GlyphMaterial | null>();
   const constant = shared ? make(sources) : null;
-  for (const p of poses) {
-    const prev = p.material ?? null;
-    if (constant) {
-      if (!cache.has(prev)) cache.set(prev, withMaterialPart(prev, constant));
-      p.material = cache.get(prev) ?? null;
-    } else {
-      p.material = withMaterialPart(prev, make(sources.map((s) => valueAt(s, p))));
+  if (constant) {
+    // Соседние символы почти всегда с одним прежним материалом: общий новый — раз на серию.
+    const cache = new Map<GlyphMaterial | null, GlyphMaterial | null>();
+    let prev: GlyphMaterial | null | undefined;
+    let next: GlyphMaterial | null = null;
+    for (const p of poses) {
+      if (p.material !== prev) {
+        prev = p.material;
+        next = cache.get(prev) ?? withMaterialPart(prev, constant);
+        cache.set(prev, next);
+      }
+      p.material = next;
     }
+    return { glyphs: poses };
+  }
+  const columns = sources.map((s) => sample(s, poses));
+  for (let i = 0; i < poses.length; i++) {
+    poses[i].material = withMaterialPart(poses[i].material, make(columns.map((c) => c[i])));
   }
   return { glyphs: poses };
 }

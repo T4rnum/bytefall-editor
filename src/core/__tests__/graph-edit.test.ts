@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDeformer } from '../deformers';
+import { createDeformer } from '../graph/legacy';
 import { chainGraph, emptyGraph } from '../graph/build';
 import {
   addNode,

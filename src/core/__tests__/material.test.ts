@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createAnimation, frameDocument } from '../animation';
 import { composite, effectsSignature } from '../compositor';
 import { composeFrame } from '../frame';
+import { isAnimatedGraph } from '../graph/evaluate';
 import { readInstance } from '../instances';
 import {
   DEFAULT_GLOW,
@@ -9,7 +10,6 @@ import {
   type GlyphMaterial,
   MATERIAL,
   hasMaterial,
-  isAnimatedMaterial,
   materialFloats,
   withMaterialPart,
 } from '../material';
@@ -19,6 +19,7 @@ import { deserialize, serialize } from '../serialization';
 import { bufferToText } from '../text';
 import { hasMotion } from '../timeline';
 import { BALL, ballScene } from './helpers/ballScene';
+import { materialGraph } from './helpers/graphs';
 
 const outline = { color: '#ff0000', width: 2 };
 const glow = { color: '#0000ff', radius: 0.75, strength: 2 };
@@ -33,10 +34,12 @@ const mat = (parts: Partial<GlyphMaterial>): GlyphMaterial => ({
   ...parts,
 });
 
-/** Мяч с материалом. */
+/** Мяч с материалом: узлы материала в графе мяча. */
 function ballWith(material: GlyphMaterial) {
   const { anim } = ballScene();
-  const doc = updateObject(frameDocument(anim, 0), BALL, { material });
+  const doc = updateObject(frameDocument(anim, 0), BALL, {
+    graph: materialGraph(BALL, material),
+  });
   return { anim: { ...anim, frames: [{ ...anim.frames[0], objects: doc.objects }] }, doc };
 }
 
@@ -60,9 +63,10 @@ describe('GPU-материал объекта', () => {
     expect(hasMaterial(mat({}))).toBe(false);
     expect(withMaterialPart(mat({ outline }), { outline: null })).toBeNull();
     expect(withMaterialPart(null, { glow })).toEqual(mat({ glow }));
-    expect(isAnimatedMaterial(mat({ shine }))).toBe(true);
-    expect(isAnimatedMaterial(mat({ shine: { ...shine, speed: 0 } }))).toBe(false);
-    expect(isAnimatedMaterial(mat({ glow }))).toBe(false);
+    const animated = (m: GlyphMaterial) => isAnimatedGraph(materialGraph('o', m));
+    expect(animated(mat({ shine }))).toBe(true);
+    expect(animated(mat({ shine: { ...shine, speed: 0 } }))).toBe(false);
+    expect(animated(mat({ glow }))).toBe(false);
   });
 
   it('объект с материалом свободный, и его символы несут материал в поток', () => {
@@ -93,7 +97,7 @@ describe('GPU-материал объекта', () => {
   it('материал переживает сохранение, пустые части в файл не пишутся', () => {
     const full = mat({ outline, glow, shine, dither: { amount: 0.5 } });
     const back = deserialize(serialize(ballWith(full).anim));
-    expect(findObject(frameDocument(back, 0), BALL)!.material).toEqual(full);
+    expect(findObject(frameDocument(back, 0), BALL)!.graph).toEqual(materialGraph(BALL, full));
     expect(serialize(ballWith(mat({ glow })).anim)).not.toContain('outline');
   });
 });

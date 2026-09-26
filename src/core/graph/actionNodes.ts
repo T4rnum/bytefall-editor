@@ -1,7 +1,7 @@
 import { colorOf } from '../cellBuffer';
 import { MAX_SCALE, MIN_SCALE } from '../transform';
 import { FREE, glyphsIn, glyphsOut, numIn } from './specs';
-import { type NodeImpl, valueAt } from './types';
+import { type NodeImpl, sample } from './types';
 
 /**
  * Действия: поток символов на входе, тот же поток на выходе, каждый символ изменён по числам с
@@ -25,14 +25,12 @@ export const offsetNode: NodeImpl = {
   },
   run: (r) => {
     const poses = r.glyphs('glyphs');
-    const [x, y, s] = [r.num('x'), r.num('y'), r.num('strength')];
-    for (const p of poses) {
-      // Оба числа — до сдвига: поле положения читает символ там, где он был.
-      const dx = valueAt(x, p);
-      const dy = valueAt(y, p);
-      const k = valueAt(s, p);
-      p.x += k * dx;
-      p.y += k * dy;
+    // Числа — до сдвига: поле положения читает символы там, где они были.
+    const [x, y, s] = ['x', 'y', 'strength'].map((n) => sample(r.num(n), poses));
+    for (let i = 0; i < poses.length; i++) {
+      const k = s[i];
+      poses[i].x += k * x[i];
+      poses[i].y += k * y[i];
     }
     return { glyphs: poses };
   },
@@ -65,11 +63,12 @@ export const rotateNode: NodeImpl = {
   },
   run: (r) => {
     const poses = r.glyphs('glyphs');
-    const [angle, s] = [r.num('angle'), r.num('strength')];
+    const [angle, s] = ['angle', 'strength'].map((n) => sample(r.num(n), poses));
     const around = r.option<string>('pivot') === 'center';
     const { x: cx, y: cy } = r.ctx.center;
-    for (const p of poses) {
-      const a = valueAt(s, p) * valueAt(angle, p);
+    for (let i = 0; i < poses.length; i++) {
+      const p = poses[i];
+      const a = s[i] * angle[i];
       if (around) {
         const dx = p.x - cx;
         const dy = p.y - cy;
@@ -97,11 +96,11 @@ export const scaleNode: NodeImpl = {
   },
   run: (r) => {
     const poses = r.glyphs('glyphs');
-    const factor = r.num('factor');
-    for (const p of poses) {
-      const f = valueAt(factor, p);
-      p.sx *= f;
-      p.sy *= f;
+    const factor = sample(r.num('factor'), poses);
+    for (let i = 0; i < poses.length; i++) {
+      const f = factor[i];
+      poses[i].sx *= f;
+      poses[i].sy *= f;
     }
     return { glyphs: poses };
   },
@@ -128,10 +127,11 @@ export const colorNode: NodeImpl = {
     const poses = r.glyphs('glyphs');
     const from = colorOf(r.option<string>('from'));
     const to = colorOf(r.option<string>('to'));
-    const [factor, amount] = [r.num('factor'), r.num('amount')];
-    for (const p of poses) {
-      const t = valueAt(factor, p);
-      const k = Math.min(1, Math.max(0, valueAt(amount, p)));
+    const [factor, amount] = ['factor', 'amount'].map((n) => sample(r.num(n), poses));
+    for (let i = 0; i < poses.length; i++) {
+      const p = poses[i];
+      const t = factor[i];
+      const k = Math.min(1, Math.max(0, amount[i]));
       p.fg = {
         r: p.fg.r + (from.r + (to.r - from.r) * t - p.fg.r) * k,
         g: p.fg.g + (from.g + (to.g - from.g) * t - p.fg.g) * k,
@@ -157,12 +157,13 @@ export const glyphNode: NodeImpl = {
     const poses = r.glyphs('glyphs');
     const ramp = [...r.option<string>('ramp')];
     if (ramp.length === 0) return { glyphs: poses };
-    const factor = r.num('factor');
+    const factor = sample(r.num('factor'), poses);
     const last = ramp.length - 1;
-    for (const p of poses) {
+    for (let i = 0; i < poses.length; i++) {
+      const p = poses[i];
       if (p.glyph === '') continue;
-      const i = Math.floor(valueAt(factor, p) * ramp.length);
-      p.glyph = ramp[Math.min(last, Math.max(0, i))];
+      const index = Math.floor(factor[i] * ramp.length);
+      p.glyph = ramp[Math.min(last, Math.max(0, index))];
     }
     return { glyphs: poses };
   },
@@ -180,10 +181,11 @@ export const bendNode: NodeImpl = {
   },
   run: (r) => {
     const poses = r.glyphs('glyphs');
-    const strength = r.num('strength');
+    const strength = sample(r.num('strength'), poses);
     const { x: cx, y: cy } = r.ctx.center;
-    for (const p of poses) {
-      const k = (valueAt(strength, p) * Math.PI) / 180;
+    for (let i = 0; i < poses.length; i++) {
+      const p = poses[i];
+      const k = (strength[i] * Math.PI) / 180;
       if (Math.abs(k) < 1e-9) continue;
       const radius = 1 / k;
       // Центр дуги на радиус ниже центра объекта; символ ниже средней линии — ближе к нему.

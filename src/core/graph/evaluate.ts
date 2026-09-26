@@ -20,29 +20,37 @@ import {
 
 interface Plan {
   readonly byId: ReadonlyMap<string, GraphNode>;
-  /** Связь на каждый вход: `узел/вход` → связь. */
-  readonly incoming: ReadonlyMap<string, GraphLink>;
-  /** Сколько связей уходит с каждого выхода: `узел/выход` → число. */
-  readonly fanout: ReadonlyMap<string, number>;
+  /** Связи на входы каждого узла: узел → вход → связь. Ключи готовы заранее: кадр их не клеит. */
+  readonly inputs: ReadonlyMap<string, ReadonlyMap<string, GraphLink>>;
+  /** Связи с выхода, который уходит не только в них: поток по ним копируется. */
+  readonly shared: ReadonlySet<GraphLink>;
 }
 
 const plans = new WeakMap<NodeGraph, Plan>();
+const NO_INPUTS: ReadonlyMap<string, GraphLink> = new Map();
 
 function planOf(graph: NodeGraph): Plan {
   let plan = plans.get(graph);
   if (!plan) {
-    const incoming = new Map<string, GraphLink>();
-    const fanout = new Map<string, number>();
+    const inputs = new Map<string, Map<string, GraphLink>>();
+    const fanout = new Map<string, GraphLink[]>();
     for (const link of graph.links) {
-      incoming.set(`${link.to}/${link.in}`, link);
+      let own = inputs.get(link.to);
+      if (!own) inputs.set(link.to, (own = new Map<string, GraphLink>()));
+      own.set(link.in, link);
       const out = `${link.from}/${link.out}`;
-      fanout.set(out, (fanout.get(out) ?? 0) + 1);
+      fanout.set(out, [...(fanout.get(out) ?? []), link]);
     }
-    plan = { byId: new Map(graph.nodes.map((n) => [n.id, n])), incoming, fanout };
+    const shared = new Set([...fanout.values()].filter((l) => l.length > 1).flat());
+    plan = { byId: new Map(graph.nodes.map((n) => [n.id, n])), inputs, shared };
     plans.set(graph, plan);
   }
   return plan;
 }
+
+/** Связь на вход `input` узла `id`. */
+const linkInto = (plan: Plan, id: string, input: string): GraphLink | undefined =>
+  plan.inputs.get(id)?.get(input);
 
 const clone = (p: GlyphPose): GlyphPose => ({ ...p });
 
@@ -71,24 +79,21 @@ export function evaluateGraph(
     return outputs;
   };
 
-  const upstream = (node: GraphNode, input: string): unknown => {
-    const link = plan.incoming.get(`${node.id}/${input}`);
-    if (!link) return undefined;
-    return outputsOf(link.from)?.[link.out];
-  };
+  const upstream = (link: GraphLink | undefined): unknown =>
+    link ? outputsOf(link.from)?.[link.out] : undefined;
 
   const runNode = (node: GraphNode): NodeOutputs => {
     if (node.id === INPUT_NODE) return { glyphs: source };
     const impl = nodeImpl(node.kind);
     if (!impl) return {};
     const { spec } = impl;
+    const links = plan.inputs.get(node.id) ?? NO_INPUTS;
     const glyphs = (name: string): GlyphPose[] => {
-      const link = plan.incoming.get(`${node.id}/${name}`);
-      const value = upstream(node, name);
+      const link = links.get(name);
+      const value = upstream(link);
       if (!link || !Array.isArray(value)) return [];
       // Поток, который уходит не только сюда, копируется: ветки не делят символы.
-      const shared = (plan.fanout.get(`${link.from}/${link.out}`) ?? 0) > 1;
-      return shared ? value.map(clone) : (value as GlyphPose[]);
+      return plan.shared.has(link) ? value.map(clone) : (value as GlyphPose[]);
     };
     if (node.muted) {
       // Выключенное действие пропускает поток, выключенный генератор ничего не рождает.
@@ -99,7 +104,7 @@ export function evaluateGraph(
       );
     }
     const num = (name: string): NumberSource => {
-      const value = upstream(node, name);
+      const value = upstream(links.get(name));
       if (typeof value === 'number' || typeof value === 'function') return value as NumberSource;
       return node.values[name] ?? spec.inputs.find((i) => i.name === name)?.default ?? 0;
     };
@@ -131,16 +136,35 @@ export function isAnimatedGraph(graph: NodeGraph): boolean {
     const node = plan.byId.get(id);
     if (!node) return false;
     const impl = nodeImpl(node.kind);
-    const linked = (input: string): boolean => plan.incoming.has(`${id}/${input}`);
+    const linked = (input: string): boolean => linkInto(plan, id, input) !== undefined;
     if (node.muted) {
       // Выключенное действие смотрит только на поток, который пропускает; генератор — ни на что.
       if (!impl || impl.spec.category === 'generator') return false;
       const through = impl.spec.inputs.find((i) => i.type === 'glyphs');
-      const link = through && plan.incoming.get(`${id}/${through.name}`);
+      const link = through && linkInto(plan, id, through.name);
       return link ? visit(link.from) : false;
     }
     if (impl?.animated?.(node, linked)) return true;
     return graph.links.some((l) => l.to === id && visit(l.from));
   };
   return visit(OUTPUT_NODE);
+}
+
+/**
+ * Граф, который ничего не делает: символы объекта идут на вывод прямо или сквозь выключенные
+ * действия.
+ */
+export function isIdentityGraph(graph: NodeGraph): boolean {
+  const plan = planOf(graph);
+  const seen = new Set<string>();
+  let feed = linkInto(plan, OUTPUT_NODE, 'glyphs');
+  while (feed && feed.from !== INPUT_NODE && !seen.has(feed.from)) {
+    seen.add(feed.from);
+    const node = plan.byId.get(feed.from);
+    const spec = node?.muted ? nodeImpl(node.kind)?.spec : undefined;
+    if (!spec || spec.category === 'generator') return false;
+    const through = spec.inputs.find((i) => i.type === 'glyphs');
+    feed = through && linkInto(plan, feed.from, through.name);
+  }
+  return feed !== undefined && feed.from === INPUT_NODE && feed.out === 'glyphs';
 }

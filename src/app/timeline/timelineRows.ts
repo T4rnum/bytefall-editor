@@ -1,9 +1,8 @@
 import type { Animation } from '../../core/animation';
 import type { Document } from '../../core/document';
-import type { DeformerKind } from '../../core/deformers';
 import { EFFECT_KINDS } from '../../core/effects';
+import { nodeSpec } from '../../core/graph/nodes';
 import {
-  type DeformerParam,
   type EffectParam,
   OBJECT_PROPERTIES,
   type ObjectProperty,
@@ -46,37 +45,16 @@ const EFFECT_LABELS: Readonly<Record<EffectParam, string>> = {
   height: 'Высота',
 };
 
-const DEFORMER_LABELS: Readonly<Record<DeformerParam, string>> = {
-  amplitude: 'Размах',
-  wavelength: 'Длина волны',
-  period: 'Период',
-  angle: 'Угол',
-  strength: 'Сила',
-  radius: 'Радиус',
-  inner: 'Размер в центре',
-  outer: 'Размер на краю',
-  length: 'Длина градиента',
-  amount: 'Сила цвета',
-  life: 'Жизнь частицы',
-  speed: 'Скорость',
-  spread: 'Разброс',
-  gravity: 'Тяжесть',
-};
+/** Узел графа по идентификатору в документе и объект, которому он принадлежит. */
+function findGraphNode(doc: Document, id: string) {
+  for (const obj of doc.objects) {
+    const node = obj.graph?.nodes.find((n) => n.id === id);
+    if (node) return { obj, node };
+  }
+  return undefined;
+}
 
-const DEFORMER_KINDS: Readonly<Record<DeformerKind, string>> = {
-  wave: 'Волна',
-  jitter: 'Дрожание',
-  twist: 'Вихрь',
-  scaleFalloff: 'Размер от центра',
-  colorRamp: 'Градиент',
-  bend: 'Изгиб',
-  explode: 'Разлёт',
-  glyphRamp: 'Символы по яркости',
-  particles: 'Частицы',
-  skin: 'Кости',
-};
-
-function labelOf(target: TrackTarget): string {
+function labelOf(target: TrackTarget, doc: Document): string {
   switch (target.node) {
     case 'object':
       return OBJECT_LABELS[target.property];
@@ -84,13 +62,16 @@ function labelOf(target: TrackTarget): string {
       return 'Непрозрачность слоя';
     case 'effect':
       return EFFECT_LABELS[target.property];
-    case 'deformer':
-      return DEFORMER_LABELS[target.property];
+    case 'node': {
+      const found = findGraphNode(doc, target.id);
+      const spec = found && nodeSpec(found.node.kind);
+      return spec?.inputs.find((i) => i.name === target.property)?.label ?? target.property;
+    }
   }
 }
 
-function trackRow(anim: Animation, target: TrackTarget): TimelineRow {
-  const label = labelOf(target);
+function trackRow(anim: Animation, doc: Document, target: TrackTarget): TimelineRow {
+  const label = labelOf(target, doc);
   return {
     kind: 'track',
     key: trackKey(target),
@@ -115,12 +96,10 @@ function objectName(anim: Animation, doc: Document, id: string): string {
 function nodeLabel(anim: Animation, doc: Document, track: Track): string {
   if (track.node === 'object') return objectName(anim, doc, track.id);
   if (track.node === 'layer') return doc.layers.find((l) => l.id === track.id)?.name ?? track.id;
-  if (track.node === 'deformer') {
-    for (const obj of doc.objects) {
-      const deformer = obj.deformers.find((d) => d.id === track.id);
-      if (deformer) return `${DEFORMER_KINDS[deformer.kind]} · ${obj.name}`;
-    }
-    return track.id;
+  if (track.node === 'node') {
+    const found = findGraphNode(doc, track.id);
+    const spec = found && nodeSpec(found.node.kind);
+    return found && spec ? `${spec.label} · ${found.obj.name}` : track.id;
   }
   for (const layer of doc.layers) {
     const effect = layer.effects.find((e) => e.id === track.id);
@@ -146,7 +125,7 @@ export function timelineRows(
   if (selectedObjectId && doc.objects.some((o) => o.id === selectedObjectId)) {
     rows.push({ kind: 'node', key: selected!, label: objectName(anim, doc, selectedObjectId) });
     for (const property of OBJECT_PROPERTIES) {
-      rows.push(trackRow(anim, { node: 'object', id: selectedObjectId, property }));
+      rows.push(trackRow(anim, doc, { node: 'object', id: selectedObjectId, property }));
     }
   }
   const seen = new Set<string>(selected && rows.length > 0 ? [selected] : []);
@@ -156,7 +135,7 @@ export function timelineRows(
     seen.add(key);
     rows.push({ kind: 'node', key, label: nodeLabel(anim, doc, track) });
     for (const own of anim.tracks) {
-      if (own.node === track.node && own.id === track.id) rows.push(trackRow(anim, own));
+      if (own.node === track.node && own.id === track.id) rows.push(trackRow(anim, doc, own));
     }
   }
   return rows;

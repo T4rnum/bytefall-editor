@@ -28,8 +28,11 @@ export interface GlyphPose {
   sy: number;
   fg: Rgba;
   bg: Rgba;
-  /** Материал символа: контур, свечение, блик, дизеринг. Нет — символ без материала. */
-  material?: GlyphMaterial | null;
+  /**
+   * Материал символа: контур, свечение, блик, дизеринг; null — без материала. Поле есть у каждой
+   * позы с рождения: поток с одной формой объектов вычислитель проходит быстрее.
+   */
+  material: GlyphMaterial | null;
 }
 
 /** Что течёт по связи: поток символов или число (для каждого символа своё, если это поле). */
@@ -146,11 +149,35 @@ export interface GraphContext {
   readonly cells: CellGrid;
 }
 
-/** Число на связи: одно на всех или своё у каждого символа. */
-export type NumberSource = number | ((p: GlyphPose) => number);
+/**
+ * Поле: по числу на каждый символ потока, в его порядке. Поле считается пачкой, а не символом:
+ * каждый узел проходит поток своим тесным циклом, и цепочка полей не зовёт функцию на символ.
+ */
+export type Field = (poses: readonly GlyphPose[]) => Float64Array;
 
-export const valueAt = (source: NumberSource, p: GlyphPose): number =>
-  typeof source === 'number' ? source : source(p);
+/** Число на связи: одно на всех или поле. */
+export type NumberSource = number | Field;
+
+/** Развёрнутые постоянные: число → массив из него. Постоянные входы кадр за кадром те же. */
+const constants = new Map<number, Float64Array>();
+const MAX_CONSTANTS = 256;
+
+function constantColumn(value: number, length: number): Float64Array {
+  const known = constants.get(value);
+  if (known && known.length >= length) return known;
+  if (constants.size >= MAX_CONSTANTS) constants.clear();
+  const column = new Float64Array(Math.max(length, known?.length ?? 0)).fill(value);
+  constants.set(value, column);
+  return column;
+}
+
+/**
+ * Числа входа для потока, по числу на символ. Одно число тоже разворачивается в массив: цикл
+ * узла читает только массивы и не проверяет на каждом символе, что пришло. Массив только для
+ * чтения — развёрнутое число общее — и бывает длиннее потока: читать его до длины потока.
+ */
+export const sample = (source: NumberSource, poses: readonly GlyphPose[]): Float64Array =>
+  typeof source === 'number' ? constantColumn(source, poses.length) : source(poses);
 
 /** Что узел видит при вычислении: свои входы, настройки и контекст графа. */
 export interface NodeRun {

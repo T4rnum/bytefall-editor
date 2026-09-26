@@ -289,7 +289,7 @@ export function ObjectsPanel() {
       {many && (
         <p className="panel-hint">
           Выбрано {plural(count, OBJECTS)}. Удаление, дублирование, перенос на слой, родитель, связи
-          и деформеры — для всех; свойства ниже — у главного.
+          и узлы — для всех; свойства ниже — у главного.
         </p>
       )}
       {selected && <ObjectInspector key={selected.id} object={selected} />}

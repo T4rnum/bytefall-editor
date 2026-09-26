@@ -1,7 +1,7 @@
 import type { CellAttrValue } from './cell';
-import { type Deformer, copyDeformers } from './deformers';
 import { type Document, canEditLayer, findLayer, newId } from './document';
-import type { GlyphMaterial } from './material';
+import { copyGraph } from './graph/edit';
+import type { NodeGraph } from './graph/types';
 import type { Rig } from './rig';
 import type { Constraint } from './constraints';
 import { type CellGrid, emptyGrid } from './grid';
@@ -45,10 +45,11 @@ export interface SceneObject {
   readonly cells: CellGrid;
   /** Поворот, размер и сдвиг отдельных символов. Разреженные: только то, что правили руками. */
   readonly overrides: GlyphOverrides;
-  /** Стек деформеров, порядок важен, см. `core/deformers.ts`. */
-  readonly deformers: readonly Deformer[];
-  /** GPU-материал: контур и свечение символов, см. `core/material.ts`. null — без материала. */
-  readonly material: GlyphMaterial | null;
+  /**
+   * Граф узлов: что делается с символами объекта по пути на экран — волна, частицы, свечение,
+   * см. `core/graph`. null — символы рисуются как есть.
+   */
+  readonly graph: NodeGraph | null;
   /** Кость или контроллер рига, см. `core/rig.ts`. null — обычный объект. */
   readonly rig: Rig | null;
   /** Связи: задержка, слежение, IK, см. `core/constraints.ts`. Порядок не важен. */
@@ -83,8 +84,7 @@ export function createObject(init: CreateObjectInit): SceneObject {
     tint: null,
     cells,
     overrides: emptyOverrides(),
-    deformers: [],
-    material: null,
+    graph: null,
     rig: null,
     constraints: [],
     props: init.props ?? {},
@@ -209,7 +209,7 @@ export function duplicateObject(doc: Document, id: string, dx = 1, dy = 1): Docu
     ...source,
     id: newId('object'),
     name: `${source.name} copy`,
-    deformers: copyDeformers(source.deformers),
+    graph: source.graph && copyGraph(source.graph),
     transform: normalizeTransform({ ...source.transform, x: x + dx, y: y + dy }),
   };
   return addObject(doc, copy, index + 1);
@@ -229,12 +229,12 @@ export function pasteObject(
   source: SceneObject,
   layerId: string,
 ): { doc: Document; object: SceneObject } {
-  // Тот же id — тот же объект в другом кадре, и деформеры те же; новый id — копия со своими.
+  // Тот же id — тот же объект в другом кадре, и узлы те же; новый id — копия со своими.
   const renamed = findObject(doc, source.id) !== undefined;
   const object: SceneObject = {
     ...source,
     id: renamed ? newId('object') : source.id,
-    deformers: renamed ? copyDeformers(source.deformers) : source.deformers,
+    graph: renamed && source.graph ? copyGraph(source.graph) : source.graph,
     layerId,
     visible: true,
     locked: false,

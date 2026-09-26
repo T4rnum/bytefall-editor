@@ -3,9 +3,8 @@ import { tintChannels, valueLimits } from '../animated';
 import { toHex } from '../color';
 import { EASE_IN_OUT, MAX_EASING_OVERSHOOT } from '../easing';
 import { MAX_SCENE_DURATION } from '../time';
+import { nodeSpec } from '../graph/nodes';
 import {
-  DEFORMER_PARAMS,
-  type DeformerParam,
   EFFECT_PARAMS,
   type EffectParam,
   type Key,
@@ -20,7 +19,8 @@ import {
   trackKey,
   valueKind,
 } from '../tracks';
-import { DocumentFormatError, hex, id } from './primitives';
+import { type DeformerMigration, migrationKey } from './graph';
+import { DocumentFormatError, MAX_ID_LENGTH, hex } from './primitives';
 
 const along = z.number().min(0).max(1);
 const overshoot = z.number().min(-MAX_EASING_OVERSHOOT).max(MAX_EASING_OVERSHOOT);
@@ -37,8 +37,13 @@ const keySchema = z.object({
 });
 
 const trackSchema = z.object({
-  node: z.enum(['object', 'layer', 'effect', 'deformer']),
-  id,
+  /** `deformer` — версии 6–9, мигрирует во вход узла графа; `node` — версия 10. */
+  node: z.enum(['object', 'layer', 'effect', 'deformer', 'node']),
+  /** Узлы графа, мигрированные из деформеров, длиннее обычного идентификатора. */
+  id: z
+    .string()
+    .min(1)
+    .max(MAX_ID_LENGTH + 16),
   property: z.string().max(32),
   keys: z.array(keySchema).min(1).max(MAX_KEYS_PER_TRACK),
 });
@@ -49,7 +54,13 @@ export const tracksSchema = z.array(trackSchema).max(MAX_TRACKS);
 type TrackFile = z.infer<typeof trackSchema>;
 type KeyFile = z.infer<typeof keySchema>;
 
-function targetFromFile(track: TrackFile): TrackTarget {
+/** Где искать узлы графа: вид узла по идентификатору и таблица миграции деформеров. */
+export interface GraphTargets {
+  readonly nodeKinds: ReadonlyMap<string, string>;
+  readonly migration: DeformerMigration;
+}
+
+function targetFromFile(track: TrackFile, graphs: GraphTargets): TrackTarget {
   const { node, id: target, property } = track;
   if (node === 'object' && OBJECT_PROPERTIES.includes(property as ObjectProperty)) {
     return { node, id: target, property: property as ObjectProperty };
@@ -58,8 +69,14 @@ function targetFromFile(track: TrackFile): TrackTarget {
   if (node === 'effect' && EFFECT_PARAMS.includes(property as EffectParam)) {
     return { node, id: target, property: property as EffectParam };
   }
-  if (node === 'deformer' && DEFORMER_PARAMS.includes(property as DeformerParam)) {
-    return { node, id: target, property: property as DeformerParam };
+  if (node === 'deformer') {
+    const moved = graphs.migration.get(migrationKey(target, property));
+    if (moved) return { node: 'node', id: moved.node, property: moved.input };
+  }
+  if (node === 'node') {
+    const kind = graphs.nodeKinds.get(target);
+    const input = kind ? nodeSpec(kind)?.inputs.find((i) => i.name === property) : undefined;
+    if (input?.type === 'number') return { node, id: target, property };
   }
   throw new DocumentFormatError(`Unknown ${node} property: ${property}`);
 }
@@ -99,10 +116,14 @@ function keysFromFile(target: TrackTarget, keys: readonly KeyFile[]): Key[] {
  * Треки из файла. `alive` — узлы, которые есть в анимации: трек без цели означал бы, что файл
  * испорчен, и молча выбрасывать его нельзя — так пропала бы чья-то анимация.
  */
-export function tracksFromFile(tracks: readonly TrackFile[], alive: ReadonlySet<string>): Track[] {
+export function tracksFromFile(
+  tracks: readonly TrackFile[],
+  alive: ReadonlySet<string>,
+  graphs: GraphTargets = { nodeKinds: new Map(), migration: new Map() },
+): Track[] {
   const seen = new Set<string>();
   return tracks.map((track) => {
-    const target = targetFromFile(track);
+    const target = targetFromFile(track, graphs);
     const key = trackKey(target);
     if (seen.has(key)) throw new DocumentFormatError(`Duplicate track: ${key}`);
     seen.add(key);

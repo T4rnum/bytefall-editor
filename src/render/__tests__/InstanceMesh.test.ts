@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { IDENTITY } from '../../core/affine';
+import { IDENTITY, decomposeAffine } from '../../core/affine';
 import { TRANSPARENT } from '../../core/color';
 import { GlyphBatchBuilder } from '../../core/instances';
 import { materialFloats } from '../../core/material';
@@ -80,15 +80,14 @@ describe('InstanceMesh', () => {
     mesh.update(batchOf(1));
     expect(mesh.under.visible).toBe(false);
     const builder = new GlyphBatchBuilder();
-    builder.useMaterial(
-      materialFloats({
-        outline: { color: '#ff0000', width: 2 },
-        glow: null,
-        shine: null,
-        dither: null,
-      }),
-    );
-    builder.push({ ...IDENTITY, e: 0.5, f: 0.5 }, 'A', RED, TRANSPARENT);
+    const outline = materialFloats({
+      outline: { color: '#ff0000', width: 2 },
+      glow: null,
+      shine: null,
+      dither: null,
+    });
+    const at = { ...IDENTITY, e: 0.5, f: 0.5 };
+    builder.push(at, 'A', RED, TRANSPARENT, decomposeAffine(at), outline);
     mesh.update(builder.finish());
     expect(mesh.under.visible).toBe(true);
     expect([...attr(mesh, 'aOutline').subarray(0, 4)]).toEqual([1, 0, 0, 0.25]);

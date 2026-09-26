@@ -2,18 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { createAnimation, frameDocument } from '../animation';
 import { makeCell } from '../cell';
 import { composite } from '../compositor';
-import { createDeformer } from '../deformers';
-import { deformedPoses } from '../deformObject';
+import { deformedPoses, objectRig } from '../deformObject';
 import { type Document, createDocument, duplicateLayer } from '../document';
+import { graphBones } from '../graph/generatorNodes';
+import { createDeformer } from '../graph/legacy';
 import { keyOf } from '../grid';
 import { moveInDocument } from '../hierarchy';
 import { addObject, createObject, findObject, transformObject, updateObject } from '../object';
 import { objectMatrices } from '../placement';
 import { addIkControl, addRigNode, createBone } from '../rig';
 import { deserialize, serialize } from '../serialization';
-import { type SkinDeformer, skinRig } from '../skin';
 import { bindSkin } from '../skinBind';
 import { bufferToText } from '../text';
+import { graphOf } from './helpers/graphs';
 
 /**
  * Змея из десяти символов в строку с (2, 8) и две кости внутри: плечо до середины, предплечье
@@ -40,22 +41,21 @@ function snake(): Document {
     tail: { x: 12, y: 8.5 },
   });
   doc = addRigNode(doc, lower, 'u');
-  const skin: SkinDeformer = { ...createDeformer('skin', 'skin'), bones: bindSkin(doc, 'snake') };
-  return updateObject(doc, 'snake', { deformers: [skin] });
+  const skin = { ...createDeformer('skin', 'skin'), bones: bindSkin(doc, 'snake') };
+  return updateObject(doc, 'snake', { graph: graphOf(skin) });
 }
 
 /** Позы символов змеи в её координатах, по символу. */
 function poses(doc: Document) {
   const obj = findObject(doc, 'snake')!;
-  const rig = skinRig(obj, objectMatrices(doc));
+  const rig = objectRig(obj, objectMatrices(doc));
   return new Map(deformedPoses(obj, 0, rig).map((p) => [p.glyph, p]));
 }
 
 describe('скиннинг', () => {
   it('привязка берёт кости-потомков, в покое символы стоят на местах', () => {
     const doc = snake();
-    const skin = findObject(doc, 'snake')!.deformers[0] as SkinDeformer;
-    expect(skin.bones.map((b) => b.id)).toEqual(['u', 'l']);
+    expect(graphBones(findObject(doc, 'snake')!.graph).map((b) => b.id)).toEqual(['u', 'l']);
     for (const [glyph, p] of poses(doc)) {
       expect(p.x).toBeCloseTo(Number(glyph) + 0.5, 9);
       expect(p.y).toBeCloseTo(0.5, 9);
@@ -104,14 +104,14 @@ describe('скиннинг', () => {
     const orphan = { ...doc, objects: doc.objects.filter((o) => o.id !== 'l') };
     expect(poses(orphan).get('9')!.x).toBeCloseTo(9.5, 9);
     const back = frameDocument(deserialize(serialize(createAnimation(doc))), 0);
-    expect(findObject(back, 'snake')!.deformers).toEqual(findObject(doc, 'snake')!.deformers);
+    expect(findObject(back, 'snake')!.graph).toEqual(findObject(doc, 'snake')!.graph);
   });
 
   it('копия слоя со змеёй гнётся своими костями', () => {
     const doc = snake();
     const copy = duplicateLayer(doc, doc.layers[0].id, 'copy');
     const snakes = copy.objects.filter((o) => o.name === 'Змея');
-    const bones = (snakes[1].deformers[0] as SkinDeformer).bones.map((b) => b.id);
+    const bones = graphBones(snakes[1].graph).map((b) => b.id);
     const copies = copy.objects.filter((o) => o.name === 'u' || o.name === 'l').slice(2);
     expect(bones).toEqual(copies.map((o) => o.id));
   });

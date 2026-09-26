@@ -3,7 +3,7 @@ import { createAnimation } from '../animation';
 import { makeCell } from '../cell';
 import { composite, effectsSignature } from '../compositor';
 import { createDocument } from '../document';
-import { createDeformer } from '../deformers';
+import { createDeformer } from '../graph/legacy';
 import { deformedPoses, isDeformed } from '../deformObject';
 import { composeFrame } from '../frame';
 import { keyOf } from '../grid';
@@ -12,6 +12,7 @@ import { addObject, createObject, updateObject } from '../object';
 import { isFreeObject, objectMatrix } from '../placement';
 import { bufferToText } from '../text';
 import { hasMotion } from '../timeline';
+import { graphOf } from './helpers/graphs';
 
 /** Строка «abcd» объектом в (1, 1); волна поднимает одни символы и опускает другие. */
 function scene(enabled = true) {
@@ -32,7 +33,7 @@ function scene(enabled = true) {
     period: 1000,
     enabled,
   };
-  return updateObject(addObject(base, obj), 'o', { deformers: [wave] });
+  return updateObject(addObject(base, obj), 'o', { graph: graphOf(wave) });
 }
 
 describe('деформированный объект', () => {

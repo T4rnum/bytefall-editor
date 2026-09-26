@@ -1,13 +1,13 @@
 import {
   normalizeValue,
-  readDeformerValue,
   readEffectValue,
   readLayerValue,
+  readNodeValue,
   readObjectValue,
   sameValue,
-  writeDeformerValue,
   writeEffectValue,
   writeLayerValue,
+  writeNodeValue,
   writeObjectValue,
 } from './animated';
 import {
@@ -17,7 +17,7 @@ import {
   mapFrames,
   withFrameDocument,
 } from './animation';
-import type { Deformer } from './deformers';
+import type { GraphNode } from './graph/types';
 import type { Document, Layer } from './document';
 import type { LayerEffect } from './effects';
 import { evaluate, readTarget } from './evaluate';
@@ -66,19 +66,20 @@ function writeStatic(anim: Animation, target: TrackTarget, value: readonly numbe
         return mapLayers(doc, (l) =>
           withEffect(l, target.id, (e) => writeEffectValue(e, target.property, value)),
         );
-      case 'deformer':
-        return withDeformer(doc, target.id, (d) => writeDeformerValue(d, target.property, value));
+      case 'node':
+        return withGraphNode(doc, target.id, (n) => writeNodeValue(n, target.property, value));
     }
   });
 }
 
-/** Деформер с таким идентификатором у любого объекта документа заменяется результатом `fn`. */
-function withDeformer(doc: Document, id: string, fn: (d: Deformer) => Deformer): Document {
-  const index = doc.objects.findIndex((o) => o.deformers.some((d) => d.id === id));
-  if (index === -1) return doc;
+/** Узел графа с таким идентификатором у любого объекта документа заменяется результатом `fn`. */
+function withGraphNode(doc: Document, id: string, fn: (n: GraphNode) => GraphNode): Document {
+  const index = doc.objects.findIndex((o) => o.graph?.nodes.some((n) => n.id === id));
+  const graph = index === -1 ? null : doc.objects[index].graph;
+  if (!graph) return doc;
   const objects = doc.objects.slice();
-  const obj = objects[index];
-  objects[index] = { ...obj, deformers: obj.deformers.map((d) => (d.id === id ? fn(d) : d)) };
+  const nodes = graph.nodes.map((n) => (n.id === id ? fn(n) : n));
+  objects[index] = { ...objects[index], graph: { ...graph, nodes } };
   return { ...doc, objects };
 }
 
@@ -168,33 +169,39 @@ function routeProperty<N>(
   return write(nodes.after, stored);
 }
 
-/** Деформеры тронутого объекта: нетронутый стек — из кадра, изменённые параметры с ключами — ключи. */
-function routeDeformers(
+/**
+ * Граф тронутого объекта: нетронутый — из кадра, изменённые входы с ключами — ключи, остальное —
+ * в кадр. Связи и новые узлы — правка устройства графа, она всегда идёт в кадр.
+ */
+function routeGraph(
   ctx: EditContext,
   out: SceneObject,
   before: SceneObject,
   stored: SceneObject,
 ): SceneObject {
-  if (out.deformers === before.deformers) return { ...out, deformers: stored.deformers };
-  const deformers = out.deformers.map((deformer) => {
-    const was = before.deformers.find((d) => d.id === deformer.id);
-    const kept = stored.deformers.find((d) => d.id === deformer.id);
-    if (!was || !kept) return deformer;
-    if (deformer === was) return kept;
-    let next = deformer;
-    for (const track of ctx.index.get(nodeKey('deformer', deformer.id)) ?? []) {
-      if (track.node !== 'deformer') continue;
+  if (out.graph === before.graph) return { ...out, graph: stored.graph };
+  if (!out.graph || !before.graph || !stored.graph) return out;
+  const was = new Map(before.graph.nodes.map((n) => [n.id, n]));
+  const kept = new Map(stored.graph.nodes.map((n) => [n.id, n]));
+  const nodes = out.graph.nodes.map((node) => {
+    const prev = was.get(node.id);
+    const frame = kept.get(node.id);
+    if (!prev || !frame) return node;
+    if (node === prev) return frame;
+    let next = node;
+    for (const track of ctx.index.get(nodeKey('node', node.id)) ?? []) {
+      if (track.node !== 'node') continue;
       next = routeProperty(
         ctx,
         track,
-        (d) => readDeformerValue(d, track.property),
-        (d, v) => writeDeformerValue(d, track.property, v),
-        { before: was, after: next, stored: kept },
+        (n) => readNodeValue(n, track.property),
+        (n, v) => writeNodeValue(n, track.property, v),
+        { before: prev, after: next, stored: frame },
       );
     }
     return next;
   });
-  return { ...out, deformers };
+  return { ...out, graph: { ...out.graph, nodes } };
 }
 
 function routeObject(
@@ -205,7 +212,7 @@ function routeObject(
 ): SceneObject {
   if (!before || !stored) return obj;
   if (obj === before) return stored;
-  let out = routeDeformers(ctx, obj, before, stored);
+  let out = routeGraph(ctx, obj, before, stored);
   for (const track of ctx.index.get(nodeKey('object', obj.id)) ?? []) {
     if (track.node !== 'object') continue;
     out = routeProperty(

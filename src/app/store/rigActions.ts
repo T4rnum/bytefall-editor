@@ -5,7 +5,7 @@ import { useDocumentStore } from './documentStore';
 
 /*
  * Кость — часть рига, а не рисунок кадра: её длина и пределы одни во всех кадрах, где она есть.
- * Иначе персонаж менял бы скелет при смене кадра. То же правило у деформеров.
+ * Иначе персонаж менял бы скелет при смене кадра. То же правило у графа узлов.
  */
 
 export function setBoneLengthAction(id: string, length: number, mergeKey?: string): void {

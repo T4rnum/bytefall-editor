@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import { normalizeHex } from '../color';
-import { hasMaterial } from '../material';
 import { constraintsSchema } from './constraints';
-import { deformersSchema, deformersToFile } from './deformers';
-import { materialFromFile, materialSchema, materialToFile } from './material';
+import { deformersSchema } from './deformers';
+import {
+  type DeformerMigration,
+  graphFromFile,
+  graphFromLegacy,
+  graphSchema,
+  graphToFile,
+} from './graph';
+import { materialFromFile, materialSchema } from './material';
 import { rigFromFile, rigSchema, rigToFile } from './rig';
 import type { Layer } from '../document';
 import { type CellGrid, type CellKey, keyOf, xOf, yOf } from '../grid';
@@ -81,10 +87,12 @@ export const objectSchema = z.object({
   tint: hex.optional(),
   cells: z.array(cellSchema).max(MAX_CELLS_PER_LAYER),
   overrides: z.array(overrideSchema).max(MAX_CELLS_PER_LAYER).optional(),
-  /** Версия 7. */
+  /** Версии 7–9: стек деформеров, с версии 10 — узлы графа. */
   deformers: deformersSchema.optional(),
-  /** Версия 8. */
+  /** Версии 8–9: материал объекта, с версии 10 — узлы графа. */
   material: materialSchema.optional(),
+  /** Версия 10: граф узлов. */
+  graph: graphSchema.optional(),
   /** Версия 9: кость или контроллер рига и связи объекта. */
   rig: rigSchema.optional(),
   constraints: constraintsSchema.optional(),
@@ -116,8 +124,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     ...(obj.tint !== null ? { tint: obj.tint } : {}),
     cells: cellsToFile(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
-    ...(obj.deformers.length > 0 ? { deformers: deformersToFile(obj.deformers) } : {}),
-    ...(hasMaterial(obj.material) ? { material: materialToFile(obj.material) } : {}),
+    ...(obj.graph ? { graph: graphToFile(obj.graph) } : {}),
     ...(obj.rig ? { rig: rigToFile(obj.rig) } : {}),
     ...(obj.constraints.length > 0 ? { constraints: [...obj.constraints] } : {}),
     ...(Object.keys(obj.props).length > 0 ? { props: obj.props } : {}),
@@ -171,9 +178,14 @@ function assertHierarchy(objects: readonly SceneObject[]): void {
   }
 }
 
+/**
+ * Объекты из файла. Стек деформеров и материал старых версий мигрируют в граф; куда уехали
+ * параметры деформеров, записывается в `migration` — по нему переедут и ключи.
+ */
 export function objectsFromFile(
   objects: readonly ObjectFile[],
   layers: readonly Layer[],
+  migration: DeformerMigration = new Map(),
 ): SceneObject[] {
   const layerIds = new Set(layers.map((l) => l.id));
   const ids = new Set<string>();
@@ -196,8 +208,14 @@ export function objectsFromFile(
       tint: obj.tint === undefined ? null : normalizeHex(obj.tint),
       cells,
       overrides: overridesFromFile(obj.overrides ?? [], cells),
-      deformers: uniqueIds(obj.id, 'deformer', obj.deformers ?? []),
-      material: materialFromFile(obj.material),
+      graph: obj.graph
+        ? graphFromFile(obj.graph, obj.id)
+        : graphFromLegacy(
+            obj.id,
+            uniqueIds(obj.id, 'deformer', obj.deformers ?? []),
+            materialFromFile(obj.material),
+            migration,
+          ),
       rig: rigFromFile(obj.rig),
       constraints: uniqueIds(obj.id, 'constraint', obj.constraints ?? []),
       props: obj.props ?? {},

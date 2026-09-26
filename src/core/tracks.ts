@@ -22,40 +22,6 @@ export type LayerProperty = 'opacity';
 export type EffectParam =
   'period' | 'amplitude' | 'spread' | 'wavelength' | 'density' | 'dx' | 'dy' | 'height';
 
-/** Числовые параметры деформеров: их можно вести ключами. Зерно дрожания — нет. */
-export type DeformerParam =
-  | 'amplitude'
-  | 'wavelength'
-  | 'period'
-  | 'angle'
-  | 'strength'
-  | 'radius'
-  | 'inner'
-  | 'outer'
-  | 'length'
-  | 'amount'
-  | 'life'
-  | 'speed'
-  | 'spread'
-  | 'gravity';
-
-export const DEFORMER_PARAMS: readonly DeformerParam[] = [
-  'amplitude',
-  'wavelength',
-  'period',
-  'angle',
-  'strength',
-  'radius',
-  'inner',
-  'outer',
-  'length',
-  'amount',
-  'life',
-  'speed',
-  'spread',
-  'gravity',
-];
-
 export const OBJECT_PROPERTIES: readonly ObjectProperty[] = [
   'position',
   'rotation',
@@ -82,7 +48,8 @@ export type TrackTarget =
   | { readonly node: 'object'; readonly id: string; readonly property: ObjectProperty }
   | { readonly node: 'layer'; readonly id: string; readonly property: LayerProperty }
   | { readonly node: 'effect'; readonly id: string; readonly property: EffectParam }
-  | { readonly node: 'deformer'; readonly id: string; readonly property: DeformerParam };
+  /** Вход узла графа на объекте: `property` — имя числового входа, см. `core/graph`. */
+  | { readonly node: 'node'; readonly id: string; readonly property: string };
 
 export type TrackNode = TrackTarget['node'];
 

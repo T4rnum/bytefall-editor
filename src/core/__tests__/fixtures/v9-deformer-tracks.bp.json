@@ -1,0 +1,122 @@
+{
+  "format": "bytefall",
+  "version": 9,
+  "name": "Fixture v9 deformer tracks",
+  "width": 8,
+  "height": 4,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff"],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-ghost",
+          "name": "Ghost",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 2,
+            "y": 1,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 1,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [
+            {
+              "x": 0,
+              "y": 0,
+              "g": "G",
+              "f": "#ffffff"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "g": "H",
+              "f": "#ffffff"
+            }
+          ],
+          "deformers": [
+            {
+              "id": "deform-wave",
+              "enabled": true,
+              "kind": "wave",
+              "axis": "y",
+              "amplitude": 0.5,
+              "wavelength": 6,
+              "period": 1200
+            },
+            {
+              "id": "deform-burst",
+              "enabled": true,
+              "kind": "explode",
+              "amount": 0,
+              "angle": 90,
+              "seed": 3
+            }
+          ],
+          "material": {
+            "glow": {
+              "color": "#29ADFF",
+              "radius": 0.75,
+              "strength": 2
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "fps": 20,
+  "tracks": [
+    {
+      "node": "object",
+      "id": "object-ghost",
+      "property": "position",
+      "keys": [
+        { "t": 0, "v": [2, 1] },
+        { "t": 1000, "v": [5, 1] }
+      ]
+    },
+    {
+      "node": "deformer",
+      "id": "deform-wave",
+      "property": "amplitude",
+      "keys": [
+        { "t": 0, "v": 0.5 },
+        { "t": 1000, "v": 1.5, "i": "step" }
+      ]
+    },
+    {
+      "node": "deformer",
+      "id": "deform-wave",
+      "property": "period",
+      "keys": [{ "t": 0, "v": 1200 }]
+    },
+    {
+      "node": "deformer",
+      "id": "deform-burst",
+      "property": "amount",
+      "keys": [
+        { "t": 0, "v": 0 },
+        { "t": 500, "v": 4 }
+      ]
+    }
+  ]
+}

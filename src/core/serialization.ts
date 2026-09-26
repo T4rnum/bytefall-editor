@@ -18,6 +18,7 @@ import {
 } from './document';
 import { MAX_EFFECTS_PER_LAYER } from './effects';
 import { effectSchema } from './format/effects';
+import type { DeformerMigration } from './format/graph';
 import { objectSchema, objectsFromFile, objectsToFile } from './format/objects';
 import { tracksFromFile, tracksSchema, tracksToFile } from './format/tracks';
 import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION } from './time';
@@ -50,11 +51,13 @@ export const LEGACY_FORMAT_NAMES = ['blendphoto'] as const;
 /**
  * Версия 2 добавила объекты, 3 кадры, 4 эффекты слоёв, 5 трансформ объектов, правки символов
  * и родителей, 6 — время: частоту и длину сцены, треки ключей, непрозрачность и оттенок
- * объекта, 7 — деформеры объекта, 8 — GPU-материал объекта, 9 — кости и контроллеры рига.
+ * объекта, 7 — деформеры объекта, 8 — GPU-материал объекта, 9 — кости и контроллеры рига,
+ * 10 — граф узлов на объекте вместо стека деформеров и материала: старые стеки мигрируют в граф,
+ * ключи их параметров — на входы узлов.
  * Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
  * Кадры старых файлов без изменений становятся спрайт-треком: у них уже были длительности.
  */
-export const FORMAT_VERSION = 9;
+export const FORMAT_VERSION = 10;
 /** bp — bytefall project. Расширение осталось от прототипа, чтобы старые файлы открывались. */
 export const FILE_EXTENSION = '.bp.json';
 
@@ -90,6 +93,7 @@ const documentSchema = z.object({
     z.literal(7),
     z.literal(8),
     z.literal(9),
+    z.literal(10),
   ]),
   name: z.string().max(MAX_NAME_LENGTH),
   width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
@@ -222,6 +226,7 @@ ${e.id}`);
 
 export function fromFileObject(file: DocumentFile): Animation {
   const size = { width: file.width, height: file.height };
+  const migration: DeformerMigration = new Map();
   let frames: Frame[];
   if (file.frames) {
     const ids = new Set<string>();
@@ -231,7 +236,7 @@ export function fromFileObject(file: DocumentFile): Animation {
       const layers = layersFromFile(frame.layers, size);
       return createFrame(
         layers,
-        objectsFromFile(frame.objects ?? [], layers),
+        objectsFromFile(frame.objects ?? [], layers, migration),
         frame.duration,
         frame.id,
       );
@@ -239,7 +244,7 @@ export function fromFileObject(file: DocumentFile): Animation {
     assertSharedLayers(frames);
   } else if (file.layers) {
     const layers = layersFromFile(file.layers, size);
-    frames = [createFrame(layers, objectsFromFile(file.objects ?? [], layers))];
+    frames = [createFrame(layers, objectsFromFile(file.objects ?? [], layers, migration))];
   } else {
     throw new DocumentFormatError('Document has neither frames nor layers');
   }
@@ -254,8 +259,21 @@ export function fromFileObject(file: DocumentFile): Animation {
     frames,
     fps: file.fps ?? DEFAULT_FPS,
     duration: file.duration ?? null,
-    tracks: tracksFromFile(file.tracks ?? [], aliveNodes(frames)),
+    tracks: tracksFromFile(file.tracks ?? [], aliveNodes(frames), {
+      nodeKinds: graphNodeKinds(frames),
+      migration,
+    }),
   };
+}
+
+/** Вид каждого узла графов всех кадров: по нему проверяются ключи входов узлов. */
+function graphNodeKinds(frames: readonly Frame[]): Map<string, string> {
+  const kinds = new Map<string, string>();
+  for (const frame of frames) {
+    for (const obj of frame.objects)
+      for (const n of obj.graph?.nodes ?? []) kinds.set(n.id, n.kind);
+  }
+  return kinds;
 }
 
 export function deserialize(text: string): Animation {

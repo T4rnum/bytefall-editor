@@ -1,5 +1,6 @@
 import type { Rgba } from '../../color';
 import { keyOf } from '../../grid';
+import type { GlyphMaterial } from '../../material';
 
 /** Поза символа для снимков: то же, что `GlyphPose`, без привязки к модулю, где она живёт. */
 export interface DumpPose {
@@ -13,6 +14,7 @@ export interface DumpPose {
   readonly sy: number;
   readonly fg: Rgba;
   readonly bg: Rgba;
+  readonly material: GlyphMaterial | null;
 }
 
 const CLEAR: Rgba = { r: 0, g: 0, b: 0, a: 0 };
@@ -37,6 +39,7 @@ export function poseRows(): DumpPose[] {
         sy: 1,
         fg: { r: v, g: 1 - v, b: y === 0 ? 0.25 : 0.75, a: 1 },
         bg: x === 2 ? { r: 0.1, g: 0.2, b: 0.3, a: 1 } : CLEAR,
+        material: null,
       });
     }
   }

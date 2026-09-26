@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { TRANSPARENT } from '../color';
-import {
-  type Deformer,
-  type GlyphPose,
-  createDeformer,
-  deform,
-  hasActiveDeformers,
-} from '../deformers';
+import { type Deformer, createDeformer } from '../graph/legacy';
+import type { GlyphPose } from '../graph/types';
+import { isIdentityGraph } from '../graph/evaluate';
+import { graphOf, runStack } from './helpers/graphs';
 import { keyOf } from '../grid';
 
 const WHITE = { r: 1, g: 1, b: 1, a: 1 };
@@ -24,6 +21,7 @@ function pose(x: number, y: number): GlyphPose {
     sy: 1,
     fg: WHITE,
     bg: TRANSPARENT,
+    material: null,
   };
 }
 
@@ -34,7 +32,7 @@ const run = (
   deformers: readonly Deformer[],
   time = 0,
   center?: { x: number; y: number },
-) => deform(poses, deformers, at(time, center));
+) => runStack(poses, deformers, time, center ?? at(time).center);
 
 describe('деформеры', () => {
   it('волна смещает поперёк и бежит со временем', () => {
@@ -99,8 +97,9 @@ describe('деформеры', () => {
     expect(run(row(3), [twist, wave], 0, { x: 1.5, y: 0.5 })).not.toEqual(
       run(row(3), [wave, twist], 0, { x: 1.5, y: 0.5 }),
     );
-    expect(hasActiveDeformers([{ ...twist, enabled: false }])).toBe(false);
-    expect(hasActiveDeformers([twist])).toBe(true);
+    expect(isIdentityGraph(graphOf({ ...twist, enabled: false }))).toBe(true);
+    expect(isIdentityGraph(graphOf(twist))).toBe(false);
+    expect(isIdentityGraph(graphOf())).toBe(true);
   });
 });
 

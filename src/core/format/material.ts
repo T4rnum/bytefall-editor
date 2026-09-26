@@ -45,13 +45,3 @@ export function materialFromFile(file: MaterialFile | undefined): GlyphMaterial 
     dither: file.dither ?? null,
   };
 }
-
-/** Материал в файл: пустые части не пишутся. */
-export function materialToFile(material: GlyphMaterial): MaterialFile {
-  return {
-    ...(material.outline ? { outline: material.outline } : {}),
-    ...(material.glow ? { glow: material.glow } : {}),
-    ...(material.shine ? { shine: material.shine } : {}),
-    ...(material.dither ? { dither: material.dither } : {}),
-  };
-}

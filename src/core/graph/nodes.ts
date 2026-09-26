@@ -2,17 +2,15 @@ import { bendNode, colorNode, glyphNode, offsetNode, rotateNode, scaleNode } fro
 import {
   brightnessNode,
   distanceNode,
-  gradientNode,
   mapRangeNode,
   mathNode,
-  noiseNode,
   positionNode,
   timeNode,
   valueNode,
-  waveNode,
 } from './fieldNodes';
 import { bonesNode, joinNode, particlesNode } from './generatorNodes';
 import { ditherNode, glowNode, outlineNode, shineNode } from './materialNodes';
+import { gradientNode, noiseNode, waveNode } from './patternNodes';
 import { glyphsIn, glyphsOut } from './specs';
 import type { NodeImpl, NodeSpec } from './types';
 

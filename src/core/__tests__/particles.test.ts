@@ -3,15 +3,18 @@ import { frameDocument } from '../animation';
 import { makeCell } from '../cell';
 import { TRANSPARENT } from '../color';
 import { composite } from '../compositor';
-import { type Deformer, type GlyphPose, createDeformer, deform } from '../deformers';
 import { evaluate } from '../evaluate';
+import { MAX_PARTICLES } from '../graph/generatorNodes';
+import { type Deformer, type ParticlesDeformer, createDeformer } from '../graph/legacy';
+import { nodeSpec } from '../graph/nodes';
+import type { GlyphPose } from '../graph/types';
 import { keyOf } from '../grid';
 import { findObject, updateObject } from '../object';
-import { MAX_PARTICLES, type ParticlesDeformer } from '../particles';
 import { deserialize, serialize, toFileObject } from '../serialization';
 import { bufferToText } from '../text';
-import { DEFORMER_PARAMS, setKey } from '../tracks';
+import { setKey } from '../tracks';
 import { BALL, ballScene } from './helpers/ballScene';
+import { graphOf, runStack } from './helpers/graphs';
 
 const WHITE = { r: 1, g: 1, b: 1, a: 1 };
 
@@ -27,6 +30,7 @@ const pose = (x: number, y: number): GlyphPose => ({
   sy: 1,
   fg: WHITE,
   bg: TRANSPARENT,
+  material: null,
 });
 
 /** Десять частиц в секунду живут секунду и летят строго вверх без тяжести. */
@@ -43,10 +47,10 @@ const sparks = (patch: Partial<ParticlesDeformer> = {}): ParticlesDeformer => ({
 
 /** Стек над символами в момент `time`. */
 const run = (stack: readonly Deformer[], time: number, sources = [pose(0, 0)]) =>
-  deform(
+  runStack(
     sources.map((p) => ({ ...p })),
     stack,
-    { time, center: { x: 0.5, y: 0.5 } },
+    time,
   );
 
 /** Только частицы, от младшей к старшей. */
@@ -128,7 +132,7 @@ function sparklingBall(d: ParticlesDeformer) {
   const { anim } = ballScene();
   const base = frameDocument(anim, 0);
   const cells = new Map([[keyOf(0, 0), makeCell('O', '#ffffff', '#0000ff')]]);
-  const doc = updateObject(base, BALL, { cells, deformers: [d] });
+  const doc = updateObject(base, BALL, { cells, graph: graphOf(d) });
   return { ...anim, frames: [{ ...anim.frames[0], objects: doc.objects }] };
 }
 
@@ -145,24 +149,27 @@ describe('частицы в сцене', () => {
   });
 
   it('скорость, жизнь, разброс и тяжесть ведутся ключами, частота и зерно — нет', () => {
-    expect(DEFORMER_PARAMS).toEqual(expect.arrayContaining(['life', 'speed', 'spread', 'gravity']));
-    expect(DEFORMER_PARAMS).not.toContain('rate');
-    const speed = { node: 'deformer', id: 'p', property: 'speed' } as const;
+    const inputs = nodeSpec('particles')!.inputs.map((i) => i.name);
+    expect(inputs).toEqual(expect.arrayContaining(['life', 'speed', 'spread', 'gravity']));
+    expect(inputs).not.toContain('rate');
+    const speed = { node: 'node', id: 'p~particles', property: 'speed' } as const;
     const anim = sparklingBall(sparks());
     const keyed = { ...anim, tracks: setKey(setKey([], speed, 0, [0]), speed, 1000, [500]) };
-    expect(findObject(evaluate(keyed, 500), BALL)!.deformers[0]).toMatchObject({ speed: 128 });
-    expect(findObject(evaluate(keyed, 100), BALL)!.deformers[0]).toMatchObject({ speed: 50 });
+    const at = (time: number) =>
+      findObject(evaluate(keyed, time), BALL)!.graph!.nodes.find((n) => n.id === speed.id)!;
+    expect(at(500).values.speed).toBe(128);
+    expect(at(100).values.speed).toBe(50);
   });
 
   it('частицы переживают сохранение, частота вне пределов файл не пройдёт', () => {
     const anim = sparklingBall(sparks({ glyphs: '*+', seed: 7 }));
     const back = deserialize(serialize(anim));
-    expect(findObject(frameDocument(back, 0), BALL)!.deformers).toEqual([
-      sparks({ glyphs: '*+', seed: 7 }),
-    ]);
+    expect(findObject(frameDocument(back, 0), BALL)!.graph).toEqual(
+      graphOf(sparks({ glyphs: '*+', seed: 7 })),
+    );
     const bad = toFileObject(anim);
-    const d = bad.frames![0].objects![0].deformers![0];
-    if (d.kind === 'particles') d.rate = 1000;
+    const node = bad.frames![0].objects![0].graph!.nodes.find((n) => n.kind === 'particles')!;
+    node.options = { ...node.options, rate: 1000 };
     expect(() => deserialize(JSON.stringify(bad))).toThrow(/rate/);
   });
 });

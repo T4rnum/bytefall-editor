@@ -2,11 +2,12 @@ import { type Affine, applyAffine, invertAffine } from './affine';
 import { type Animation, mapFrames } from './animation';
 import type { Cell } from './cell';
 import { isBlankCell } from './cell';
-import type { Deformer } from './deformers';
+import type { NodeGraph } from './graph/types';
 import type { Document } from './document';
 import type { Point } from './geometry';
 import { type CellEdits, type CellGrid, type CellKey, gridBounds, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, findObject, updateObject } from './object';
+import type { SkinBone } from './skin';
 import { shiftPositionKeys } from './tracks';
 
 /**
@@ -122,16 +123,18 @@ const shiftKeys = <T>(map: ReadonlyMap<CellKey, T>, s: Point): Map<CellKey, T> =
   new Map([...map].map(([key, value]) => [keyOf(xOf(key) + s.x, yOf(key) + s.y), value]));
 
 /** Скиннинг привязан к костям в координатах объекта: привязка едет вместе с сеткой. */
-const shiftDeformer = (d: Deformer, s: Point): Deformer =>
-  d.kind === 'skin'
-    ? {
-        ...d,
-        bones: d.bones.map((b) => ({
-          ...b,
-          bind: { ...b.bind, e: b.bind.e + s.x, f: b.bind.f + s.y },
-        })),
-      }
-    : d;
+function shiftBones(graph: NodeGraph | null, s: Point): NodeGraph | null {
+  if (!graph) return graph;
+  const nodes = graph.nodes.map((n) => {
+    if (n.kind !== 'bones') return n;
+    const bones = ((n.options.bones as readonly SkinBone[] | undefined) ?? []).map((b) => ({
+      ...b,
+      bind: { ...b.bind, e: b.bind.e + s.x, f: b.bind.f + s.y },
+    }));
+    return { ...n, options: { ...n.options, bones } };
+  });
+  return { ...graph, nodes };
+}
 
 /**
  * Сдвигает начало объекта на `s` ячеек его сетки так, что на экране ничего не двигается: ячейки,
@@ -145,7 +148,7 @@ export function rebaseInDocument(doc: Document, id: string, s: Point): Document 
   let next = updateObject(doc, id, {
     cells: shiftKeys(obj.cells, s),
     overrides: shiftKeys(obj.overrides, s),
-    deformers: obj.deformers.map((d) => shiftDeformer(d, s)),
+    graph: shiftBones(obj.graph, s),
     transform: { ...t, x: t.x - s.x, y: t.y - s.y, px: t.px + s.x, py: t.py + s.y },
   });
   for (const child of doc.objects) {

@@ -2,24 +2,28 @@ import { type Affine, multiply, rotateScaleAbout } from './affine';
 import type { Cell } from './cell';
 import { colorOf } from './cellBuffer';
 import { TRANSPARENT, toHex } from './color';
-import { type GlyphPose, deform, hasActiveDeformers } from './deformers';
 import type { Rect } from './geometry';
+import { evaluateGraph, isAnimatedGraph, isIdentityGraph } from './graph/evaluate';
+import { graphBones } from './graph/generatorNodes';
+import type { GlyphPose } from './graph/types';
 import { xOf, yOf } from './grid';
 import type { SceneObject } from './object';
+import { skinRig } from './skin';
 import { centerPivot } from './transform';
 
-/** Объект, чьи символы двигает хотя бы один включённый деформер. Он всегда свободный. */
-export const isDeformed = (obj: SceneObject): boolean => hasActiveDeformers(obj.deformers);
+/** Объект, чьи символы меняет граф узлов. Он всегда свободный: символам не место в сетке. */
+export const isDeformed = (obj: SceneObject): boolean =>
+  obj.graph !== null && !isIdentityGraph(obj.graph);
 
 /**
- * Символы объекта в момент `time` после стека деформеров, в координатах объекта. На входе стека
- * — ячейки с правками символов: ручная доводка остаётся доступной, и стек читает её как вход.
+ * Картинка объекта меняется со временем сама, без ключей: у графа есть бегущий синус, частицы,
+ * кости. Такой объект — движение для экспорта и для часов эффектов.
  */
-export function deformedPoses(
-  obj: SceneObject,
-  time: number,
-  rig?: ReadonlyMap<string, Affine>,
-): GlyphPose[] {
+export const isAnimatedObject = (obj: SceneObject): boolean =>
+  obj.graph !== null && isAnimatedGraph(obj.graph);
+
+/** Символы объекта на входе графа: ячейки с правками отдельных символов, в координатах объекта. */
+export function sourcePoses(obj: SceneObject): GlyphPose[] {
   const poses: GlyphPose[] = [];
   for (const [key, cell] of obj.cells) {
     const o = obj.overrides.get(key);
@@ -34,10 +38,32 @@ export function deformedPoses(
       sy: o?.sy ?? 1,
       fg: colorOf(cell.fg),
       bg: cell.bg === null ? TRANSPARENT : colorOf(cell.bg),
+      material: null,
     });
   }
-  return deform(poses, obj.deformers, { time, center: centerPivot(obj.cells), rig });
+  return poses;
 }
+
+/**
+ * Символы объекта в момент `time` после графа, в координатах объекта. На входе графа — ячейки с
+ * правками символов: ручная доводка остаётся доступной, и граф читает её как вход.
+ */
+export function deformedPoses(
+  obj: SceneObject,
+  time: number,
+  rig?: ReadonlyMap<string, Affine>,
+): GlyphPose[] {
+  const poses = sourcePoses(obj);
+  if (!obj.graph) return poses;
+  const ctx = { time, center: centerPivot(obj.cells), rig, cells: obj.cells };
+  return evaluateGraph(obj.graph, poses, ctx);
+}
+
+/** Кости скиннинга объекта сейчас, в его координатах; undefined — узлов «Кости» нет. */
+export const objectRig = (
+  obj: SceneObject,
+  matrices: ReadonlyMap<string, Affine>,
+): ReadonlyMap<string, Affine> | undefined => skinRig(obj.id, graphBones(obj.graph), matrices);
 
 /** Символ в координаты документа: поворот и масштаб вокруг его центра, потом объект. */
 export const poseMatrix = (world: Affine, p: GlyphPose): Affine =>

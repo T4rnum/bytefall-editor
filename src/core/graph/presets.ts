@@ -1,4 +1,4 @@
-import type { Deformer } from '../deformers';
+import type { Deformer } from './legacy';
 import type { GlyphMaterial } from '../material';
 import type { GraphLink, GraphNode, OptionValue } from './types';
 

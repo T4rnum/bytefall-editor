@@ -85,18 +85,18 @@ export function duplicateSelectedObjectsAction(): void {
   const { doc, animation, time, commitAnimation } = docState();
   let next = doc;
   const objectIds = new Map<string, string>();
-  const deformerIds = new Map<string, string>();
+  const nodeIds = new Map<string, string>();
   for (const obj of objects) {
     const before = next;
     next = duplicateObject(before, obj.id);
     const copy = next.objects[objectIndex(before, obj.id) + 1];
     objectIds.set(obj.id, copy.id);
-    // Деформеры копии идут в том же порядке, что у оригинала, но под новыми идентификаторами.
-    obj.deformers.forEach((d, i) => deformerIds.set(d.id, copy.deformers[i].id));
+    // Узлы графа копии идут в том же порядке, что у оригинала, но под новыми идентификаторами.
+    obj.graph?.nodes.forEach((n, i) => nodeIds.set(n.id, copy.graph?.nodes[i].id ?? n.id));
   }
   const edited = applyEdit(animation, time, doc, next);
   let tracks = copyTracks(edited.tracks, 'object', objectIds);
-  tracks = copyTracks(tracks, 'deformer', deformerIds);
+  tracks = copyTracks(tracks, 'node', nodeIds);
   tracks = shiftPositionKeys(tracks, new Set(objectIds.values()), 1, 1);
   commitAnimation(label(objects.length, 'Duplicate object', 'Duplicate objects'), {
     ...edited,

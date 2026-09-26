@@ -1,11 +1,11 @@
 import {
-  readDeformerValue,
   readEffectValue,
   readLayerValue,
+  readNodeValue,
   readObjectValue,
-  writeDeformerValue,
   writeEffectValue,
   writeLayerValue,
+  writeNodeValue,
   writeObjectValue,
 } from './animated';
 import { type Animation, frameDocument } from './animation';
@@ -97,16 +97,16 @@ function patchObject(
   for (const track of index.get(nodeKey('object', obj.id)) ?? []) {
     if (track.node === 'object') out = writeObjectValue(out, track.property, valueAt(track, time));
   }
-  const deformers = patchAll(obj.deformers, (deformer) => {
-    let next = deformer;
-    for (const track of index.get(nodeKey('deformer', deformer.id)) ?? []) {
-      if (track.node === 'deformer') {
-        next = writeDeformerValue(next, track.property, valueAt(track, time));
-      }
+  const graph = obj.graph;
+  if (!graph) return out;
+  const nodes = patchAll(graph.nodes, (node) => {
+    let next = node;
+    for (const track of index.get(nodeKey('node', node.id)) ?? []) {
+      if (track.node === 'node') next = writeNodeValue(next, track.property, valueAt(track, time));
     }
     return next;
   });
-  return deformers === obj.deformers ? out : { ...out, deformers };
+  return nodes === graph.nodes ? out : { ...out, graph: { ...graph, nodes } };
 }
 
 function patchLayer(
@@ -171,10 +171,10 @@ export function readTarget(doc: Document, target: TrackTarget): number[] | null 
       const found = findEffect(doc, target.id);
       return found ? readEffectValue(found.effect, target.property) : null;
     }
-    case 'deformer': {
+    case 'node': {
       for (const obj of doc.objects) {
-        const deformer = obj.deformers.find((d) => d.id === target.id);
-        if (deformer) return readDeformerValue(deformer, target.property);
+        const node = obj.graph?.nodes.find((n) => n.id === target.id);
+        if (node) return readNodeValue(node, target.property);
       }
       return null;
     }

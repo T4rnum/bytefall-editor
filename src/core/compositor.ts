@@ -2,10 +2,8 @@ import type { Affine } from './affine';
 import { isBlankCell } from './cell';
 import { type CellBuffer, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
-import { isDeformed } from './deformObject';
-import { skinRig } from './skin';
+import { isAnimatedObject, isDeformed, objectRig } from './deformObject';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
-import { isAnimatedMaterial } from './material';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -143,7 +141,7 @@ export function drawDocument(
   const matrices = objectMatrices(doc);
   const matrixOf = (obj: SceneObject): Affine => matrices.get(obj.id) as Affine;
   const free = (obj: SceneObject, opacity: number): void =>
-    target.free(obj, matrixOf(obj), opacity, time, skinRig(obj, matrices));
+    target.free(obj, matrixOf(obj), opacity, time, objectRig(obj, matrices));
   const ctx = { time, width: doc.width, height: doc.height };
   const canvas = { x: 0, y: 0, w: doc.width, h: doc.height };
   const wanted = tileFilter(layout, tiles);
@@ -202,9 +200,9 @@ export function effectsSignature(
   const parts: string[] = [];
   const collect = (d: Document): void => {
     const ctx = { time, width: d.width, height: d.height };
-    // Деформер и бегущий материал — функции времени, как и эффект: объект меняется каждый момент.
+    // Граф с бегущими узлами — функция времени, как и эффект: объект меняется каждый момент.
     for (const obj of d.objects) {
-      if (obj.visible && (isDeformed(obj) || isAnimatedMaterial(obj.material))) {
+      if (obj.visible && isAnimatedObject(obj)) {
         parts.push(`${obj.id}~${time}`);
       }
     }

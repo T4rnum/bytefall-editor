@@ -1,10 +1,11 @@
 import { clamp01, parseHex, toHex } from './color';
 import { type Layer, MAX_DIMENSION } from './document';
-import { DEFORMER_PARAM_SPECS, type Deformer } from './deformers';
+import { NODES, nodeSpec } from './graph/nodes';
+import type { GraphNode, InputSpec } from './graph/types';
 import { EFFECT_PARAM_SPECS, type LayerEffect, limitParam } from './effects';
 import type { SceneObject } from './object';
 import { MAX_ROTATION, MAX_SCALE, MAX_SHIFT, MIN_SCALE, normalizeTransform } from './transform';
-import type { DeformerParam, EffectParam, ObjectProperty, TrackTarget } from './tracks';
+import type { EffectParam, ObjectProperty, TrackTarget } from './tracks';
 
 /**
  * Чтение и запись анимируемых свойств узлов как каналов чисел. Ключи, интерполяция и правка
@@ -96,32 +97,41 @@ export function writeEffectValue(
   return spec ? { ...effect, [param]: limitParam(spec, value[0]) } : effect;
 }
 
-/** Параметр деформера или null, если у деформера этого вида такого параметра нет. */
-export function readDeformerValue(deformer: Deformer, param: DeformerParam): number[] | null {
-  if (!DEFORMER_PARAM_SPECS[deformer.kind][param]) return null;
-  return [(deformer as unknown as Readonly<Record<string, number>>)[param]];
+/** Числовой вход узла по имени или undefined, если у узла этого вида такого нет. */
+function numberInput(kind: string, input: string): InputSpec | undefined {
+  return nodeSpec(kind)?.inputs.find((i) => i.name === input && i.type === 'number');
 }
 
-export function writeDeformerValue(
-  deformer: Deformer,
-  param: DeformerParam,
+/** Число на незанятом входе узла или null, если у узла этого вида такого входа нет. */
+export function readNodeValue(node: GraphNode, input: string): number[] | null {
+  const spec = numberInput(node.kind, input);
+  return spec ? [node.values[input] ?? spec.default ?? 0] : null;
+}
+
+/** Новое число на входе узла, в пределах этого входа; у целого входа — целое. */
+export function writeNodeValue(
+  node: GraphNode,
+  input: string,
   value: readonly number[],
-): Deformer {
-  const spec = DEFORMER_PARAM_SPECS[deformer.kind][param];
-  return spec ? { ...deformer, [param]: round6(clamp(value[0], spec.min, spec.max)) } : deformer;
+): GraphNode {
+  const spec = numberInput(node.kind, input);
+  if (!spec) return node;
+  const limited = round6(clamp(value[0], spec.min ?? -Infinity, spec.max ?? Infinity));
+  const v = spec.integer ? Math.round(limited) : limited;
+  return node.values[input] === v ? node : { ...node, values: { ...node.values, [input]: v } };
 }
 
-/** Самые широкие пределы параметра деформера среди всех видов. */
-function deformerLimits(param: DeformerParam): { min: number; max: number } {
+/** Самые широкие пределы входа с этим именем среди всех видов узлов: так проверяются ключи. */
+function nodeInputLimits(input: string): { min: number; max: number } {
   let min = Infinity;
   let max = -Infinity;
-  for (const specs of Object.values(DEFORMER_PARAM_SPECS)) {
-    const spec = specs[param];
+  for (const node of NODES) {
+    const spec = node.spec.inputs.find((i) => i.name === input && i.type === 'number');
     if (!spec) continue;
-    min = Math.min(min, spec.min);
-    max = Math.max(max, spec.max);
+    min = Math.min(min, spec.min ?? -Infinity);
+    max = Math.max(max, spec.max ?? Infinity);
   }
-  return { min, max };
+  return min <= max ? { min, max } : { min: 0, max: 0 };
 }
 
 /** Самые широкие пределы параметра среди всех эффектов: так проверяются ключи в файле. */
@@ -147,8 +157,8 @@ export function normalizeValue(target: TrackTarget, value: readonly number[]): n
     const { min, max } = paramLimits(target.property);
     return [round6(clamp(value[0], min, max))];
   }
-  if (target.node === 'deformer') {
-    const { min, max } = deformerLimits(target.property);
+  if (target.node === 'node') {
+    const { min, max } = nodeInputLimits(target.property);
     return [round6(clamp(value[0], min, max))];
   }
   switch (target.property) {
@@ -169,7 +179,7 @@ export function normalizeValue(target: TrackTarget, value: readonly number[]): n
 export function valueLimits(target: TrackTarget): { min: number; max: number } {
   if (target.node === 'layer') return { min: 0, max: 1 };
   if (target.node === 'effect') return paramLimits(target.property);
-  if (target.node === 'deformer') return deformerLimits(target.property);
+  if (target.node === 'node') return nodeInputLimits(target.property);
   switch (target.property) {
     case 'position':
       return { min: -MAX_POSITION, max: MAX_POSITION };

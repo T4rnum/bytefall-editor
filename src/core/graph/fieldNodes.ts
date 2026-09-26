@@ -1,14 +1,10 @@
-import { hashNoise } from '../effects';
-import { xOf, yOf } from '../grid';
-import { FREE, LENGTH_MAX, LENGTH_MIN, PERIOD_MAX, lift, numIn, numOut } from './specs';
-import type { GlyphPose, NodeImpl, NumberSource } from './types';
+import { FREE, lift, numIn, numOut } from './specs';
+import type { Field, NodeImpl } from './types';
 
 /**
- * Поля: число для каждого символа из его положения, исходной ячейки, цвета и времени. Сами
- * символы поле не трогает — числа забирают действия.
+ * Поля: число для каждого символа из его положения, цвета и времени. Сами символы поле не
+ * трогает — числа забирают действия. Узоры — волна, шум, градиент — в `patternNodes.ts`.
  */
-
-const TAU = Math.PI * 2;
 
 export const valueNode: NodeImpl = {
   spec: {
@@ -146,7 +142,17 @@ export const positionNode: NodeImpl = {
   },
   run: (r) => {
     const c = r.option<string>('origin') === 'center' ? r.ctx.center : { x: 0, y: 0 };
-    return { x: (p: GlyphPose) => p.x - c.x, y: (p: GlyphPose) => p.y - c.y };
+    const x: Field = (poses) => {
+      const out = new Float64Array(poses.length);
+      for (let i = 0; i < out.length; i++) out[i] = poses[i].x - c.x;
+      return out;
+    };
+    const y: Field = (poses) => {
+      const out = new Float64Array(poses.length);
+      for (let i = 0; i < out.length; i++) out[i] = poses[i].y - c.y;
+      return out;
+    };
+    return { x, y };
   },
 };
 
@@ -162,126 +168,13 @@ export const distanceNode: NodeImpl = {
   },
   run: (r) => {
     const { x, y } = r.ctx.center;
-    return { value: (p: GlyphPose) => Math.hypot(p.x - x, p.y - y) };
-  },
-};
-
-export const waveNode: NodeImpl = {
-  spec: {
-    kind: 'wave',
-    label: 'Синус',
-    category: 'field',
-    hint: 'Волна от −1 до 1 вдоль числа на входе, бежит со временем',
-    inputs: [
-      numIn('value', 'Вдоль', 0, -FREE, FREE),
-      numIn('wavelength', 'Длина волны', 8, LENGTH_MIN, LENGTH_MAX),
-      numIn('period', 'Период, мс', 1000, 0, PERIOD_MAX),
-      numIn('phase', 'Сдвиг, °', 0, -360, 360),
-    ],
-    outputs: [numOut('value', 'Волна')],
-    options: [],
-  },
-  run: (r) => {
-    const { time } = r.ctx;
-    const wave = (v: number, wavelength: number, period: number, phase: number) => {
-      const shift = period > 0 ? (TAU * time) / Math.max(1, period) : 0;
-      return Math.sin((TAU * v) / Math.max(0.01, wavelength) - shift + (phase * Math.PI) / 180);
+    const value: Field = (poses) => {
+      const out = new Float64Array(poses.length);
+      for (let i = 0; i < out.length; i++) out[i] = Math.hypot(poses[i].x - x, poses[i].y - y);
+      return out;
     };
-    const names = ['value', 'wavelength', 'period', 'phase'];
-    return { value: lift(wave, ...names.map((n) => r.num(n))) };
+    return { value };
   },
-  animated: (node, linked) => linked('period') || (node.values.period ?? 1000) > 0,
-};
-
-/**
- * Шум символа по его исходной ячейке, куда бы его ни унесло раньше по графу. Частица берёт свой
- * номер, иначе все искры одной ячейки дрожали бы как одна; строки −1 у ячеек не бывает.
- */
-const poseNoise = (p: GlyphPose, t: number): number =>
-  p.particle === null ? hashNoise(xOf(p.key), yOf(p.key), t) : hashNoise(p.particle, -1, t);
-
-export const noiseNode: NodeImpl = {
-  spec: {
-    kind: 'noise',
-    label: 'Шум',
-    category: 'field',
-    hint: 'Случайное число от −1 до 1 у каждого символа, три независимых; меняется раз в период',
-    inputs: [numIn('period', 'Период, мс', 100, 0, PERIOD_MAX)],
-    outputs: [numOut('x', 'X'), numOut('y', 'Y'), numOut('z', 'Z')],
-    options: [
-      {
-        name: 'seed',
-        label: 'Зерно',
-        type: 'number',
-        default: 1,
-        min: 0,
-        max: 2147483647,
-        integer: true,
-      },
-    ],
-  },
-  run: (r) => {
-    const salt = Math.imul(r.option<number>('seed') | 0, 7919);
-    const period = r.num('period');
-    const tick = (p: GlyphPose): number => {
-      const v = typeof period === 'number' ? period : period(p);
-      return v > 0 ? Math.floor(r.ctx.time / Math.max(1, v)) : 0;
-    };
-    const channel =
-      (n: number): NumberSource =>
-      (p: GlyphPose) =>
-        poseNoise(p, tick(p) * 3 + n + salt) * 2 - 1;
-    return { x: channel(0), y: channel(1), z: channel(2) };
-  },
-  animated: (node, linked) => linked('period') || (node.values.period ?? 100) > 0,
-};
-
-export const gradientNode: NodeImpl = {
-  spec: {
-    kind: 'gradient',
-    label: 'Градиент',
-    category: 'field',
-    hint: 'От 0 к 1 и обратно вдоль оси или от центра, по исходным ячейкам; бежит со временем',
-    inputs: [
-      numIn('length', 'Длина', 12, LENGTH_MIN, LENGTH_MAX),
-      numIn('period', 'Период, мс', 2000, 0, PERIOD_MAX),
-    ],
-    outputs: [numOut('value', 'Градиент')],
-    options: [
-      {
-        name: 'axis',
-        label: 'Ось',
-        type: 'enum',
-        default: 'x',
-        values: [
-          { value: 'x', label: 'по X' },
-          { value: 'y', label: 'по Y' },
-          { value: 'radial', label: 'от центра' },
-        ],
-      },
-    ],
-  },
-  run: (r) => {
-    const axis = r.option<string>('axis');
-    const { center, time } = r.ctx;
-    const along = (p: GlyphPose): number => {
-      const dx = xOf(p.key) + 0.5 - center.x;
-      const dy = yOf(p.key) + 0.5 - center.y;
-      return axis === 'x' ? dx : axis === 'y' ? dy : Math.hypot(dx, dy);
-    };
-    const length = r.num('length');
-    const period = r.num('period');
-    return {
-      value: (p: GlyphPose) => {
-        const per = typeof period === 'number' ? period : period(p);
-        const len = typeof length === 'number' ? length : length(p);
-        const u = along(p) / Math.max(0.01, len) - (per > 0 ? time / per : 0);
-        // Туда и обратно: градиент замыкается, и бегущий цвет не прыгает на стыке.
-        return 1 - Math.abs(2 * (u - Math.floor(u)) - 1);
-      },
-    };
-  },
-  animated: (node, linked) => linked('period') || (node.values.period ?? 2000) > 0,
 };
 
 export const brightnessNode: NodeImpl = {
@@ -295,6 +188,13 @@ export const brightnessNode: NodeImpl = {
     options: [],
   },
   run: () => ({
-    value: (p: GlyphPose) => 0.2126 * p.fg.r + 0.7152 * p.fg.g + 0.0722 * p.fg.b,
+    value: (poses) => {
+      const out = new Float64Array(poses.length);
+      for (let i = 0; i < out.length; i++) {
+        const { r, g, b } = poses[i].fg;
+        out[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      }
+      return out;
+    },
   }),
 };

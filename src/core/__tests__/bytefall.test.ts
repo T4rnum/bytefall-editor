@@ -8,16 +8,17 @@ import { keyOf } from '../grid';
 import { DEFAULT_GLOW, DEFAULT_OUTLINE, DEFAULT_SHINE, MATERIAL } from '../material';
 import { addObject, createObject, transformObject, updateObject } from '../object';
 import { mergeRepeats, runtimeFrame, usedGlyphs } from '../runtime';
+import { materialGraph } from './helpers/graphs';
 
 /** Сцена со свечением и контуром у объекта «@» и, по желанию, бегущим бликом. */
 function glowing(shine = false) {
   return updateObject(scene(), 'o', {
-    material: {
+    graph: materialGraph('o', {
       outline: DEFAULT_OUTLINE,
       glow: DEFAULT_GLOW,
       shine: shine ? DEFAULT_SHINE : null,
       dither: null,
-    },
+    }),
   });
 }
 

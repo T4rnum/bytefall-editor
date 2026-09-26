@@ -1,9 +1,9 @@
 import { colorOf } from '../cellBuffer';
 import { type Rgba, TRANSPARENT } from '../color';
 import { hashNoise } from '../effects';
-import { MAX_FALLOFF, MIN_FALLOFF, type SkinBone, type SkinDeformer, skin } from '../skin';
+import { MAX_FALLOFF, MIN_FALLOFF, type SkinBinding, type SkinBone, skin } from '../skin';
 import { glyphsIn, glyphsOut, numIn } from './specs';
-import { type GlyphPose, type NodeImpl, valueAt } from './types';
+import { type GlyphPose, type NodeGraph, type NodeImpl, sample } from './types';
 
 /** Больше живых частиц у одного узла не бывает: 200 в секунду по 10 секунд жизни. */
 export const MAX_PARTICLES = 2000;
@@ -73,14 +73,14 @@ export const particlesNode: NodeImpl = {
     const sources = r.glyphs('glyphs');
     const glyphs = [...r.option<string>('glyphs')];
     const rate = r.option<number>('rate');
-    const first0 = sources[0];
-    const life = first0 ? valueAt(r.num('life'), first0) / 1000 : 0;
+    // Жизнь — одна на узел: у первого символа. Иначе рождение зависело бы от того, откуда.
+    const life = sources.length > 0 ? sample(r.num('life'), sources)[0] / 1000 : 0;
     if (sources.length === 0 || glyphs.length === 0 || rate <= 0 || life <= 0)
       return { glyphs: [] };
     const from = colorOf(r.option<string>('from'));
     const to = colorOf(r.option<string>('to'));
     const [speed, angle, spread, gravity] = ['speed', 'angle', 'spread', 'gravity'].map((n) =>
-      r.num(n),
+      sample(r.num(n), sources),
     );
     const t = r.ctx.time / 1000;
     // Живые — кто уже родился и ещё не дожил до конца: 0 ≤ возраст < life. Сверх предела — младшие.
@@ -92,25 +92,23 @@ export const particlesNode: NodeImpl = {
       const noise = (n: number): number => hashNoise(i, n, salt);
       const age = t - i / rate;
       const u = age / life;
-      const source = sources[Math.floor(noise(0) * sources.length)];
-      const direction =
-        ((valueAt(angle, source) + (noise(1) - 0.5) * valueAt(spread, source)) * Math.PI) / 180;
-      const velocity = valueAt(speed, source) * (0.5 + noise(2));
+      const origin = Math.floor(noise(0) * sources.length);
+      const source = sources[origin];
+      const direction = ((angle[origin] + (noise(1) - 0.5) * spread[origin]) * Math.PI) / 180;
+      const velocity = speed[origin] * (0.5 + noise(2));
       born.push({
         key: source.key,
         particle: i,
         // Символ стареет по ряду: от первого к последнему, как искра, что гаснет.
         glyph: glyphs[Math.min(glyphs.length - 1, Math.floor(u * glyphs.length))],
         x: source.x + Math.cos(direction) * velocity * age,
-        y:
-          source.y +
-          Math.sin(direction) * velocity * age +
-          0.5 * valueAt(gravity, source) * age * age,
+        y: source.y + Math.sin(direction) * velocity * age + 0.5 * gravity[origin] * age * age,
         rot: 0,
         sx: 1,
         sy: 1,
         fg: ageColor(from, to, u),
         bg: TRANSPARENT,
+        material: null,
       });
     }
     return { glyphs: born };
@@ -136,8 +134,8 @@ export const joinNode: NodeImpl = {
   },
 };
 
-/** Скиннинг по узлу: объект того же вида, что ждёт `skin`, один на узел — ради кэша весов. */
-const skinCache = new WeakMap<object, SkinDeformer>();
+/** Привязка узла: один объект на настройки узла — по нему кэшируются веса символов. */
+const skinCache = new WeakMap<object, SkinBinding>();
 
 export const bonesNode: NodeImpl = {
   spec: {
@@ -163,13 +161,7 @@ export const bonesNode: NodeImpl = {
     const poses = r.glyphs('glyphs');
     let d = skinCache.get(r.node.options);
     if (!d) {
-      d = {
-        id: r.node.id,
-        kind: 'skin',
-        enabled: true,
-        bones: r.option<readonly SkinBone[]>('bones'),
-        falloff: r.option<number>('falloff'),
-      };
+      d = { bones: r.option<readonly SkinBone[]>('bones'), falloff: r.option<number>('falloff') };
       skinCache.set(r.node.options, d);
     }
     skin(poses, d, r.ctx);
@@ -177,3 +169,11 @@ export const bonesNode: NodeImpl = {
   },
   animated: () => true,
 };
+
+/** Кости всех узлов «Кости» графа: по ним сцена считает, где кости сейчас. */
+export function graphBones(graph: NodeGraph | null): SkinBone[] {
+  if (!graph) return [];
+  return graph.nodes.flatMap((n) =>
+    n.kind === 'bones' ? [...((n.options.bones as readonly SkinBone[] | undefined) ?? [])] : [],
+  );
+}

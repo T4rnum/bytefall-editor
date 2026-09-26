@@ -1,5 +1,5 @@
 import { type Affine, IDENTITY, applyAffine, invertAffine, multiply } from './affine';
-import type { DeformContext, DeformerCommon, GlyphPose } from './deformers';
+import type { GlyphPose } from './graph/types';
 import { segmentDistance } from './geometry';
 import { type CellKey, xOf, yOf } from './grid';
 import { wrapAngle } from './ik';
@@ -15,10 +15,10 @@ export interface SkinBone {
 /**
  * Скиннинг (DESIGN.md, раздел 4.3): символы объекта едут за костями. Символ помнит, где он был
  * в позе покоя, и каждая кость переносит его так, как сама сдвинулась от покоя; веса смешивают
- * переносы ближних костей. Вес — по расстоянию символа до кости в позе покоя.
+ * переносы ближних костей. Вес — по расстоянию символа до кости в позе покоя. Привязку держит
+ * узел «Кости» графа.
  */
-export interface SkinDeformer extends DeformerCommon {
-  readonly kind: 'skin';
+export interface SkinBinding {
   readonly bones: readonly SkinBone[];
   /** На сколько ячеек дальше ближней кости ещё тянет соседняя: мягкость сгиба. */
   readonly falloff: number;
@@ -30,14 +30,14 @@ export const MAX_FALLOFF = 64;
 
 type Influence = readonly [bone: number, weight: number];
 
-/** Веса по исходной ячейке: считаются раз на деформер, пока привязка та же. */
-const weightCache = new WeakMap<SkinDeformer, Map<CellKey, readonly Influence[]>>();
+/** Веса по исходной ячейке: считаются раз на привязку, пока она та же. */
+const weightCache = new WeakMap<SkinBinding, Map<CellKey, readonly Influence[]>>();
 
 /**
  * Веса символа ячейки `key`: ближняя кость в полную силу, остальные — чем ближе к ней, тем
  * сильнее, до `falloff` ячеек сверх её расстояния. Сумма весов — единица.
  */
-function influences(d: SkinDeformer, key: CellKey): readonly Influence[] {
+function influences(d: SkinBinding, key: CellKey): readonly Influence[] {
   let cache = weightCache.get(d);
   if (!cache) weightCache.set(d, (cache = new Map<CellKey, readonly Influence[]>()));
   const known = cache.get(key);
@@ -60,26 +60,30 @@ function influences(d: SkinDeformer, key: CellKey): readonly Influence[] {
 }
 
 /**
- * Кости скиннинга сейчас в координатах объекта: из матриц мира. Их даёт `drawDocument` тем
- * объектам, у кого есть скиннинг. undefined — скиннинга нет.
+ * Кости скиннинга сейчас в координатах объекта `objectId`: из матриц мира. Их получают объекты
+ * с узлом «Кости»; undefined — костей нет.
  */
 export function skinRig(
-  obj: { readonly id: string; readonly deformers: readonly { readonly kind: string }[] },
+  objectId: string,
+  bones: readonly SkinBone[],
   matrices: ReadonlyMap<string, Affine>,
 ): ReadonlyMap<string, Affine> | undefined {
-  const skins = obj.deformers.filter((d): d is SkinDeformer => d.kind === 'skin');
-  const world = matrices.get(obj.id);
+  const world = matrices.get(objectId);
   const inverse = world && invertAffine(world);
-  if (skins.length === 0 || !inverse) return undefined;
+  if (bones.length === 0 || !inverse) return undefined;
   const out = new Map<string, Affine>();
-  for (const bone of skins.flatMap((d) => d.bones)) {
+  for (const bone of bones) {
     const m = matrices.get(bone.id);
     if (m) out.set(bone.id, multiply(inverse, m));
   }
   return out;
 }
 
-export function skin(poses: GlyphPose[], d: SkinDeformer, ctx: DeformContext): void {
+export function skin(
+  poses: GlyphPose[],
+  d: SkinBinding,
+  ctx: { readonly rig?: ReadonlyMap<string, Affine> },
+): void {
   if (d.bones.length === 0) return;
   // Перенос кости от покоя к сейчас; пропавшая кость стоит в покое.
   const moves = d.bones.map((b) => {

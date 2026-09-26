@@ -1,4 +1,4 @@
-import type { InputSpec, NumberSource, OutputSpec, GlyphPose } from './types';
+import { type InputSpec, type NumberSource, type OutputSpec, sample } from './types';
 
 /** Числовой вход: значение по умолчанию и пределы для поля, файла и ключей. */
 export const numIn = (
@@ -37,14 +37,37 @@ export const LENGTH_MAX = 2048;
 export const FREE = 1e6;
 
 /**
- * Число из чисел: если все постоянные — постоянное, иначе поле, которое считает их для символа.
- * Так граф без полей не платит за вызов функции на каждый символ.
+ * Число из чисел: если все постоянные — постоянное, иначе поле, которое считает `fn` для каждого
+ * символа потока. Так граф без полей не платит за проход по символам.
  */
 export function lift(
   fn: (...values: number[]) => number,
   ...sources: readonly NumberSource[]
 ): NumberSource {
   if (sources.every((s) => typeof s === 'number')) return fn(...(sources as number[]));
-  const read = sources.map((s) => (typeof s === 'number' ? () => s : s));
-  return (p: GlyphPose) => fn(...read.map((r) => r(p)));
+  return (poses) => {
+    const [a, b, c, d, e] = sources.map((s) => sample(s, poses));
+    const out = new Float64Array(poses.length);
+    // Без массива аргументов на символ: вызов с тем числом чисел, что есть у узла.
+    switch (sources.length) {
+      case 1:
+        for (let i = 0; i < out.length; i++) out[i] = fn(a[i]);
+        break;
+      case 2:
+        for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i]);
+        break;
+      case 3:
+        for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i], c[i]);
+        break;
+      case 4:
+        for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i], c[i], d[i]);
+        break;
+      case 5:
+        for (let i = 0; i < out.length; i++) out[i] = fn(a[i], b[i], c[i], d[i], e[i]);
+        break;
+      default:
+        throw new Error(`lift: ${sources.length} inputs`);
+    }
+    return out;
+  };
 }

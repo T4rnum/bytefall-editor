@@ -195,6 +195,9 @@ export function graphProblem(graph: NodeGraph): string | null {
     if (ids.has(n.id)) return `duplicate node id ${n.id}`;
     ids.add(n.id);
     if (!nodeSpec(n.kind)) return `unknown node kind ${n.kind}`;
+    // Вход и вывод — ровно по одному, на своих местах: второй «вход» вычислитель не понял бы.
+    const fixed = n.kind === 'input' || n.kind === 'output';
+    if (fixed !== (n.id === INPUT_NODE || n.id === OUTPUT_NODE)) return `misplaced ${n.kind} node`;
   }
   if (findNode(graph, INPUT_NODE)?.kind !== 'input') return 'missing input node';
   if (findNode(graph, OUTPUT_NODE)?.kind !== 'output') return 'missing output node';

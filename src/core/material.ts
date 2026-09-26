@@ -70,10 +70,6 @@ export const hasMaterial = (material: GlyphMaterial | null): material is GlyphMa
     material.shine !== null ||
     material.dither !== null);
 
-/** Материал меняется со временем: бегущий блик. Такой объект — движение для экспорта и часов. */
-export const isAnimatedMaterial = (material: GlyphMaterial | null): boolean =>
-  material?.shine != null && material.shine.speed !== 0;
-
 /** Числа материала для потока символов, по `MATERIAL_FLOATS` на символ. */
 export const MATERIAL_FLOATS = 17;
 /**
@@ -90,8 +86,9 @@ export const MATERIAL = {
 } as const;
 
 /**
- * Материал в числа для потока символов. Одинаков для всех символов объекта, поэтому считается раз
- * на объект. Без материала — null, и символы идут в поток нулями: шейдер их пропускает.
+ * Материал в числа для потока символов. Узлы графа раздают символам общие объекты материала,
+ * поэтому поток считает числа раз на объект материала. Без материала — null, и символы идут в
+ * поток нулями: шейдер их пропускает.
  */
 export function materialFloats(material: GlyphMaterial | null): Float32Array | null {
   if (!hasMaterial(material)) return null;

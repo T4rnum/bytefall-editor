@@ -1,17 +1,10 @@
-import type { Affine } from './affine';
-import type { Rgba } from './color';
-import { applyDeformer } from './deformerKinds';
-import { newId } from './document';
-import type { CellKey } from './grid';
-import type { ParticlesDeformer } from './particles';
-import type { SkinDeformer } from './skin';
-import { MAX_SCALE, MIN_SCALE } from './transform';
-import type { DeformerParam } from './tracks';
+import { newId } from '../document';
+import type { SkinBone } from '../skin';
 
 /**
- * Деформеры (DESIGN.md, раздел 4.3): функции «символы объекта → символы объекта» с несколькими
- * параметрами. Лежат на объекте списком, порядок важен, как модификаторы в Blender. Работают в
- * координатах объекта, поэтому волна идёт вдоль его осей и едет вместе с ним.
+ * Стек деформеров версий 7–9 (до графа узлов). В документе его больше нет: файлы этих версий
+ * мигрируют в граф (`presets.ts`, `fragmentOfDeformer`). Числа деформера остались параметрами
+ * сборок — меню «Добавить» собирает волну из узлов с теми же числами по умолчанию.
  */
 export type DeformerKind =
   | 'wave'
@@ -133,36 +126,39 @@ export interface DeformerByKind {
 
 export const MAX_DEFORMERS_PER_OBJECT = 8;
 
-export interface DeformerParamSpec {
-  readonly min: number;
-  readonly max: number;
+/**
+ * Частицы: символы вылетают из символов объекта и гаснут. Он не двигает символы, а добавляет
+ * новые, но живёт в том же стеке: деформеры после него двигают и красят и частицы.
+ */
+export interface ParticlesDeformer extends DeformerCommon {
+  readonly kind: 'particles';
+  /** Ряд символов, по которому частица стареет. */
+  readonly glyphs: string;
+  /** Цвет новой частицы и цвет к концу жизни. */
+  readonly from: string;
+  readonly to: string;
+  /** Частиц в секунду. */
+  readonly rate: number;
+  /** Сколько живёт частица, мс. */
+  readonly life: number;
+  /** Ячеек в секунду. */
+  readonly speed: number;
+  /** Направление, градусы по часовой от оси X: −90 — вверх. */
+  readonly angle: number;
+  /** Разброс направления, градусы. */
+  readonly spread: number;
+  /** Ускорение вниз, ячеек в секунду за секунду. */
+  readonly gravity: number;
+  readonly seed: number;
 }
 
-const PERIOD: DeformerParamSpec = { min: 10, max: 600000 };
-const LENGTH: DeformerParamSpec = { min: 0.5, max: 2048 };
-const SCALE: DeformerParamSpec = { min: MIN_SCALE, max: MAX_SCALE };
-
-/** Числовые параметры каждого вида с пределами: по ним ограничиваются ключи и поля. */
-export const DEFORMER_PARAM_SPECS: {
-  readonly [K in DeformerKind]: Readonly<Partial<Record<DeformerParam, DeformerParamSpec>>>;
-} = {
-  wave: { amplitude: { min: 0, max: 64 }, wavelength: LENGTH, period: PERIOD },
-  jitter: { amplitude: { min: 0, max: 8 }, angle: { min: 0, max: 360 }, period: PERIOD },
-  twist: { strength: { min: -360, max: 360 } },
-  scaleFalloff: { radius: LENGTH, inner: SCALE, outer: SCALE },
-  colorRamp: { length: LENGTH, period: { min: 0, max: 600000 }, amount: { min: 0, max: 1 } },
-  bend: { strength: { min: -90, max: 90 } },
-  explode: { amount: { min: 0, max: 16 }, angle: { min: 0, max: 720 } },
-  glyphRamp: {},
-  particles: {
-    life: { min: 20, max: 10000 },
-    speed: { min: 0, max: 128 },
-    angle: { min: -360, max: 360 },
-    spread: { min: 0, max: 360 },
-    gravity: { min: -128, max: 128 },
-  },
-  skin: {},
-};
+/** Скиннинг: символы объекта едут за костями. */
+export interface SkinDeformer extends DeformerCommon {
+  readonly kind: 'skin';
+  readonly bones: readonly SkinBone[];
+  /** На сколько ячеек дальше ближней кости ещё тянет соседняя: мягкость сгиба. */
+  readonly falloff: number;
+}
 
 const DEFAULTS: { readonly [K in DeformerKind]: (id: string) => DeformerByKind[K] } = {
   wave: (id) => ({
@@ -229,60 +225,4 @@ export function createDeformer<K extends DeformerKind>(
   id: string = newId('deform'),
 ): DeformerByKind[K] {
   return DEFAULTS[kind](id);
-}
-
-/**
- * Стек для копии объекта: те же деформеры под новыми идентификаторами. Ключи находят деформер по
- * идентификатору, и общий у оригинала и копии двигал бы их вместе. `ids` задаёт новые снаружи,
- * чтобы копия одного объекта в разных кадрах получила одни и те же.
- */
-export function copyDeformers(
-  deformers: readonly Deformer[],
-  ids?: ReadonlyMap<string, string>,
-): Deformer[] {
-  return deformers.map((d) => ({ ...d, id: ids?.get(d.id) ?? newId('deform') }));
-}
-
-export const hasActiveDeformers = (deformers: readonly Deformer[]): boolean =>
-  deformers.some((d) => d.enabled);
-
-/**
- * Символ объекта по ходу стека: центр в ячейках объекта, поворот в градусах, масштаб, цвета.
- * `key` — ячейка, из которой символ родом: по ней шум и градиенты узнают символ, куда бы его
- * ни унесли деформеры раньше по стеку. У частицы это ячейка, из которой она вылетела, а
- * `particle` — её номер: по нему шум отличает искры одной ячейки. У символов объекта он null.
- */
-export interface GlyphPose {
-  readonly key: CellKey;
-  readonly particle: number | null;
-  glyph: string;
-  x: number;
-  y: number;
-  rot: number;
-  sx: number;
-  sy: number;
-  fg: Rgba;
-  bg: Rgba;
-}
-
-export interface DeformContext {
-  /** Время сцены, мс. */
-  readonly time: number;
-  /** Центр содержимого объекта в его ячейках. */
-  readonly center: { readonly x: number; readonly y: number };
-  /** Кости скиннинга сейчас в координатах объекта, см. `skinRig`. */
-  readonly rig?: ReadonlyMap<string, Affine>;
-}
-
-/**
- * Прогоняет символы через включённые деформеры по порядку. Позы меняются на месте: стек
- * получает свежий массив, собранный из объекта, поэтому снаружи это чистая функция времени.
- */
-export function deform(
-  poses: GlyphPose[],
-  deformers: readonly Deformer[],
-  ctx: DeformContext,
-): GlyphPose[] {
-  for (const deformer of deformers) if (deformer.enabled) applyDeformer(poses, deformer, ctx);
-  return poses;
 }

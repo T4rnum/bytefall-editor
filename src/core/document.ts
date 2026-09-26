@@ -3,6 +3,8 @@ import type { LayerEffect } from './effects';
 import type { Point } from './geometry';
 import { type CellGrid, emptyGrid, shiftGrid } from './grid';
 import type { SceneObject } from './object';
+import type { NodeGraph } from './graph/types';
+import type { SkinBone } from './skin';
 
 export interface Layer {
   readonly id: string;
@@ -169,7 +171,39 @@ export function moveLayer(doc: Document, id: string, toIndex: number): Document 
 export interface CopyIds {
   readonly objects?: ReadonlyMap<string, string>;
   readonly effects?: ReadonlyMap<string, string>;
-  readonly deformers?: ReadonlyMap<string, string>;
+  /** Узлы графов объектов копии. */
+  readonly nodes?: ReadonlyMap<string, string>;
+}
+
+/**
+ * Граф копии объекта — свои узлы: ключи находят узел по идентификатору. Кости скиннинга, если
+ * их скопировали вместе с объектом, — копии костей. Без импорта `graph/edit.ts`: он сам зависит
+ * от document.ts, и цикл сломал бы порядок загрузки.
+ */
+function copyObjectGraph(
+  graph: NodeGraph,
+  nodeIds: ReadonlyMap<string, string> | undefined,
+  objects: ReadonlyMap<string, string>,
+): NodeGraph {
+  const endpoint = (id: string): boolean => id === 'in' || id === 'out';
+  const map = new Map(
+    graph.nodes.map((n) => [n.id, endpoint(n.id) ? n.id : (nodeIds?.get(n.id) ?? newId('node'))]),
+  );
+  const nodes = graph.nodes.map((n) => {
+    const id = map.get(n.id) as string;
+    if (n.kind !== 'bones') return { ...n, id };
+    const bones = ((n.options.bones as readonly SkinBone[] | undefined) ?? []).map((b) => ({
+      ...b,
+      id: objects.get(b.id) ?? b.id,
+    }));
+    return { ...n, id, options: { ...n.options, bones } };
+  });
+  const links = graph.links.map((l) => ({
+    ...l,
+    from: map.get(l.from) ?? l.from,
+    to: map.get(l.to) ?? l.to,
+  }));
+  return { nodes, links };
 }
 
 /**
@@ -195,15 +229,7 @@ export function duplicateLayer(
   const copies = sources.map((o) => ({
     ...o,
     id: renamed.get(o.id) as string,
-    // Деформеры копии — свои: ключи находят деформер по идентификатору. Без импорта
-    // deformers.ts: он сам зависит от document.ts, и цикл сломал бы порядок загрузки.
-    // Скиннинг копии держится за копии костей, если их скопировали вместе с объектом.
-    deformers: o.deformers.map((d) => {
-      const id = ids.deformers?.get(d.id) ?? newId('deform');
-      if (d.kind !== 'skin') return { ...d, id };
-      const bones = d.bones.map((b) => ({ ...b, id: renamed.get(b.id) ?? b.id }));
-      return { ...d, id, bones };
-    }),
+    graph: o.graph && copyObjectGraph(o.graph, ids.nodes, renamed),
     // Цель, скопированная вместе с объектом, — это копия цели: копия рига тянется за своим
     // контроллером, а не за чужим.
     constraints: o.constraints.map((c) =>

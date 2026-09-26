@@ -1,0 +1,136 @@
+{
+  "format": "bytefall",
+  "version": 10,
+  "name": "Fixture v10 graph",
+  "width": 8,
+  "height": 4,
+  "font": "press-start-2p",
+  "background": "#000000",
+  "palette": ["#000000", "#ffffff"],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-base",
+          "name": "Base",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": []
+        }
+      ],
+      "objects": [
+        {
+          "id": "object-torch",
+          "name": "Torch",
+          "layerId": "layer-base",
+          "transform": {
+            "x": 3,
+            "y": 2,
+            "dx": 0,
+            "dy": 0,
+            "rot": 0,
+            "sx": 1,
+            "sy": 1,
+            "px": 1,
+            "py": 0.5
+          },
+          "visible": true,
+          "locked": false,
+          "cells": [
+            {
+              "x": 0,
+              "y": 0,
+              "g": "i",
+              "f": "#ffa300"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "g": "i",
+              "f": "#ffa300"
+            }
+          ],
+          "graph": {
+            "nodes": [
+              { "id": "in", "kind": "input", "x": 0, "y": 0 },
+              { "id": "out", "kind": "output", "x": 1100, "y": 0 },
+              { "id": "node-pos", "kind": "position", "x": 0, "y": 160 },
+              {
+                "id": "node-wave",
+                "kind": "wave",
+                "x": 220,
+                "y": 160,
+                "values": { "wavelength": 6, "period": 900 }
+              },
+              {
+                "id": "node-offset",
+                "kind": "offset",
+                "x": 440,
+                "y": 0,
+                "values": { "strength": 0.5 }
+              },
+              {
+                "id": "node-spin",
+                "kind": "rotate",
+                "muted": true,
+                "x": 660,
+                "y": 0,
+                "values": { "strength": 45 },
+                "options": { "pivot": "center" }
+              },
+              {
+                "id": "node-sparks",
+                "kind": "particles",
+                "x": 220,
+                "y": -160,
+                "values": { "life": 800, "speed": 3 },
+                "options": { "glyphs": "*.", "from": "#FFEC27", "rate": 12, "seed": 5 }
+              },
+              {
+                "id": "node-glow",
+                "kind": "glow",
+                "x": 440,
+                "y": -160,
+                "values": { "radius": 1 },
+                "options": { "color": "#29adff" }
+              },
+              { "id": "node-join", "kind": "join", "x": 880, "y": 0 }
+            ],
+            "links": [
+              { "from": "node-pos", "out": "x", "to": "node-wave", "in": "value" },
+              { "from": "node-wave", "out": "value", "to": "node-offset", "in": "y" },
+              { "from": "in", "out": "glyphs", "to": "node-offset", "in": "glyphs" },
+              { "from": "node-offset", "out": "glyphs", "to": "node-spin", "in": "glyphs" },
+              { "from": "in", "out": "glyphs", "to": "node-sparks", "in": "glyphs" },
+              { "from": "node-sparks", "out": "glyphs", "to": "node-glow", "in": "glyphs" },
+              { "from": "node-glow", "out": "glyphs", "to": "node-join", "in": "a" },
+              { "from": "node-spin", "out": "glyphs", "to": "node-join", "in": "b" },
+              { "from": "node-join", "out": "glyphs", "to": "out", "in": "glyphs" }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "fps": 20,
+  "tracks": [
+    {
+      "node": "node",
+      "id": "node-offset",
+      "property": "strength",
+      "keys": [
+        { "t": 0, "v": 0.5 },
+        { "t": 1000, "v": 2 }
+      ]
+    },
+    {
+      "node": "node",
+      "id": "node-glow",
+      "property": "radius",
+      "keys": [{ "t": 0, "v": 1, "i": "step" }]
+    }
+  ]
+}

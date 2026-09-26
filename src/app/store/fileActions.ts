@@ -190,7 +190,7 @@ export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
 
 /**
  * Файл `.bytefall` для рантаймов Godot и Unity: атлас символов и поток символов на каждый момент
- * экспорта. Кадры считает тот же `composeAt`, что и экран; огонь и деформеры уже в них.
+ * экспорта. Кадры считает тот же `composeAt`, что и экран; огонь и узлы объектов уже в них.
  */
 export async function exportBytefallAction(): Promise<void> {
   const { animation } = useDocumentStore.getState();

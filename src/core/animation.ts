@@ -223,23 +223,28 @@ export function duplicateAnimationLayer(
   const layer = anim.frames[0].layers.find((l) => l.id === layerId);
   if (!layer) return anim;
   const objects = new Map<string, string>();
-  const deformers = new Map<string, string>();
+  const nodes = new Map<string, string>();
   for (const frame of anim.frames) {
     for (const obj of frame.objects) {
       if (obj.layerId !== layerId) continue;
       if (!objects.has(obj.id)) objects.set(obj.id, newId('object'));
-      for (const d of obj.deformers) if (!deformers.has(d.id)) deformers.set(d.id, newId('deform'));
+      for (const n of graphNodeIds(obj)) if (!nodes.has(n)) nodes.set(n, newId('node'));
     }
   }
   const effects = new Map(layer.effects.map((e) => [e.id, newId('fx')]));
   const next = mapFrames(anim, (doc) =>
-    duplicateLayer(doc, layerId, copyId, { objects, effects, deformers }),
+    duplicateLayer(doc, layerId, copyId, { objects, effects, nodes }),
   );
   let tracks = copyTracks(next.tracks, 'object', objects);
-  tracks = copyTracks(tracks, 'deformer', deformers);
+  tracks = copyTracks(tracks, 'node', nodes);
   tracks = copyTracks(tracks, 'effect', effects);
   tracks = copyTracks(tracks, 'layer', new Map([[layerId, copyId]]));
   return { ...next, tracks };
+}
+
+/** Узлы графа объекта, на которые могут ссылаться треки: все, кроме входа и вывода. */
+function graphNodeIds(obj: SceneObject): string[] {
+  return (obj.graph?.nodes ?? []).map((n) => n.id).filter((id) => id !== 'in' && id !== 'out');
 }
 
 /** Узлы, на которые могут ссылаться треки: объекты всех кадров, слои и их эффекты. */
@@ -248,7 +253,7 @@ export function aliveNodes(frames: readonly Frame[]): Set<string> {
   for (const frame of frames) {
     for (const obj of frame.objects) {
       alive.add(nodeKey('object', obj.id));
-      for (const deformer of obj.deformers) alive.add(nodeKey('deformer', deformer.id));
+      for (const id of graphNodeIds(obj)) alive.add(nodeKey('node', id));
     }
     for (const layer of frame.layers) {
       alive.add(nodeKey('layer', layer.id));

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { frameDocument } from '../animation';
+import { evaluate } from '../evaluate';
+import { graphBones } from '../graph/generatorNodes';
+import type { GraphNode } from '../graph/types';
 import { getCell, keyOf } from '../grid';
+import type { SceneObject } from '../object';
 import {
   FORMAT_NAME,
   FORMAT_VERSION,
@@ -20,6 +24,8 @@ import v8 from './fixtures/v8-material.bp.json?raw';
 import v9 from './fixtures/v9-rig.bp.json?raw';
 import v9links from './fixtures/v9-constraints.bp.json?raw';
 import v9skin from './fixtures/v9-skin.bp.json?raw';
+import v9tracks from './fixtures/v9-deformer-tracks.bp.json?raw';
+import v10 from './fixtures/v10-graph.bp.json?raw';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -42,7 +48,13 @@ const FIXTURES = {
   'v9-rig': v9,
   'v9-constraints': v9links,
   'v9-skin': v9skin,
+  'v9-deformer-tracks': v9tracks,
+  'v10-graph': v10,
 } as const;
+
+/** Узел графа объекта по идентификатору. */
+const nodeOf = (obj: SceneObject, id: string): GraphNode | undefined =>
+  obj.graph?.nodes.find((n) => n.id === id);
 
 describe('фикстуры формата', () => {
   it.each(Object.entries(FIXTURES))('%s читается и переписывается текущей версией', (_, text) => {
@@ -155,27 +167,44 @@ describe('фикстуры формата', () => {
     ]);
   });
 
-  it('v7: деформеры объекта читаются по порядку, с флагом и параметрами', () => {
+  it('v7: стек деформеров становится цепочкой сборок по порядку, выключенный — заглушённым', () => {
     const [flag] = frameDocument(deserialize(v7), 0).objects;
-    expect(flag.deformers.map((d) => [d.kind, d.enabled])).toEqual([
-      ['wave', true],
-      ['colorRamp', false],
-    ]);
-    expect(flag.deformers[0]).toMatchObject({ axis: 'y', amplitude: 0.5, wavelength: 4 });
-    // До v7 деформеров не было: у объектов старых версий стек пустой.
-    expect(frameDocument(deserialize(v6), 0).objects[0].deformers).toEqual([]);
+    expect(nodeOf(flag, 'deform-wave~offset')).toMatchObject({
+      muted: false,
+      values: { strength: 0.5 },
+    });
+    expect(nodeOf(flag, 'deform-wave~wave')!.values).toEqual({ wavelength: 4, period: 800 });
+    expect(nodeOf(flag, 'deform-ramp~color')).toMatchObject({
+      muted: true,
+      options: { from: '#29adff', to: '#ff77a8' },
+    });
+    // Поток: вход → волна → градиент → вывод.
+    const feed = (id: string) => flag.graph!.links.find((l) => l.to === id && l.in === 'glyphs');
+    expect(feed('deform-wave~offset')!.from).toBe('in');
+    expect(feed('deform-ramp~color')!.from).toBe('deform-wave~offset');
+    expect(feed('out')!.from).toBe('deform-ramp~color');
+    // До v7 деформеров не было: у объектов старых версий графа нет.
+    expect(frameDocument(deserialize(v6), 0).objects[0].graph).toBeNull();
   });
 
-  it('v8: материал объекта читается, цвет приводится к нижнему регистру', () => {
+  it('v8: материал объекта становится узлами в конце потока, цвет — в нижнем регистре', () => {
     const [flag] = frameDocument(deserialize(v8), 0).objects;
-    expect(flag.material).toEqual({
-      outline: { color: '#000000', width: 2 },
-      glow: { color: '#ffec27', radius: 0.5, strength: 1.5 },
-      shine: null,
-      dither: null,
+    const id = flag.id;
+    expect(nodeOf(flag, `${id}~outline`)).toMatchObject({
+      kind: 'outline',
+      values: { width: 2 },
+      options: { color: '#000000' },
     });
+    expect(nodeOf(flag, `${id}~glow`)).toMatchObject({
+      kind: 'glow',
+      values: { radius: 0.5, strength: 1.5 },
+      options: { color: '#ffec27' },
+    });
+    expect(nodeOf(flag, `${id}~shine`)).toBeUndefined();
     // До v8 материала не было.
-    expect(frameDocument(deserialize(v7), 0).objects[0].material).toBeNull();
+    expect(
+      frameDocument(deserialize(v7), 0).objects[0].graph!.nodes.map((n) => n.kind),
+    ).not.toContain('outline');
   });
 
   it('v9: кости и контроллер рига читаются как записаны, сустав — в начале кости', () => {
@@ -201,16 +230,57 @@ describe('фикстуры формата', () => {
     expect(frameDocument(deserialize(v9), 0).objects[0].constraints).toEqual([]);
   });
 
-  it('v9: скиннинг читается с позой покоя костей и мягкостью', () => {
+  it('v9: скиннинг становится узлом «Кости» с позой покоя и мягкостью', () => {
     const [sleeve, upper] = frameDocument(deserialize(v9skin), 0).objects;
-    const [skin] = sleeve.deformers;
-    expect(skin.kind === 'skin' && skin.falloff).toBe(1.5);
-    expect(skin.kind === 'skin' && skin.bones.map((b) => [b.id, b.length])).toEqual([
+    const skin = sleeve.graph!.nodes.find((n) => n.kind === 'bones')!;
+    expect(skin.options.falloff).toBe(1.5);
+    const bones = graphBones(sleeve.graph);
+    expect(bones.map((b) => [b.id, b.length])).toEqual([
       ['bone-upper', 3.5],
       ['bone-lower', 3],
     ]);
-    expect(skin.kind === 'skin' && skin.bones[1].bind.e).toBe(3.5);
+    expect(bones[1].bind.e).toBe(3.5);
     expect(upper.parentId).toBe('object-sleeve');
+  });
+
+  it('v9: ключи деформеров переезжают на входы узлов, прочие треки — как были', () => {
+    const anim = deserialize(v9tracks);
+    expect(anim.tracks.map((t) => `${t.node}:${t.id}:${t.property}`)).toEqual([
+      'object:object-ghost:position',
+      'node:deform-wave~offset:strength',
+      'node:deform-wave~wave:period',
+      'node:deform-burst~amount:value',
+    ]);
+    expect(anim.tracks[1].keys.map((k) => [k.time, k.value, k.interpolation])).toEqual([
+      [0, [0.5], 'linear'],
+      [1000, [1.5], 'step'],
+    ]);
+    const ghost = evaluate(anim, 250).objects[0];
+    expect(nodeOf(ghost, 'deform-burst~amount')!.values.value).toBe(2);
+    expect(nodeOf(ghost, 'deform-wave~offset')!.values.strength).toBe(0.75);
+    // Материал встал после стека, свечение — в конце потока.
+    const feed = ghost.graph!.links.find((l) => l.to === 'out')!;
+    expect(feed.from).toBe('object-ghost~glow');
+  });
+
+  it('v10: граф с ветками, заглушённым узлом и ключами входов читается как записан', () => {
+    const anim = deserialize(v10);
+    const [torch] = frameDocument(anim, 0).objects;
+    expect(torch.graph!.nodes).toHaveLength(9);
+    expect(torch.graph!.links).toHaveLength(9);
+    expect(nodeOf(torch, 'node-spin')).toMatchObject({ muted: true, options: { pivot: 'center' } });
+    // Цвет в файле в верхнем регистре: в документе — в нижнем.
+    expect(nodeOf(torch, 'node-sparks')!.options).toEqual({
+      glyphs: '*.',
+      from: '#ffec27',
+      rate: 12,
+      seed: 5,
+    });
+    expect(anim.tracks.map((t) => `${t.id}:${t.property}`)).toEqual([
+      'node-offset:strength',
+      'node-glow:radius',
+    ]);
+    expect(nodeOf(evaluate(anim, 500).objects[0], 'node-offset')!.values.strength).toBe(1.25);
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {
