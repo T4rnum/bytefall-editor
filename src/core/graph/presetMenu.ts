@@ -41,6 +41,7 @@ export const PRESETS: readonly Preset[] = [
   { kind: 'aura', label: 'Аура', group: 'Эффекты' },
   { kind: 'vignette', label: 'Виньетка', group: 'Эффекты' },
   { kind: 'dissolve', label: 'Растворение', group: 'Эффекты' },
+  { kind: 'disintegrate', label: 'Распад', group: 'Эффекты' },
   { kind: 'wave', label: 'Волна', group: 'Движение' },
   { kind: 'jitter', label: 'Дрожание', group: 'Движение' },
   { kind: 'twist', label: 'Вихрь', group: 'Движение' },
@@ -69,6 +70,7 @@ const EFFECTS: ReadonlySet<string> = new Set<EffectPresetKind>([
   'aura',
   'vignette',
   'dissolve',
+  'disintegrate',
 ]);
 
 const MATERIALS: Readonly<Record<string, GlyphMaterial>> = {

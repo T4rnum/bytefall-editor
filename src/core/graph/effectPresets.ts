@@ -7,7 +7,7 @@ import type { GraphLink, GraphNode } from './types';
  * объектам разом; разобрать и пересобрать её можно в редакторе узлов.
  */
 export type EffectPresetKind =
-  'fire' | 'pulse' | 'flicker' | 'cycle' | 'aura' | 'vignette' | 'dissolve';
+  'fire' | 'pulse' | 'flicker' | 'cycle' | 'aura' | 'vignette' | 'dissolve' | 'disintegrate';
 
 /**
  * Зерно сборки от идентификатора её узлов: у каждого объекта, получившего сборку, огонь и шум
@@ -139,7 +139,43 @@ const FRAGMENTS: Readonly<Record<EffectPresetKind, (b: string) => Fragment>> = {
       ],
       node(`${b}~dither`, 'dither', 2, 0),
     ),
+  disintegrate,
 };
+
+/**
+ * Распад: за две секунды символы разлетаются каждый по своему шуму, крупнеют до блоков в шесть
+ * пикселей шрифта и тают узором Байера. Время одно на объект, поэтому материал общий у всех.
+ */
+function disintegrate(b: string): Fragment {
+  return {
+    nodes: [
+      node(`${b}~time`, 'time', 0, 1),
+      range(`${b}~spread`, 1, 0, 2, 0, 3),
+      node(`${b}~noise`, 'noise', 1, 2, { period: 0 }, { seed: seedOf(b) }),
+      range(`${b}~size`, 2, 0, 2, 1, 6),
+      range(`${b}~fade`, 3, 0, 2, 0, 1),
+      node(`${b}~offset`, 'offset', 2, 0),
+      node(`${b}~pixels`, 'pixels', 3, 0),
+      node(`${b}~dither`, 'dither', 4, 0),
+    ],
+    links: [
+      link(`${b}~time`, 'seconds', `${b}~spread`, 'value'),
+      link(`${b}~time`, 'seconds', `${b}~size`, 'value'),
+      link(`${b}~time`, 'seconds', `${b}~fade`, 'value'),
+      link(`${b}~noise`, 'x', `${b}~offset`, 'x'),
+      link(`${b}~noise`, 'y', `${b}~offset`, 'y'),
+      link(`${b}~spread`, 'value', `${b}~offset`, 'strength'),
+      link(`${b}~offset`, 'glyphs', `${b}~pixels`, 'glyphs'),
+      link(`${b}~size`, 'value', `${b}~pixels`, 'size'),
+      link(`${b}~pixels`, 'glyphs', `${b}~dither`, 'glyphs'),
+      link(`${b}~fade`, 'value', `${b}~dither`, 'amount'),
+    ],
+    entry: [{ node: `${b}~offset`, input: 'glyphs' }],
+    exit: { node: `${b}~dither`, out: 'glyphs' },
+    params: {},
+    columns: 5,
+  };
+}
 
 /** Сборка эффекта с узлами под идентификаторами от `base`. */
 export const effectFragment = (kind: EffectPresetKind, base: string): Fragment =>
