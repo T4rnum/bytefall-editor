@@ -2,6 +2,7 @@ import { type Cell, isBlankCell, makeCell } from '../../core/cell';
 import type { CellEdits } from '../../core/grid';
 import { clipEditsToSelection } from '../../core/selection';
 import { findLayer } from '../../core/document';
+import { resizeCanvasAction } from '../store/documentActions';
 import { editableActiveLayer, useDocumentStore } from '../store/documentStore';
 import { type Brush, activeBrush, brushOf, useEditorStore } from '../store/editorStore';
 import { buildEditContext } from './editSession';
@@ -74,5 +75,7 @@ export function buildToolEnv(): ToolEnv {
     setSelectedObjects: editor.setSelectedObjects,
     setDraft: editor.setDraft,
     commitDocument: docState.commitStructural,
+    setCanvasFrame: editor.setCanvasFrame,
+    resizeCanvas: resizeCanvasAction,
   };
 }

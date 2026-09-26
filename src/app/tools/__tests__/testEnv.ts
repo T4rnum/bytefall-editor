@@ -1,6 +1,6 @@
 import { type Cell, makeCell } from '../../../core/cell';
-import type { Document, Layer } from '../../../core/document';
-import type { Point } from '../../../core/geometry';
+import type { Document, Layer, ResizeAnchor } from '../../../core/document';
+import type { Point, Rect } from '../../../core/geometry';
 import type { CellEdits } from '../../../core/grid';
 import type { Selection } from '../../../core/selection';
 import type { ToolEnv } from '../types';
@@ -16,6 +16,8 @@ export interface ToolCalls {
   /** Выборы нескольких объектов через `setSelectedObjects`. */
   readonly selectedMany: (readonly string[])[];
   readonly textCursors: (Point | null)[];
+  readonly frames: (Rect | null)[];
+  readonly resizes: { width: number; height: number; anchor: ResizeAnchor }[];
   draft: Document | null;
 }
 
@@ -66,6 +68,8 @@ export function makeToolEnv(
     selected: [],
     selectedMany: [],
     textCursors: [],
+    frames: [],
+    resizes: [],
     draft: null,
   };
 
@@ -94,6 +98,8 @@ export function makeToolEnv(
       calls.draft = draft;
     },
     commitDocument: (label, next) => calls.docCommits.push({ label, doc: next }),
+    setCanvasFrame: (rect) => calls.frames.push(rect),
+    resizeCanvas: (width, height, anchor) => calls.resizes.push({ width, height, anchor }),
   };
 
   return { env, calls };

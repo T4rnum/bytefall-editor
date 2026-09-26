@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { DEFAULT_FG } from '../../core/cell';
 import type { Preview } from '../../core/compositor';
 import type { Document } from '../../core/document';
-import type { Point } from '../../core/geometry';
+import type { Point, Rect } from '../../core/geometry';
 import type { CellKey } from '../../core/grid';
 import type { SceneObject } from '../../core/object';
 import type { Clip, Selection } from '../../core/selection';
@@ -66,6 +66,8 @@ export interface EditorState {
   readonly cursorPoint: Point | null;
   /** Рамка или лассо выделения символов, пока их тянут: контур в документе. */
   readonly marquee: readonly Point[] | null;
+  /** Будущий холст, пока инструмент «Холст» тянет край: в координатах нынешнего. */
+  readonly canvasFrame: Rect | null;
   /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
   readonly draft: Document | null;
   readonly isPlaying: boolean;
@@ -111,6 +113,7 @@ export interface EditorState {
   setGlyphSelection: (keys: readonly CellKey[]) => void;
   setCursorPoint: (point: Point | null) => void;
   setMarquee: (loop: readonly Point[] | null) => void;
+  setCanvasFrame: (rect: Rect | null) => void;
   setDraft: (doc: Document | null) => void;
   setPlaying: (playing: boolean) => void;
   setSelectedKeys: (keys: readonly KeyRef[]) => void;
@@ -171,6 +174,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   glyphSelection: [],
   cursorPoint: null,
   marquee: null,
+  canvasFrame: null,
   draft: null,
   isPlaying: false,
   selectedKeys: [],
@@ -224,6 +228,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setGlyphSelection: (glyphSelection) => set({ glyphSelection }),
   setCursorPoint: (cursorPoint) => set({ cursorPoint }),
   setMarquee: (marquee) => set({ marquee }),
+  setCanvasFrame: (canvasFrame) => set({ canvasFrame }),
   setDraft: (draft) => set({ draft }),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setSelectedKeys: (selectedKeys) => set({ selectedKeys }),

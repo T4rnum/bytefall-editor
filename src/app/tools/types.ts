@@ -1,6 +1,6 @@
 import type { Cell } from '../../core/cell';
-import type { Document, Layer } from '../../core/document';
-import type { Point } from '../../core/geometry';
+import type { Document, Layer, ResizeAnchor } from '../../core/document';
+import type { Point, Rect } from '../../core/geometry';
 import type { PlacedGlyph } from '../../core/glyphPick';
 import type { CellEdits, CellGrid, CellKey } from '../../core/grid';
 import type { SceneObject } from '../../core/object';
@@ -20,7 +20,8 @@ export type ToolId =
   | 'wand'
   | 'text'
   | 'object'
-  | 'bone';
+  | 'bone'
+  | 'canvas';
 
 /**
  * Сетка, в которой рисуют: активный слой в размер холста или, в правке изнутри, область правки
@@ -89,6 +90,10 @@ export interface ToolEnv {
   setDraft: (doc: Document | null) => void;
   /** Структурный коммит целого документа одной записью истории. */
   commitDocument: (label: string, next: Document) => void;
+  /** Рамка будущего холста, пока тянут его край; null — рамки нет. */
+  setCanvasFrame: (rect: Rect | null) => void;
+  /** Новый размер холста во всех кадрах, содержимое прижато к якорю. */
+  resizeCanvas: (width: number, height: number, anchor: ResizeAnchor) => void;
 }
 
 export interface PointerInfo {

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ArrowLeftRight, PaintBucket, Plus } from 'lucide-react';
+import { ArrowLeftRight, Paintbrush, Plus } from 'lucide-react';
 import { normalizeHex } from '../../core/color';
 import {
   addPaletteColorAction,
@@ -45,7 +45,7 @@ export function ColorPanel() {
             disabled={!hasSelection}
             onClick={recolorSelectionAction}
           >
-            <PaintBucket size={14} />
+            <Paintbrush size={14} />
           </Button>
           <Button icon size="sm" label="Поменять цвета местами" hotkey="X" onClick={swapColors}>
             <ArrowLeftRight size={14} />

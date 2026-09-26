@@ -8,7 +8,7 @@ import { type CameraState, fitCamera, screenToWorld } from './camera';
 import type { GlyphAtlas } from './font/GlyphAtlas';
 import { FrameMeshes } from './FrameMeshes';
 import type { GizmoMarks } from './gizmo';
-import { type EditMarks, Overlay } from './Overlay';
+import { type CanvasMarks, type EditMarks, Overlay } from './Overlay';
 import type { RigMarks } from './rigLayer';
 import {
   DEFAULT_POST,
@@ -138,8 +138,9 @@ export class SceneView {
     this.requestRender();
   }
 
-  setEditMarks(marks: EditMarks | null): void {
+  setEditMarks(marks: EditMarks | null, canvas: CanvasMarks | null = null): void {
     this.overlay.setEditMarks(marks);
+    this.overlay.setCanvasMarks(canvas);
     this.requestRender();
   }
 

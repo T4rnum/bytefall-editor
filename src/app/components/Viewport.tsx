@@ -14,7 +14,7 @@ import { type DocumentState, useDocumentStore } from '../store/documentStore';
 import { type EditorState, useEditorStore } from '../store/editorStore';
 import { setActiveView } from '../store/viewActions';
 import { getTool } from '../tools';
-import { editMarks } from './editMarks';
+import { canvasMarks, editMarks, marksChanged } from './editMarks';
 import { type Drag, useViewportPointer } from './useViewportPointer';
 import { gizmoLayout } from '../tools/gizmo';
 import { rigLayout } from '../tools/rig';
@@ -138,10 +138,12 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       view.setRig(rigLayout(doc, selectedObjectId, camera.zoom));
     };
 
-    /** Сетка объекта, выделенные символы и курсор правки изнутри — по тому, что на экране. */
+    /** Графика правки изнутри и инструмента «Холст» — по тому, что на экране. */
     const syncEditMarks = (): void => {
       const editor = useEditorStore.getState();
-      view.setEditMarks(editMarks(currentDoc(), editor, useDocumentStore.getState().time));
+      const doc = currentDoc();
+      const time = useDocumentStore.getState().time;
+      view.setEditMarks(editMarks(doc, editor, time), canvasMarks(doc, editor));
     };
 
     /**
@@ -252,18 +254,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
               : state.cursorCell,
         );
       }
-      if (
-        !prev ||
-        state.editingObjectId !== prev.editingObjectId ||
-        state.glyphSelection !== prev.glyphSelection ||
-        state.marquee !== prev.marquee ||
-        state.cursorPoint !== prev.cursorPoint ||
-        state.textCursor !== prev.textCursor ||
-        state.tool !== prev.tool ||
-        state.draft !== prev.draft
-      ) {
-        syncEditMarks();
-      }
+      if (!prev || marksChanged(state, prev)) syncEditMarks();
     };
 
     syncDocument(useDocumentStore.getState(), null);

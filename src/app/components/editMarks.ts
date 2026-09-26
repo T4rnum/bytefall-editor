@@ -5,7 +5,7 @@ import { glyphQuad, placedGlyphs } from '../../core/glyphPick';
 import { findObject } from '../../core/object';
 import { type EditArea, areaCellAt, editArea } from '../../core/objectEdit';
 import { objectMatrix } from '../../core/placement';
-import type { EditMarks } from '../../render/Overlay';
+import type { CanvasMarks, EditMarks } from '../../render/Overlay';
 import { loopSegments } from '../../render/lineMarks';
 import type { EditorState } from '../store/editorStore';
 import { getTool } from '../tools';
@@ -60,3 +60,45 @@ export function editMarks(doc: Document, editor: EditorState, time: number): Edi
     cursor: cursorCell ? loopSegments([cellQuad(world, area, cursorCell)]) : [],
   };
 }
+
+/** Сторона ручки холста в пикселях экрана: при любом зуме её одинаково легко увидеть. */
+const CANVAS_HANDLE_PX = 8;
+
+/**
+ * Рамка и ручки инструмента «Холст»: у нынешнего холста или, пока тянут край, у будущего.
+ * null — инструмент не выбран.
+ */
+export function canvasMarks(doc: Document, editor: EditorState): CanvasMarks | null {
+  if (editor.tool !== 'canvas') return null;
+  const r = editor.canvasFrame ?? { x: 0, y: 0, w: doc.width, h: doc.height };
+  const corners = [
+    { x: r.x, y: r.y },
+    { x: r.x + r.w, y: r.y },
+    { x: r.x + r.w, y: r.y + r.h },
+    { x: r.x, y: r.y + r.h },
+  ];
+  const mids = corners.map((p, i) => {
+    const q = corners[(i + 1) % 4];
+    return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+  });
+  const half = CANVAS_HANDLE_PX / 2 / editor.camera.zoom;
+  const square = (p: Point): Point[] => [
+    { x: p.x - half, y: p.y - half },
+    { x: p.x + half, y: p.y - half },
+    { x: p.x + half, y: p.y + half },
+    { x: p.x - half, y: p.y + half },
+  ];
+  return { frame: loopSegments([corners]), handles: [...corners, ...mids].map(square) };
+}
+
+/** Изменилось ли в сторе то, от чего зависит графика правки изнутри и инструмента «Холст». */
+export const marksChanged = (state: EditorState, prev: EditorState): boolean =>
+  state.editingObjectId !== prev.editingObjectId ||
+  state.glyphSelection !== prev.glyphSelection ||
+  state.marquee !== prev.marquee ||
+  state.cursorPoint !== prev.cursorPoint ||
+  state.textCursor !== prev.textCursor ||
+  state.tool !== prev.tool ||
+  state.draft !== prev.draft ||
+  state.canvasFrame !== prev.canvasFrame ||
+  state.camera.zoom !== prev.camera.zoom;

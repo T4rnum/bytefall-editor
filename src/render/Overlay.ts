@@ -69,6 +69,12 @@ export interface EditMarks {
   readonly cursor: readonly Point[];
 }
 
+/** Инструмент «Холст»: рамка холста или будущего холста и квадратные ручки на ней. */
+export interface CanvasMarks {
+  readonly frame: readonly Point[];
+  readonly handles: readonly (readonly Point[])[];
+}
+
 /** Служебная графика поверх сетки: фон холста, подложка, линии сетки, курсор, выделение. */
 export class Overlay {
   readonly group = new THREE.Group();
@@ -83,6 +89,9 @@ export class Overlay {
   private readonly marquee: LineMarks;
   private readonly editCursor: LineMarks;
   private hasEdit = false;
+  private readonly canvasFrame: LineMarks;
+  private readonly canvasHandles: QuadFill;
+  private hasCanvasMarks = false;
   private readonly gizmo: GizmoLayer;
   private readonly rig: RigLayer;
   private gridLines: Lines | null = null;
@@ -110,6 +119,8 @@ export class Overlay {
     this.glyphFill = createQuadFill(ACCENT_COLOR, 0.28, RENDER_ORDER.marks);
     this.marquee = createLineMarks(ACCENT_COLOR, 0.8, RENDER_ORDER.marks);
     this.editCursor = createLineMarks('#ffffff', 0.9, RENDER_ORDER.cursor);
+    this.canvasFrame = createLineMarks(ACCENT_COLOR, 1, RENDER_ORDER.marks);
+    this.canvasHandles = createQuadFill(ACCENT_COLOR, 1, RENDER_ORDER.marks);
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = RENDER_ORDER.cursor;
     this.gizmo = createGizmoLayer({
@@ -128,6 +139,8 @@ export class Overlay {
       this.glyphMarks.mesh,
       this.marquee.mesh,
       this.editCursor.mesh,
+      this.canvasFrame.mesh,
+      this.canvasHandles.mesh,
       this.rig.group,
       this.gizmo.group,
       this.cursor,
@@ -195,6 +208,14 @@ export class Overlay {
     this.applyVisibility();
   }
 
+  /** Рамка и ручки инструмента «Холст»; null — инструмент не выбран. */
+  setCanvasMarks(marks: CanvasMarks | null): void {
+    this.hasCanvasMarks = marks !== null;
+    this.canvasFrame.set(marks?.frame ?? []);
+    this.canvasHandles.set(marks?.handles ?? []);
+    this.applyVisibility();
+  }
+
   /** Ручки трансформа выбранного объекта. null — гизмо не показывается. */
   setGizmo(marks: GizmoMarks | null): void {
     this.hasGizmo = marks !== null;
@@ -233,6 +254,8 @@ export class Overlay {
       marks.mesh.visible = chrome && this.hasEdit;
     }
     this.glyphFill.mesh.visible = chrome && this.hasEdit;
+    this.canvasFrame.mesh.visible = chrome && this.hasCanvasMarks;
+    this.canvasHandles.mesh.visible = chrome && this.hasCanvasMarks;
     this.gizmo.group.visible = chrome && this.hasGizmo;
     this.rig.group.visible = chrome && this.hasRig;
   }
@@ -261,6 +284,8 @@ export class Overlay {
       marks.dispose();
     }
     this.glyphFill.dispose();
+    this.canvasFrame.dispose();
+    this.canvasHandles.dispose();
     this.selection.dispose();
     this.checker.dispose();
     this.gizmo.dispose();

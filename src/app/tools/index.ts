@@ -7,6 +7,7 @@ import {
   createStrokeTool,
 } from './drawingTools';
 import { createBoneTool } from './boneTool';
+import { createCanvasTool } from './canvasTool';
 import { createObjectTool } from './objectTool';
 import { createLassoTool, createSelectTool, createWandTool } from './selectTool';
 import { createTextTool } from './textTool';
@@ -30,6 +31,7 @@ export const TOOLS: readonly Tool[] = [
   createTextTool(),
   createObjectTool(),
   createBoneTool(),
+  createCanvasTool(),
 ];
 
 const byId = new Map<ToolId, Tool>(TOOLS.map((t) => [t.id, t]));
