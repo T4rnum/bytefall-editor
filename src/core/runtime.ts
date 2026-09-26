@@ -61,6 +61,39 @@ export function runtimeFrame(frame: ComposedFrame, duration: number): RuntimeFra
   return { duration, glyphs };
 }
 
+const sameColor = (a: Rgba, b: Rgba): boolean =>
+  a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
+
+const sameGlyph = (a: RuntimeGlyph, b: RuntimeGlyph): boolean =>
+  a.x === b.x &&
+  a.y === b.y &&
+  a.rot === b.rot &&
+  a.sx === b.sx &&
+  a.sy === b.sy &&
+  a.glyph === b.glyph &&
+  sameColor(a.fg, b.fg) &&
+  sameColor(a.bg, b.bg);
+
+const sameFrame = (a: RuntimeFrame, b: RuntimeFrame): boolean =>
+  a.glyphs.length === b.glyphs.length && a.glyphs.every((g, i) => sameGlyph(g, b.glyphs[i]));
+
+/**
+ * Склеивает одинаковые кадры подряд в один с общей длительностью: сцена, которая замерла после
+ * движения, не повторяет один и тот же кадр на каждом такте частоты.
+ */
+export function mergeRepeats(frames: readonly RuntimeFrame[]): RuntimeFrame[] {
+  const out: RuntimeFrame[] = [];
+  for (const frame of frames) {
+    const last = out[out.length - 1];
+    if (last && sameFrame(last, frame)) {
+      out[out.length - 1] = { ...last, duration: last.duration + frame.duration };
+    } else {
+      out.push(frame);
+    }
+  }
+  return out;
+}
+
 /** Все символы кадров по первому появлению: из них собирается атлас. */
 export function usedGlyphs(frames: readonly RuntimeFrame[]): string[] {
   const seen = new Set<string>();

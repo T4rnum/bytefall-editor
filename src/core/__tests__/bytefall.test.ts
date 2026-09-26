@@ -6,7 +6,7 @@ import { createDocument } from '../document';
 import { composeFrame } from '../frame';
 import { keyOf } from '../grid';
 import { addObject, createObject, transformObject } from '../object';
-import { runtimeFrame, usedGlyphs } from '../runtime';
+import { mergeRepeats, runtimeFrame, usedGlyphs } from '../runtime';
 
 /** Холст 8×4: на слое «AB» с синим фоном под «A», объект «@», повёрнутый на 90°. */
 function scene() {
@@ -38,6 +38,14 @@ describe('кадр для рантайма', () => {
     expect(at.x).toBeCloseTo(5.5, 5);
     expect(at.rot).toBeCloseTo(Math.PI / 2, 5);
     expect(usedGlyphs([frame])).toEqual(['A', 'B', '@']);
+  });
+
+  it('одинаковые кадры подряд склеиваются, длительности складываются', () => {
+    const still = runtimeFrame(composeFrame(scene()), 50);
+    const moved = runtimeFrame(composeFrame(transformObject(scene(), 'o', { rot: 45 })), 50);
+    const merged = mergeRepeats([still, still, moved, moved, moved, still]);
+    expect(merged.map((f) => f.duration)).toEqual([100, 150, 50]);
+    expect(merged[1].glyphs[2].rot).toBeCloseTo(Math.PI / 4, 5);
   });
 });
 

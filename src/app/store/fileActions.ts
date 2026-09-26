@@ -4,7 +4,7 @@ import { composite } from '../../core/compositor';
 import { type ComposedFrame, composeAt } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { safeFileName } from '../../core/filename';
-import { type RuntimeFrame, runtimeFrame, usedGlyphs } from '../../core/runtime';
+import { type RuntimeFrame, mergeRepeats, runtimeFrame, usedGlyphs } from '../../core/runtime';
 import { exportSamples, hasMotion, sceneDuration } from '../../core/timeline';
 import { bufferToText } from '../../core/text';
 import {
@@ -199,11 +199,12 @@ export async function exportBytefallAction(): Promise<void> {
     const view = getActiveView();
     if (!view) throw new Error('холст ещё не готов');
     let previous: ComposedFrame | null = null;
-    const frames: RuntimeFrame[] = exportSamples(animation).map(({ time, delay }) => {
+    const moments: RuntimeFrame[] = exportSamples(animation).map(({ time, delay }) => {
       const frame: ComposedFrame = composeAt(animation, time, previous);
       previous = frame;
       return runtimeFrame(frame, delay);
     });
+    const frames = mergeRepeats(moments);
     const glyphs = usedGlyphs(frames);
     const cell = view.atlas.cellSize;
     const grid = atlasGrid(glyphs.length, cell);

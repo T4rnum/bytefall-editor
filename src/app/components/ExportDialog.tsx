@@ -76,7 +76,7 @@ function summary(choice: Choice): string {
     case 'frames':
       return `${plural(count, FRAMES)} по ${w}×${h} пикс. в архиве ZIP`;
     case 'bytefall':
-      return `${plural(count, FRAMES)}, холст ${doc.width}×${doc.height} символов`;
+      return `до ${plural(count, FRAMES)}, холст ${doc.width}×${doc.height} символов`;
     case 'text':
       return `${doc.width}×${doc.height} символов`;
   }
