@@ -543,6 +543,7 @@ select {
   grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
   gap: var(--space-1);
   min-height: 0;
+  max-height: var(--glyph-grid-max-h);
   padding-right: var(--space-1);
   overflow: auto;
 }
