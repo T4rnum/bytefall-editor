@@ -2,13 +2,15 @@ import { parseAttrValue } from '../../core/cell';
 import { canEditLayer } from '../../core/document';
 import { descendantIds } from '../../core/hierarchy';
 import type { SceneObject } from '../../core/object';
+import {
+  moveSelectedObjectsToLayerAction,
+  setSelectedParentAction,
+} from '../store/objectBatchActions';
 import { useDocumentStore } from '../store/documentStore';
 import {
   OBJECT_PARENT_SELECT_ID,
-  moveSelectedObjectToLayerAction,
   removeObjectPropAction,
   setObjectPropAction,
-  setSelectedParentAction,
 } from '../store/objectActions';
 import { Field, PropertyEditor, Select, plural, valueTypeName } from '../ui';
 import { DeformerFields } from './DeformerFields';
@@ -63,7 +65,7 @@ export function ObjectInspector({ object }: Props) {
           size="sm"
           ariaLabel="Слой объекта"
           title="Перенести объект на другой слой (Alt+] выше, Alt+[ ниже)"
-          onChange={moveSelectedObjectToLayerAction}
+          onChange={moveSelectedObjectsToLayerAction}
         />
       </Field>
       <Field label="Родитель">

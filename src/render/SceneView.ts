@@ -133,8 +133,8 @@ export class SceneView {
     this.requestRender();
   }
 
-  setObjectOutline(quad: readonly Point[] | null): void {
-    this.overlay.setObjectOutline(quad);
+  setObjectOutlines(quads: readonly (readonly Point[])[]): void {
+    this.overlay.setObjectOutlines(quads);
     this.requestRender();
   }
 

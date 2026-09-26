@@ -15,19 +15,26 @@ import { notify } from './notifyStore';
 
 type Links = readonly Constraint[];
 
-/** Связи — часть рига, а не рисунок кадра: правка идёт во все кадры, где объект есть. */
+/**
+ * Связи — часть рига, а не рисунок кадра: правка идёт во все кадры, где объект есть. Правка
+ * нескольких объектов — одна запись истории.
+ */
 function editLinks(
-  objectId: string,
+  objectIds: readonly string[],
   label: string,
-  fn: (links: Links) => Links,
+  fn: (links: Links, objectId: string) => Links,
   mergeKey?: string,
 ) {
   const { animation, commitAnimation } = useDocumentStore.getState();
   const next = mapFrames(animation, (doc) => {
-    const obj = findObject(doc, objectId);
-    if (!obj) return doc;
-    const constraints = fn(obj.constraints);
-    return constraints === obj.constraints ? doc : updateObject(doc, objectId, { constraints });
+    let out = doc;
+    for (const objectId of objectIds) {
+      const obj = findObject(out, objectId);
+      if (!obj) continue;
+      const constraints = fn(obj.constraints, objectId);
+      if (constraints !== obj.constraints) out = updateObject(out, objectId, { constraints });
+    }
+    return out;
   });
   if (next !== animation) commitAnimation(label, next, undefined, mergeKey);
 }
@@ -39,16 +46,27 @@ function hasRoom(links: Links): boolean {
   return false;
 }
 
-export function addConstraintAction(objectId: string, kind: ConstraintKind): void {
-  const obj = findObject(useDocumentStore.getState().doc, objectId);
-  if (!obj || !hasRoom(obj.constraints)) return;
-  const created = createConstraint(kind);
-  // Слежение запоминает, как объект стоит сейчас: иначе он развернулся бы осью X к родителю.
-  const link =
-    created.kind === 'aim'
-      ? { ...created, offset: restAimOffset(useDocumentStore.getState().doc, objectId, null) }
-      : created;
-  editLinks(objectId, 'Add constraint', (links) => [...links, link]);
+/**
+ * Даёт связь каждому объекту из `objectIds`, у каждого — своя. Так верёвка собирается одной
+ * командой: выбрать звенья цепочки и дать всем задержку за родителем.
+ */
+export function addConstraintAction(objectIds: readonly string[], kind: ConstraintKind): void {
+  const { doc } = useDocumentStore.getState();
+  const targets = objectIds.filter((id) => {
+    const obj = findObject(doc, id);
+    return obj !== undefined && hasRoom(obj.constraints);
+  });
+  if (targets.length === 0) return;
+  const links = new Map(
+    targets.map((id) => {
+      const created = createConstraint(kind);
+      // Слежение запоминает, как объект стоит сейчас: иначе он развернулся бы осью X к родителю.
+      const link =
+        created.kind === 'aim' ? { ...created, offset: restAimOffset(doc, id, null) } : created;
+      return [id, link];
+    }),
+  );
+  editLinks(targets, 'Add constraint', (current, id) => [...current, links.get(id) as Constraint]);
 }
 
 /** Связь уходит во всех кадрах, а с ней — её контроллер, если он больше никому не нужен. */
@@ -65,7 +83,7 @@ export function updateConstraintAction(
   mergeKey?: string,
 ): void {
   editLinks(
-    objectId,
+    [objectId],
     'Constraint settings',
     (links) => links.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     mergeKey,

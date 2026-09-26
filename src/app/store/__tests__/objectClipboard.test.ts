@@ -9,7 +9,10 @@ import { copyAction, cutAction, deleteSelectionAction, pasteAction } from '../cl
 import { updateLayerAction } from '../documentActions';
 import { useDocumentStore } from '../documentStore';
 import { useEditorStore } from '../editorStore';
-import { moveSelectedObjectToLayerAction, stepSelectedObjectLayerAction } from '../objectActions';
+import {
+  moveSelectedObjectsToLayerAction,
+  stepSelectedObjectsLayerAction,
+} from '../objectBatchActions';
 import { useNotifyStore } from '../notifyStore';
 
 const doc = () => useDocumentStore.getState().doc;
@@ -115,30 +118,30 @@ describe('перенос объекта на другой слой', () => {
 
   it('выбором слоя', () => {
     const { hero, topId } = setup();
-    moveSelectedObjectToLayerAction(topId);
+    moveSelectedObjectsToLayerAction(topId);
     expect(findObject(doc(), hero.id)?.layerId).toBe(topId);
   });
 
   it('шагом вверх и вниз, а на крайнем слое — никуда', () => {
     const { hero, bottomId, topId } = setup();
-    stepSelectedObjectLayerAction(1);
+    stepSelectedObjectsLayerAction(1);
     expect(findObject(doc(), hero.id)?.layerId).toBe(topId);
-    stepSelectedObjectLayerAction(1);
+    stepSelectedObjectsLayerAction(1);
     expect(findObject(doc(), hero.id)?.layerId).toBe(topId);
-    stepSelectedObjectLayerAction(-1);
+    stepSelectedObjectsLayerAction(-1);
     expect(findObject(doc(), hero.id)?.layerId).toBe(bottomId);
   });
 
   it('запертый слой объект не принимает', () => {
     const { hero, bottomId, topId } = setup();
     updateLayerAction(topId, { locked: true }, 'lock');
-    moveSelectedObjectToLayerAction(topId);
+    moveSelectedObjectsToLayerAction(topId);
     expect(findObject(doc(), hero.id)?.layerId).toBe(bottomId);
   });
 
   it('перенос касается только текущего кадра: объекты у каждого кадра свои', () => {
     const { hero, topId } = setup();
-    moveSelectedObjectToLayerAction(topId);
+    moveSelectedObjectsToLayerAction(topId);
     const second = frameDocument(useDocumentStore.getState().animation, 1);
     expect(second.objects).toHaveLength(0);
     expect(findObject(doc(), hero.id)?.layerId).toBe(topId);

@@ -13,6 +13,8 @@ export interface ToolCalls {
   readonly picks: { cell: Cell; button: number }[];
   readonly selections: (Selection | null)[];
   readonly selected: (string | null)[];
+  /** Выборы нескольких объектов через `setSelectedObjects`. */
+  readonly selectedMany: (readonly string[])[];
   readonly textCursors: (Point | null)[];
   draft: Document | null;
 }
@@ -27,6 +29,8 @@ export interface TestEnvOptions {
   readonly selection?: Selection | null;
   readonly textCursor?: Point | null;
   readonly selectedObjectId?: string | null;
+  /** По умолчанию — один `selectedObjectId`, если он есть. */
+  readonly selectedObjectIds?: readonly string[];
   readonly zoom?: number;
 }
 
@@ -50,6 +54,8 @@ export function makeToolEnv(
     selectedObjectId = null,
     zoom = 16,
   } = options;
+  const selectedObjectIds =
+    options.selectedObjectIds ?? (selectedObjectId ? [selectedObjectId] : []);
 
   const calls: ToolCalls = {
     previews: [],
@@ -58,6 +64,7 @@ export function makeToolEnv(
     picks: [],
     selections: [],
     selected: [],
+    selectedMany: [],
     textCursors: [],
     draft: null,
   };
@@ -72,6 +79,7 @@ export function makeToolEnv(
     selection,
     textCursor,
     selectedObjectId,
+    selectedObjectIds,
     zoom,
     setPreview: (edits) => calls.previews.push(edits),
     commit: (edits, label) => calls.commits.push({ label, edits }),
@@ -79,6 +87,7 @@ export function makeToolEnv(
     pick: (cell, button = 0) => calls.picks.push({ cell, button }),
     setTextCursor: (cell) => calls.textCursors.push(cell),
     setSelectedObject: (id) => calls.selected.push(id),
+    setSelectedObjects: (ids) => calls.selectedMany.push(ids),
     setDraft: (draft) => {
       calls.draft = draft;
     },
@@ -102,10 +111,15 @@ export const at = (x: number, y: number, button = 0, shift = false, alt = false)
 });
 
 /** Указатель в дробной точке документа: для ручек гизмо, которые не совпадают с ячейками. */
-export const atPoint = (x: number, y: number, keys: { shift?: boolean; alt?: boolean } = {}) => ({
+export const atPoint = (
+  x: number,
+  y: number,
+  keys: { shift?: boolean; alt?: boolean; ctrl?: boolean } = {},
+) => ({
   cell: { x: Math.floor(x), y: Math.floor(y) },
   point: { x, y },
   button: 0,
   shift: keys.shift ?? false,
   alt: keys.alt ?? false,
+  ctrl: keys.ctrl ?? false,
 });

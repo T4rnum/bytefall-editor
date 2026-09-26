@@ -25,6 +25,7 @@ import {
   resetTo,
 } from '../ui';
 import { DEFORMER_FIELDS, DEFORMER_KIND_OPTIONS, type Param } from './deformerParams';
+import { OBJECTS, useGroupTargets } from './groupTargets';
 
 type Values = Readonly<Record<string, string | number>>;
 
@@ -210,6 +211,7 @@ function DeformerItem({
  */
 export function DeformerFields({ object }: { readonly object: SceneObject }) {
   const [kind, setKind] = useState<DeformerKind>('wave');
+  const targets = useGroupTargets(object.id);
   return (
     <>
       <div className="keyed">
@@ -223,8 +225,12 @@ export function DeformerFields({ object }: { readonly object: SceneObject }) {
         <Button
           icon
           size="sm"
-          label="Добавить деформер объекту"
-          onClick={() => addDeformerAction(object.id, kind)}
+          label={
+            targets.length > 1
+              ? `Добавить деформер всем выбранным: ${plural(targets.length, OBJECTS)}`
+              : 'Добавить деформер объекту'
+          }
+          onClick={() => addDeformerAction(targets, kind)}
         >
           <Plus size={14} />
         </Button>

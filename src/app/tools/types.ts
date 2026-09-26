@@ -36,7 +36,10 @@ export interface ToolEnv {
   readonly wandContiguous: boolean;
   readonly selection: Selection | null;
   readonly textCursor: Point | null;
+  /** Главный выбранный объект: у него ручки трансформа. */
   readonly selectedObjectId: string | null;
+  /** Все выбранные объекты, главный — последний. */
+  readonly selectedObjectIds: readonly string[];
   /** Пикселей экрана на ячейку: ручки гизмо хватаются в пикселях, а не в ячейках. */
   readonly zoom: number;
   setPreview: (edits: CellEdits | null) => void;
@@ -46,6 +49,8 @@ export interface ToolEnv {
   pick: (cell: Cell, button?: number) => void;
   setTextCursor: (cell: Point | null) => void;
   setSelectedObject: (id: string | null) => void;
+  /** Выбирает несколько объектов, главный — последний. */
+  setSelectedObjects: (ids: readonly string[]) => void;
   /** Черновик документа для превью структурных операций, например переноса объекта. */
   setDraft: (doc: Document | null) => void;
   /** Структурный коммит целого документа одной записью истории. */
@@ -60,6 +65,8 @@ export interface PointerInfo {
   readonly button: number;
   readonly shift: boolean;
   readonly alt: boolean;
+  /** Ctrl, а на Mac — Cmd. */
+  readonly ctrl?: boolean;
 }
 
 export interface Tool {

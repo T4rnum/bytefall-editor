@@ -3,6 +3,7 @@ import type { Document } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import { moveInDocument } from '../../core/hierarchy';
 import { type SceneObject, canEditObject, findObject, transformObject } from '../../core/object';
+import { selectionRoots, toggleInSelection } from '../../core/objectSelection';
 import { objectAt, objectMatrix } from '../../core/placement';
 import { isBone } from '../../core/rig';
 import type { Transform2D } from '../../core/transform';
@@ -28,10 +29,16 @@ const RIG_STEP = 0.25;
 type Gesture =
   | {
       readonly kind: 'move';
-      readonly id: string;
+      /** Кого везём: выбранные без потомков выбранных, их и так повезёт предок. */
+      readonly ids: readonly string[];
       readonly anchor: Point;
       /** Узел рига едет плавно, по точке указателя, а не по ячейкам. */
       readonly fine: boolean;
+      /**
+       * Щелчок по объекту из выбранной группы: без переноса выбор на отпускании сужается до него,
+       * с переносом группа едет целиком.
+       */
+      readonly collapseTo: string | null;
       moved: boolean;
     }
   | {
@@ -72,7 +79,7 @@ const LABELS: Readonly<Record<Gesture['kind'], string>> = {
  * хоть за пределы объекта: так объект крутят вокруг внешней оси.
  */
 function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
-  const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
+  const obj = handleOwner(env);
   if (!obj || !canEditObject(env.doc, obj)) return null;
   const world = objectMatrix(env.doc, obj);
   const base = { id: obj.id, start: obj.transform, world, from: info.point };
@@ -89,15 +96,39 @@ function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
     : { kind: 'rotate', ...base, last: info.point, turned: 0 };
 }
 
-/** Жест от нажатия на объект: кость в цепочке поворачивается вокруг сустава, остальное едет. */
-function pressGesture(env: ToolEnv, hit: SceneObject, info: PointerInfo): Gesture {
-  if (isChained(env.doc, hit)) {
+/** Чьи ручки на холсте: только у единственного выбранного, у группы ручек нет. */
+function handleOwner(env: ToolEnv): SceneObject | undefined {
+  if (env.selectedObjectIds.length > 1 || !env.selectedObjectId) return undefined;
+  return findObject(env.doc, env.selectedObjectId);
+}
+
+/**
+ * Жест от нажатия на объект: кость в цепочке поворачивается вокруг сустава, остальное едет. Объект
+ * из выбранной группы везёт с собой всю группу.
+ */
+function pressGesture(env: ToolEnv, hit: SceneObject, info: PointerInfo, group: boolean): Gesture {
+  if (!group && isChained(env.doc, hit)) {
     const world = objectMatrix(env.doc, hit);
     const base = { id: hit.id, start: hit.transform, world, from: info.point };
     return { kind: 'rotate', ...base, last: info.point, turned: 0 };
   }
   const fine = hit.rig !== null;
-  return { kind: 'move', id: hit.id, anchor: fine ? info.point : info.cell, fine, moved: false };
+  const ids = group ? movableRoots(env) : [hit.id];
+  const anchor = fine ? info.point : info.cell;
+  return { kind: 'move', ids, anchor, fine, collapseTo: group ? hit.id : null, moved: false };
+}
+
+/** Выбранные, которые можно двигать: без запертых и без потомков выбранных. */
+function movableRoots(env: ToolEnv): string[] {
+  return selectionRoots(env.doc, env.selectedObjectIds).filter((id) => {
+    const obj = findObject(env.doc, id);
+    return obj !== undefined && canEditObject(env.doc, obj);
+  });
+}
+
+/** Каждый объект из `ids` на (dx, dy): одна правка документа на всю группу. */
+function moveAll(doc: Document, ids: readonly string[], dx: number, dy: number): Document {
+  return ids.reduce((next, id) => moveInDocument(next, id, dx, dy), doc);
 }
 
 /** Документ, каким он станет, если отпустить кнопку здесь. null — ничего не изменилось. */
@@ -111,7 +142,7 @@ function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | 
       const dy = snap(at.y - g.anchor.y);
       if (dx === 0 && dy === 0 && !g.moved) return null;
       g.moved = true;
-      return moveInDocument(env.doc, g.id, dx, dy);
+      return moveAll(env.doc, g.ids, dx, dy);
     }
     case 'rotate': {
       // Угол копится по шагам: так жест проходит и полный оборот, и несколько.
@@ -165,8 +196,17 @@ export function createObjectTool(): Tool {
       // Кость и контроллер тоньше ячейки и лежат поверх рисунка: их ищем первыми.
       const hit =
         rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);
-      env.setSelectedObject(hit ? hit.id : null);
-      if (hit && canEditObject(env.doc, hit)) gesture = pressGesture(env, hit, info);
+      if (info.ctrl || info.shift) {
+        // Ctrl или Shift по объекту добавляет его к выбору или убирает из него, ничего не двигая.
+        if (hit) env.setSelectedObjects(toggleInSelection(env.selectedObjectIds, hit.id));
+        return;
+      }
+      const group =
+        hit !== undefined &&
+        env.selectedObjectIds.length > 1 &&
+        env.selectedObjectIds.includes(hit.id);
+      if (!group) env.setSelectedObject(hit ? hit.id : null);
+      if (hit && canEditObject(env.doc, hit)) gesture = pressGesture(env, hit, info, group);
     },
     onPointerMove(env, info) {
       if (!gesture) return;
@@ -179,9 +219,12 @@ export function createObjectTool(): Tool {
       const next = gestureResult(env, finished, info);
       stop(env);
       if (next && next !== env.doc) env.commitDocument(LABELS[finished.kind], next);
+      else if (finished.kind === 'move' && finished.collapseTo) {
+        env.setSelectedObject(finished.collapseTo);
+      }
     },
     hoverCursor(env, info) {
-      const obj = env.selectedObjectId ? findObject(env.doc, env.selectedObjectId) : undefined;
+      const obj = handleOwner(env);
       if (obj && canEditObject(env.doc, obj) && obj.rig) {
         if (isBone(obj) && onBoneTail(env.doc, obj, info.point, env.zoom)) return 'grab';
       } else if (obj && canEditObject(env.doc, obj)) {
@@ -196,15 +239,13 @@ export function createObjectTool(): Tool {
       return isChained(env.doc, hit) ? 'grab' : 'move';
     },
     onKeyDown(env, event) {
-      const id = env.selectedObjectId;
-      if (!id || event.ctrlKey || event.metaKey || event.altKey) return false;
-      const obj = findObject(env.doc, id);
-      if (!obj) return false;
+      if (env.selectedObjectIds.length === 0 || event.ctrlKey || event.metaKey || event.altKey) {
+        return false;
+      }
       const step = event.shiftKey ? NUDGE_FAST : 1;
       const nudge = (dx: number, dy: number): boolean => {
-        if (canEditObject(env.doc, obj)) {
-          env.commitDocument('Nudge object', moveInDocument(env.doc, id, dx, dy));
-        }
+        const ids = movableRoots(env);
+        if (ids.length > 0) env.commitDocument('Nudge object', moveAll(env.doc, ids, dx, dy));
         return true;
       };
       switch (event.key) {

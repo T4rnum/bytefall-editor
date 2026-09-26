@@ -17,7 +17,17 @@ import {
   updateConstraintAction,
 } from '../store/constraintActions';
 import { useDocumentStore } from '../store/documentStore';
-import { Button, Checkbox, Field, NumberField, Select, type SelectOption, resetTo } from '../ui';
+import {
+  Button,
+  Checkbox,
+  Field,
+  NumberField,
+  Select,
+  type SelectOption,
+  plural,
+  resetTo,
+} from '../ui';
+import { OBJECTS, useGroupTargets } from './groupTargets';
 
 const LABELS: Readonly<Record<ConstraintKind, string>> = {
   follow: 'Задержка',
@@ -155,6 +165,7 @@ export function ConstraintFields({ object }: { readonly object: SceneObject }) {
     .filter((k) => k !== 'ik' || bone)
     .map((k) => ({ value: k, label: LABELS[k] }));
   const [chosen, setKind] = useState<ConstraintKind>(bone ? 'ik' : 'follow');
+  const targets = useGroupTargets(object.id);
   const kind = kinds.some((k) => k.value === chosen) ? chosen : kinds[0].value;
   // Контроллеры первыми: IK обычно тянется к ним.
   const others = objects.filter((o) => o.id !== object.id);
@@ -179,8 +190,12 @@ export function ConstraintFields({ object }: { readonly object: SceneObject }) {
         <Button
           icon
           size="sm"
-          label="Добавить связь объекту"
-          onClick={() => addConstraintAction(object.id, kind)}
+          label={
+            targets.length > 1
+              ? `Добавить связь всем выбранным: ${plural(targets.length, OBJECTS)}`
+              : 'Добавить связь объекту'
+          }
+          onClick={() => addConstraintAction(targets, kind)}
         >
           <Plus size={14} />
         </Button>

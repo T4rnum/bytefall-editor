@@ -32,6 +32,12 @@ export function buildToolEnv(): ToolEnv {
     selection: editor.selection,
     textCursor: editor.textCursor,
     selectedObjectId: editor.selectedObjectId,
+    selectedObjectIds:
+      editor.selectedObjectIds.length > 0
+        ? editor.selectedObjectIds
+        : editor.selectedObjectId
+          ? [editor.selectedObjectId]
+          : [],
     zoom: editor.camera.zoom,
     setPreview: (edits) =>
       editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null),
@@ -49,6 +55,7 @@ export function buildToolEnv(): ToolEnv {
     },
     setTextCursor: editor.setTextCursor,
     setSelectedObject: editor.setSelectedObject,
+    setSelectedObjects: editor.setSelectedObjects,
     setDraft: editor.setDraft,
     commitDocument: docState.commitStructural,
   };

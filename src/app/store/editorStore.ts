@@ -47,7 +47,13 @@ export interface EditorState {
   readonly clipboard: Clipboard | null;
   readonly preview: Preview | null;
   readonly textCursor: Point | null;
+  /** Главный выбранный объект: его показывает инспектор, у него ручки трансформа. */
   readonly selectedObjectId: string | null;
+  /**
+   * Все выбранные объекты в порядке выбора, главный — последний. Групповые операции идут по ним;
+   * пуст, только когда ничего не выбрано.
+   */
+  readonly selectedObjectIds: readonly string[];
   /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
   readonly draft: Document | null;
   readonly isPlaying: boolean;
@@ -84,7 +90,10 @@ export interface EditorState {
   setClipboard: (clipboard: Clipboard | null) => void;
   setPreview: (preview: Preview | null) => void;
   setTextCursor: (cell: Point | null) => void;
+  /** Выбирает один объект или снимает выбор. */
   setSelectedObject: (id: string | null) => void;
+  /** Выбирает несколько объектов, главным становится последний. */
+  setSelectedObjects: (ids: readonly string[]) => void;
   setDraft: (doc: Document | null) => void;
   setPlaying: (playing: boolean) => void;
   setSelectedKeys: (keys: readonly KeyRef[]) => void;
@@ -131,6 +140,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   preview: null,
   textCursor: null,
   selectedObjectId: null,
+  selectedObjectIds: [],
   draft: null,
   isPlaying: false,
   selectedKeys: [],
@@ -160,7 +170,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   setClipboard: (clipboard) => set({ clipboard }),
   setPreview: (preview) => set({ preview }),
   setTextCursor: (textCursor) => set({ textCursor }),
-  setSelectedObject: (selectedObjectId) => set({ selectedObjectId }),
+  setSelectedObject: (id) => set({ selectedObjectId: id, selectedObjectIds: id ? [id] : [] }),
+  setSelectedObjects: (ids) =>
+    set({ selectedObjectId: ids[ids.length - 1] ?? null, selectedObjectIds: [...ids] }),
   setDraft: (draft) => set({ draft }),
   setPlaying: (isPlaying) => set({ isPlaying }),
   setSelectedKeys: (selectedKeys) => set({ selectedKeys }),

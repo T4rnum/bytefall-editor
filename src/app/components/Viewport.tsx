@@ -3,7 +3,8 @@ import { type Ghost, effectsSignature } from '../../core/compositor';
 import { evaluate } from '../../core/evaluate';
 import { type ComposedFrame, composeFrame } from '../../core/frame';
 import { inBounds } from '../../core/geometry';
-import { canEditObject, findObject } from '../../core/object';
+import { type SceneObject, canEditObject, findObject } from '../../core/object';
+import { existingSelection } from '../../core/objectSelection';
 import { objectMatrix, objectQuad } from '../../core/placement';
 import { tileLayout, tilesFromKeys } from '../../core/tiles';
 import { spriteTiming } from '../../core/timeline';
@@ -125,16 +126,19 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     };
 
     /**
-     * Рамка выбранного объекта, а у инструмента объектов — ещё и ручки трансформа. У кости и
-     * контроллера рамки нет: их выделяет сам рисунок рига.
+     * Рамки выбранных объектов, а у инструмента объектов — ещё и ручки трансформа, если выбран
+     * один. У кости и контроллера рамки нет: их выделяет сам рисунок рига.
      */
     const syncObjectOutline = (): void => {
-      const { selectedObjectId, tool, camera } = useEditorStore.getState();
+      const { selectedObjectId, selectedObjectIds, tool, camera } = useEditorStore.getState();
       const doc = currentDoc();
+      const framed = selectedObjectIds
+        .map((id) => findObject(doc, id))
+        .filter((o): o is SceneObject => o !== undefined && o.rig === null);
+      view.setObjectOutlines(framed.map((o) => objectQuad(o, objectMatrix(doc, o))));
       const found = selectedObjectId ? findObject(doc, selectedObjectId) : undefined;
-      const obj = found?.rig ? undefined : found;
+      const obj = found?.rig || selectedObjectIds.length > 1 ? undefined : found;
       const world = obj ? objectMatrix(doc, obj) : null;
-      view.setObjectOutline(obj && world ? objectQuad(obj, world) : null);
       const gizmo =
         obj && world && tool === 'object' && canEditObject(doc, obj)
           ? gizmoLayout(obj, world, camera.zoom)
@@ -164,10 +168,9 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         const committed = prev && state.dirtyKeys ? tilesFromKeys(layout, state.dirtyKeys) : null;
         recomposite(committed ?? undefined);
         const editor = useEditorStore.getState();
-        // После undo, redo или удаления слоя выбранный объект мог исчезнуть.
-        if (editor.selectedObjectId && !findObject(state.doc, editor.selectedObjectId)) {
-          editor.setSelectedObject(null);
-        }
+        // После undo, redo или удаления слоя выбранные объекты могли исчезнуть.
+        const alive = existingSelection(state.doc, editor.selectedObjectIds);
+        if (alive.length !== editor.selectedObjectIds.length) editor.setSelectedObjects(alive);
         syncObjectOutline();
       } else if (state.time !== prev.time && !effectsUnchanged()) {
         // Сцена та же, но момент другой: эффекты могли смениться.
@@ -218,7 +221,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       if (
         !prev ||
         state.draft !== prev.draft ||
-        state.selectedObjectId !== prev.selectedObjectId ||
+        state.selectedObjectIds !== prev.selectedObjectIds ||
         state.tool !== prev.tool ||
         state.camera.zoom !== prev.camera.zoom
       ) {
@@ -292,7 +295,14 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     // Мир смотрит осью Y вверх, документ — вниз.
     const point = { x: world.x, y: -world.y };
     const cell = { x: Math.floor(point.x), y: Math.floor(point.y) };
-    return { cell, point, button: event.button, shift: event.shiftKey, alt: event.altKey };
+    return {
+      cell,
+      point,
+      button: event.button,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      ctrl: event.ctrlKey || event.metaKey,
+    };
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {

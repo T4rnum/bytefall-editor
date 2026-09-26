@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Point } from '../core/geometry';
 import { type Checker, createChecker } from './checker';
 import { type GizmoLayer, type GizmoMarks, createGizmoLayer } from './gizmo';
+import { type LineMarks, createLineMarks, loopSegments } from './lineMarks';
 import { RENDER_ORDER } from './order';
 import { type RigLayer, type RigMarks, createRigLayer } from './rigLayer';
 import { type Selection, type SelectionLayer, createSelectionLayer } from './selectionMask';
@@ -45,13 +46,6 @@ function unitOutline(): THREE.BufferGeometry {
   return geometry;
 }
 
-/** Четыре вершины рамки объекта: их координаты задаются каждый раз заново. */
-function quadOutline(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
-  return geometry;
-}
-
 function disposeObject(obj: Plane | Outline | Lines): void {
   obj.geometry.dispose();
   obj.material.dispose();
@@ -64,7 +58,7 @@ export class Overlay {
   private readonly checker: Checker;
   private readonly cursor: Outline;
   private readonly selection: SelectionLayer;
-  private readonly objectOutline: Outline;
+  private readonly objectOutlines: LineMarks;
   private readonly gizmo: GizmoLayer;
   private readonly rig: RigLayer;
   private gridLines: Lines | null = null;
@@ -86,10 +80,7 @@ export class Overlay {
     this.background.renderOrder = RENDER_ORDER.backdrop;
     this.checker = createChecker();
     this.selection = createSelectionLayer(ACCENT_COLOR);
-    this.objectOutline = new THREE.LineLoop(quadOutline(), lineMaterial(OBJECT_COLOR, 1));
-    this.objectOutline.renderOrder = RENDER_ORDER.marks;
-    // Вершины рамки меняются на лету, и сфера отсечения, посчитанная однажды, устарела бы.
-    this.objectOutline.frustumCulled = false;
+    this.objectOutlines = createLineMarks(OBJECT_COLOR, 1, RENDER_ORDER.marks);
     this.cursor = new THREE.LineLoop(unitOutline(), lineMaterial('#ffffff', 0.9));
     this.cursor.renderOrder = RENDER_ORDER.cursor;
     this.gizmo = createGizmoLayer({
@@ -102,7 +93,7 @@ export class Overlay {
       this.background,
       this.checker.mesh,
       this.selection.mesh,
-      this.objectOutline,
+      this.objectOutlines.mesh,
       this.rig.group,
       this.gizmo.group,
       this.cursor,
@@ -153,16 +144,9 @@ export class Overlay {
     this.checker.setZoom(zoom);
   }
 
-  /** Рамка выбранного объекта: четыре угла в координатах документа, повёрнутая вместе с ним. */
-  setObjectOutline(quad: readonly Point[] | null): void {
-    this.hasObject = quad !== null && quad.length === 4;
-    if (quad && this.hasObject) {
-      const position = this.objectOutline.geometry.getAttribute(
-        'position',
-      ) as THREE.BufferAttribute;
-      quad.forEach((p, i) => position.setXYZ(i, p.x, -p.y, 0));
-      position.needsUpdate = true;
-    }
+  /** Рамки выбранных объектов: углы в координатах документа, повёрнутые вместе с объектами. */
+  setObjectOutlines(quads: readonly (readonly Point[])[]): void {
+    this.hasObject = this.objectOutlines.set(loopSegments(quads));
     this.applyVisibility();
   }
 
@@ -199,7 +183,7 @@ export class Overlay {
     if (this.gridLines) this.gridLines.visible = chrome && this.showGrid;
     this.cursor.visible = chrome && this.cursorCell !== null;
     this.selection.mesh.visible = chrome && this.hasSelection;
-    this.objectOutline.visible = chrome && this.hasObject;
+    this.objectOutlines.mesh.visible = chrome && this.hasObject;
     this.gizmo.group.visible = chrome && this.hasGizmo;
     this.rig.group.visible = chrome && this.hasRig;
   }
@@ -222,9 +206,8 @@ export class Overlay {
   }
 
   dispose(): void {
-    for (const obj of [this.background, this.objectOutline, this.cursor]) {
-      disposeObject(obj);
-    }
+    for (const obj of [this.background, this.cursor]) disposeObject(obj);
+    this.objectOutlines.dispose();
     this.selection.dispose();
     this.checker.dispose();
     this.gizmo.dispose();

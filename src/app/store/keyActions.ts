@@ -15,7 +15,7 @@ import type { Easing } from '../../core/easing';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { notify } from './notifyStore';
-import { editableSelectedObject } from './objectActions';
+import { editableSelectedObjects } from './objectBatchActions';
 
 const docState = () => useDocumentStore.getState();
 const editor = () => useEditorStore.getState();
@@ -42,18 +42,22 @@ export function toggleKeyAction(target: TrackTarget): void {
 
 const TRANSFORM_PROPERTIES: readonly ObjectProperty[] = ['position', 'rotation', 'scale'];
 
-/** K: ключи положения, поворота и масштаба выбранного объекта в текущий момент, одной записью. */
+/**
+ * K: ключи положения, поворота и масштаба выбранных объектов в текущий момент, одной записью.
+ */
 export function keySelectedObjectAction(): void {
-  const obj = editableSelectedObject();
-  if (!obj) {
+  const objects = editableSelectedObjects();
+  if (objects.length === 0) {
     notify('Выберите объект, чтобы поставить ключ');
     return;
   }
   stopPlayback();
   const { animation, time, commitAnimation } = docState();
   let next = animation;
-  for (const property of TRANSFORM_PROPERTIES) {
-    next = keyCurrentValue(next, { node: 'object', id: obj.id, property }, time);
+  for (const obj of objects) {
+    for (const property of TRANSFORM_PROPERTIES) {
+      next = keyCurrentValue(next, { node: 'object', id: obj.id, property }, time);
+    }
   }
   commitAnimation('Set transform keys', next);
 }

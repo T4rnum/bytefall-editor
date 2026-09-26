@@ -1,8 +1,5 @@
-import { canEditLayer, findLayer, layerIndex } from '../../core/document';
-import { applyEdit } from '../../core/keyframes';
-import { copyTracks, shiftPositionKeys } from '../../core/tracks';
-import { groupSelection, ungroupObject } from '../../core/grouping';
-import { canSetParent, detachedCopy, removeObject, setParent } from '../../core/hierarchy';
+import { groupSelection } from '../../core/grouping';
+import { detachedCopy, removeObject } from '../../core/hierarchy';
 import { objectMatrix } from '../../core/placement';
 import { pivotInDocument } from '../../core/transformGesture';
 import {
@@ -12,14 +9,10 @@ import {
   addObject,
   canEditObject,
   createObject,
-  duplicateObject,
   findObject,
-  moveObjectToLayer,
-  objectIndex,
   pasteObject,
   removeObjectProp,
   setObjectProp,
-  shiftObjectOrder,
   updateObject,
 } from '../../core/object';
 import { editableActiveLayer, useDocumentStore } from './documentStore';
@@ -77,41 +70,6 @@ export function groupSelectionAction(): void {
   setSelectedObject(result.object.id);
 }
 
-export function ungroupSelectedObjectAction(): void {
-  const obj = editableSelectedObject();
-  if (!obj) return;
-  docState().commitStructural('Ungroup object', ungroupObject(docState().doc, obj.id));
-  editor().setSelectedObject(null);
-}
-
-export function deleteSelectedObjectAction(): void {
-  const obj = editableSelectedObject();
-  if (!obj) return;
-  docState().commitStructural('Delete object', removeObject(docState().doc, obj.id));
-  editor().setSelectedObject(null);
-}
-
-/**
- * Копия выбранного объекта на клетку правее и ниже. Анимация копируется вместе с ним и сдвинута
- * так же: копия двигается рядом с оригиналом, а не сливается с ним на ключах.
- */
-export function duplicateSelectedObjectAction(): void {
-  const obj = selectedObject();
-  if (!obj || !hasRoomForObject()) return;
-  const { doc, animation, time, commitAnimation } = docState();
-  const next = duplicateObject(doc, obj.id);
-  const copy = next.objects[objectIndex(doc, obj.id) + 1];
-  const copyId = copy.id;
-  const edited = applyEdit(animation, time, doc, next);
-  // Деформеры копии идут в том же порядке, что у оригинала, но под новыми идентификаторами.
-  const deformerIds = new Map(obj.deformers.map((d, i) => [d.id, copy.deformers[i].id]));
-  let copied = copyTracks(edited.tracks, 'object', new Map([[obj.id, copyId]]));
-  copied = copyTracks(copied, 'deformer', deformerIds);
-  const tracks = shiftPositionKeys(copied, new Set([copyId]), 1, 1);
-  commitAnimation('Duplicate object', { ...edited, tracks });
-  editor().setSelectedObject(copyId);
-}
-
 /**
  * Кладёт выбранный объект в буфер обмена целиком. Запертый объект копировать можно. В буфер
  * объект уходит без родителя, но туда же, где он на экране: в кадре, куда его вставят, родителя
@@ -150,39 +108,6 @@ export function pasteObjectAction(source: SceneObject): void {
   editor().setSelectedObject(object.id);
 }
 
-/** Переносит выбранный объект на слой `layerId`. Запертый или скрытый слой объект не примет. */
-export function moveSelectedObjectToLayerAction(layerId: string): void {
-  const obj = editableSelectedObject();
-  if (!obj || obj.layerId === layerId) return;
-  const state = docState();
-  const target = findLayer(state.doc, layerId);
-  if (!target) return;
-  // Имя берётся до проверки: охранник типа в отрицании сузил бы слой до never.
-  const { name } = target;
-  if (!canEditLayer(target)) {
-    notify(`Слой «${name}» скрыт или заперт`, 'error');
-    return;
-  }
-  state.commitStructural('Move object to layer', moveObjectToLayer(state.doc, obj.id, layerId));
-}
-
-/** delta > 0 — на слой выше, delta < 0 — ниже. На крайнем слое ничего не происходит. */
-export function stepSelectedObjectLayerAction(delta: number): void {
-  const obj = selectedObject();
-  if (!obj) return;
-  const { doc } = docState();
-  const target = doc.layers[layerIndex(doc, obj.layerId) + Math.sign(delta)];
-  if (target) moveSelectedObjectToLayerAction(target.id);
-}
-
-/** delta > 0 поднимает объект выше внутри слоя, delta < 0 опускает. */
-export function moveSelectedObjectOrderAction(delta: number): void {
-  const obj = selectedObject();
-  if (!obj) return;
-  const { doc, commitStructural } = docState();
-  commitStructural(delta > 0 ? 'Object up' : 'Object down', shiftObjectOrder(doc, obj.id, delta));
-}
-
 export function updateObjectAction(
   id: string,
   patch: Partial<Omit<SceneObject, 'id'>>,
@@ -206,24 +131,6 @@ export function removeObjectPropAction(id: string, key: string): void {
 
 /** Поле выбора родителя в инспекторе: на него ведёт Ctrl+P. */
 export const OBJECT_PARENT_SELECT_ID = 'object-parent';
-
-/**
- * Назначает выбранному объекту родителя. Объект остаётся на месте, а дальше едет и крутится
- * вместе с родителем. null отвязывает, и объект тоже не сдвигается.
- */
-export function setSelectedParentAction(parentId: string | null): void {
-  const obj = editableSelectedObject();
-  if (!obj || obj.parentId === parentId) return;
-  const { doc, commitStructural } = docState();
-  if (parentId !== null && !canSetParent(doc, obj.id, parentId)) {
-    notify('Объект не может стать ребёнком самого себя или своего потомка', 'error');
-    return;
-  }
-  commitStructural(
-    parentId === null ? 'Clear parent' : 'Set parent',
-    setParent(doc, obj.id, parentId),
-  );
-}
 
 /** Ctrl+P, как в Blender: к выбору родителя выбранного объекта. */
 export function focusParentSelectAction(): void {

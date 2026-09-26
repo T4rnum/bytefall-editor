@@ -11,10 +11,10 @@ import { useEditorStore } from './editorStore';
 import {
   copySelectedObjectAction,
   cutSelectedObjectAction,
-  deleteSelectedObjectAction,
   pasteObjectAction,
   selectedObject,
 } from './objectActions';
+import { deleteSelectedObjectsAction } from './objectBatchActions';
 
 /**
  * Что копировать, решает инструмент: у инструмента объектов — выбранный объект, у остальных —
@@ -36,16 +36,15 @@ export function copyAction(): void {
   else copyCells();
 }
 
-/** Delete без выделенных ключей и без выбранного объекта: очищает выделенные ячейки. */
 /**
- * Delete удаляет то, что выбрано: у инструмента объектов — объект, у остальных — выделенные
- * ячейки, а без них — выбранный объект. Иначе объект, выбранный в панели при карандаше, был бы
+ * Delete удаляет то, что выбрано: у инструмента объектов — выбранные объекты, у остальных —
+ * выделенные ячейки, а без них — выбранные объекты. Иначе объект, выбранный в панели при карандаше, был бы
  * подсвечен, но не удалялся. Запертый объект не удаляется, и об этом говорит сообщение.
  */
 export function deleteSelectionAction(): void {
   const { selection } = useEditorStore.getState();
   if (selectedObject() && (objectsInFocus() || !selection)) {
-    deleteSelectedObjectAction();
+    deleteSelectedObjectsAction();
     return;
   }
   const docState = useDocumentStore.getState();

@@ -39,9 +39,10 @@ function editStack(
   commitAnimation(label, withStack(animation, objectId, fn));
 }
 
-export function addDeformerAction(objectId: string, kind: DeformerKind): void {
+/** Новый деформер для объекта или null с сообщением, почему его не добавить. */
+function newDeformer(objectId: string, kind: DeformerKind): Deformer | null {
   const obj = findObject(useDocumentStore.getState().doc, objectId);
-  if (!obj) return;
+  if (!obj) return null;
   if (obj.deformers.length >= MAX_DEFORMERS_PER_OBJECT) {
     const limit = plural(MAX_DEFORMERS_PER_OBJECT, {
       one: 'деформера',
@@ -49,20 +50,28 @@ export function addDeformerAction(objectId: string, kind: DeformerKind): void {
       many: 'деформеров',
     });
     notify(`Не больше ${limit} на объект`, 'error');
-    return;
+    return null;
   }
   const created = createDeformer(kind);
-  let deformer: Deformer = created;
-  if (created.kind === 'skin') {
-    // Скиннинг без костей ничего не делает: привязываем сразу, а без костей не добавляем.
-    const bones = bindSkin(useDocumentStore.getState().doc, objectId);
-    if (bones.length === 0) {
-      notify('У объекта нет костей: выбери его и нарисуй их инструментом «Кость» (J)', 'error');
-      return;
-    }
-    deformer = { ...created, bones };
+  if (created.kind !== 'skin') return created;
+  // Скиннинг без костей ничего не делает: привязываем сразу, а без костей не добавляем.
+  const bones = bindSkin(useDocumentStore.getState().doc, objectId);
+  if (bones.length === 0) {
+    notify('У объекта нет костей: выбери его и нарисуй их инструментом «Кость» (J)', 'error');
+    return null;
   }
-  editStack(objectId, 'Add deformer', (stack) => [...stack, deformer]);
+  return { ...created, bones };
+}
+
+/** Даёт деформер каждому объекту из `objectIds`, у каждого — свой, одной записью истории. */
+export function addDeformerAction(objectIds: readonly string[], kind: DeformerKind): void {
+  let next = useDocumentStore.getState().animation;
+  for (const id of objectIds) {
+    const deformer = newDeformer(id, kind);
+    if (deformer) next = withStack(next, id, (stack) => [...stack, deformer]);
+  }
+  const { animation, commitAnimation } = useDocumentStore.getState();
+  if (next !== animation) commitAnimation('Add deformer', next);
 }
 
 /**

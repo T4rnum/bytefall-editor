@@ -15,14 +15,16 @@ import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import { deleteSelectedKeysAction, keySelectedObjectAction } from '../store/keyActions';
 import { goToStartAction, stepKeyAction } from '../store/timeActions';
 import {
-  duplicateSelectedObjectAction,
   addEmptyObjectAction,
   focusParentSelectAction,
   groupSelectionAction,
-  setSelectedParentAction,
-  stepSelectedObjectLayerAction,
-  ungroupSelectedObjectAction,
 } from '../store/objectActions';
+import {
+  duplicateSelectedObjectsAction,
+  setSelectedParentAction,
+  stepSelectedObjectsLayerAction,
+  ungroupSelectedObjectsAction,
+} from '../store/objectBatchActions';
 import {
   resetSelectedRotationAction,
   resetSelectedScaleAction,
@@ -126,9 +128,9 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     group: 'Объекты',
     label: 'Разобрать объект',
     keys: 'Ctrl+Shift+G',
-    run: ungroupSelectedObjectAction,
+    run: ungroupSelectedObjectsAction,
   },
-  { group: 'Объекты', label: 'Дублировать', keys: 'Ctrl+D', run: duplicateSelectedObjectAction },
+  { group: 'Объекты', label: 'Дублировать', keys: 'Ctrl+D', run: duplicateSelectedObjectsAction },
   {
     group: 'Правка',
     label: 'Свойства выделенных ячеек',
@@ -139,13 +141,13 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     group: 'Объекты',
     label: 'Перенести на слой выше',
     keys: 'Alt+]',
-    run: () => stepSelectedObjectLayerAction(1),
+    run: () => stepSelectedObjectsLayerAction(1),
   },
   {
     group: 'Объекты',
     label: 'Перенести на слой ниже',
     keys: 'Alt+[',
-    run: () => stepSelectedObjectLayerAction(-1),
+    run: () => stepSelectedObjectsLayerAction(-1),
   },
   {
     group: 'Объекты',

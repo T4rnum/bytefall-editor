@@ -15,24 +15,28 @@ import {
   Trash2,
   Ungroup,
 } from 'lucide-react';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, type MouseEvent, useState } from 'react';
 import { findLayer } from '../../core/document';
 import { objectOutline } from '../../core/hierarchy';
 import { type SceneObject, findObject } from '../../core/object';
+import { rangeSelection, toggleInSelection } from '../../core/objectSelection';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { pasteAction } from '../store/clipboardActions';
 import {
   addEmptyObjectAction,
   copySelectedObjectAction,
-  deleteSelectedObjectAction,
-  duplicateSelectedObjectAction,
   groupSelectionAction,
-  moveSelectedObjectOrderAction,
-  ungroupSelectedObjectAction,
   updateObjectAction,
 } from '../store/objectActions';
-import { doublePress, Button, Panel, TextField } from '../ui';
+import {
+  deleteSelectedObjectsAction,
+  duplicateSelectedObjectsAction,
+  moveSelectedObjectsOrderAction,
+  ungroupSelectedObjectsAction,
+} from '../store/objectBatchActions';
+import { doublePress, Button, Panel, TextField, plural } from '../ui';
+import { OBJECTS } from './groupTargets';
 import { ObjectInspector } from './ObjectInspector';
 
 interface RowProps {
@@ -40,11 +44,13 @@ interface RowProps {
   /** Глубина в иерархии: ребёнок стоит под родителем с отступом. */
   readonly depth: number;
   readonly layerName: string;
+  /** Главный выбранный — `active`, выбранный вместе с ним — `selected`. */
   readonly active: boolean;
-  readonly onActivate: () => void;
+  readonly selected: boolean;
+  readonly onActivate: (event: MouseEvent) => void;
 }
 
-function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
+function ObjectRow({ object, depth, layerName, active, selected, onActivate }: RowProps) {
   const [editing, setEditing] = useState(false);
   // Переименование — только если оба нажатия пришлись на эту строку, см. `doublePress`.
   const [rename] = useState(() => doublePress(() => setEditing(true)));
@@ -55,9 +61,15 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
 
   return (
     <li
-      className={`item-row${active ? ' is-active' : ''}${object.visible ? '' : ' is-hidden'}`}
+      className={`item-row${active ? ' is-active' : selected ? ' is-selected' : ''}${
+        object.visible ? '' : ' is-hidden'
+      }`}
       style={{ '--depth': depth } as CSSProperties}
       onClick={onActivate}
+      // Shift по строке выбирает диапазон объектов, а не текст на странице.
+      onMouseDown={(e) => {
+        if (e.shiftKey) e.preventDefault();
+      }}
     >
       <Button
         icon
@@ -105,7 +117,7 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
           className="item-name"
           onMouseDown={rename.onMouseDown}
           onDoubleClick={rename.onDoubleClick}
-          title="Двойной щелчок — переименовать"
+          title="Двойной щелчок — переименовать. Ctrl — добавить к выбору, Shift — диапазон"
         >
           {object.name}
         </span>
@@ -118,11 +130,25 @@ function ObjectRow({ object, depth, layerName, active, onActivate }: RowProps) {
 export function ObjectsPanel() {
   const doc = useDocumentStore((s) => s.doc);
   const selectedId = useEditorStore((s) => s.selectedObjectId);
-  const setSelectedObject = useEditorStore((s) => s.setSelectedObject);
+  const selectedIds = useEditorStore((s) => s.selectedObjectIds);
   const hasSelection = useEditorStore((s) => s.selection !== null);
   const objectInClipboard = useEditorStore((s) => s.clipboard?.kind === 'object');
   const outline = objectOutline(doc);
   const selected = selectedId ? findObject(doc, selectedId) : undefined;
+  const count = selectedIds.length;
+  const many = count > 1;
+  const order = outline.map((row) => row.object.id);
+  /** Щелчок — один объект, Ctrl — добавить или убрать, Shift — всё от главного до этого. */
+  const activate = (id: string, event: MouseEvent): void => {
+    const editor = useEditorStore.getState();
+    if (event.ctrlKey || event.metaKey) {
+      editor.setSelectedObjects(toggleInSelection(editor.selectedObjectIds, id));
+    } else if (event.shiftKey) {
+      editor.setSelectedObjects(rangeSelection(order, editor.selectedObjectId, id));
+    } else {
+      editor.setSelectedObject(id);
+    }
+  };
 
   return (
     <Panel
@@ -153,20 +179,22 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Разобрать: впечатать объект в слой"
+            label={
+              many ? 'Разобрать выбранные: впечатать в слои' : 'Разобрать: впечатать объект в слой'
+            }
             hotkey="Ctrl+Shift+G"
             disabled={!selected}
-            onClick={ungroupSelectedObjectAction}
+            onClick={ungroupSelectedObjectsAction}
           >
             <Ungroup size={14} />
           </Button>
           <Button
             icon
             size="sm"
-            label="Дублировать объект"
+            label={many ? 'Дублировать выбранные' : 'Дублировать объект'}
             hotkey="Ctrl+D"
             disabled={!selected}
-            onClick={duplicateSelectedObjectAction}
+            onClick={duplicateSelectedObjectsAction}
           >
             <Copy size={14} />
           </Button>
@@ -193,18 +221,18 @@ export function ObjectsPanel() {
           <Button
             icon
             size="sm"
-            label="Поднять объект"
+            label={many ? 'Поднять выбранные' : 'Поднять объект'}
             disabled={!selected}
-            onClick={() => moveSelectedObjectOrderAction(1)}
+            onClick={() => moveSelectedObjectsOrderAction(1)}
           >
             <ChevronUp size={14} />
           </Button>
           <Button
             icon
             size="sm"
-            label="Опустить объект"
+            label={many ? 'Опустить выбранные' : 'Опустить объект'}
             disabled={!selected}
-            onClick={() => moveSelectedObjectOrderAction(-1)}
+            onClick={() => moveSelectedObjectsOrderAction(-1)}
           >
             <ChevronDown size={14} />
           </Button>
@@ -212,9 +240,9 @@ export function ObjectsPanel() {
             icon
             size="sm"
             variant="danger"
-            label="Удалить объект"
+            label={many ? 'Удалить выбранные' : 'Удалить объект'}
             disabled={!selected}
-            onClick={deleteSelectedObjectAction}
+            onClick={deleteSelectedObjectsAction}
           >
             <Trash2 size={14} />
           </Button>
@@ -232,10 +260,17 @@ export function ObjectsPanel() {
               depth={depth}
               layerName={findLayer(doc, object.layerId)?.name ?? '?'}
               active={object.id === selectedId}
-              onActivate={() => setSelectedObject(object.id)}
+              selected={selectedIds.includes(object.id)}
+              onActivate={(event) => activate(object.id, event)}
             />
           ))}
         </ul>
+      )}
+      {many && (
+        <p className="panel-hint">
+          Выбрано {plural(count, OBJECTS)}. Удаление, дублирование, перенос на слой, родитель, связи
+          и деформеры — для всех; свойства ниже — у главного.
+        </p>
       )}
       {selected && <ObjectInspector key={selected.id} object={selected} />}
     </Panel>
