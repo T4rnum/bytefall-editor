@@ -7,10 +7,9 @@ import {
   exportBytefallAction,
   exportFramesAction,
   exportGifAction,
-  exportPngAction,
   exportSpriteSheetAction,
-  exportTextAction,
-} from '../store/fileActions';
+} from '../store/exportActions';
+import { exportPngAction, exportTextAction } from '../store/fileActions';
 import { Button, Field, Select, plural, readSetting, writeSetting } from '../ui';
 
 type Format = 'png' | 'gif' | 'sheet' | 'frames' | 'bytefall' | 'text';

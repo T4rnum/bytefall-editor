@@ -616,6 +616,35 @@ select {
 }
 
 /** Режим, в котором инструменты работают иначе, чем обычно: правка объекта изнутри. */
+.status-job {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/** Прогресс долгой работы: полоса цветом акцента на фоне поля. */
+.status-progress {
+  width: 120px;
+  height: 6px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--panel-raised);
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.status-progress::-webkit-progress-bar {
+  background: var(--panel-raised);
+}
+
+.status-progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.status-progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
 .status-item--accent {
   color: var(--accent);
   font-weight: 600;

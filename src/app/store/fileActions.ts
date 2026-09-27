@@ -1,20 +1,8 @@
-import { type Animation, createAnimation } from '../../core/animation';
-import { atlasGrid, packBytefall } from '../../core/bytefall';
+import { createAnimation } from '../../core/animation';
 import { composite } from '../../core/compositor';
-import { type ComposedFrame, composeAt } from '../../core/frame';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { safeFileName } from '../../core/filename';
-import { type RuntimeFrame, mergeRepeats, runtimeFrame, usedGlyphs } from '../../core/runtime';
-import { exportSamples, hasMotion, sceneDuration } from '../../core/timeline';
 import { bufferToText } from '../../core/text';
-import {
-  GIF_MAX_FPS,
-  type RenderedFrame,
-  encodeGif,
-  gifSamples,
-  gifTimings,
-} from '../io/animationExport';
-import { canvasPng, frameArchive, sheetArchive } from '../io/archives';
 import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
@@ -103,127 +91,6 @@ export async function exportTextAction(): Promise<void> {
     const blob = new Blob([text], { type: 'text/plain' });
     if (await saveBlobFile(blob, `${safeFileName(doc.name)}.txt`, '.txt', 'Текст')) {
       notify('Текст сохранён');
-    }
-  } catch (error) {
-    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
-  }
-}
-
-interface Moment {
-  readonly time: number;
-  readonly delay: number;
-}
-
-/**
- * Рендерит моменты сцены без служебной графики в пиксели. Кадр в момент считает `composeAt`
- * — тот же `evaluate` и тот же композитор, что у экрана, поэтому экспорт совпадает с ним.
- */
-function renderMoments(
-  animation: Animation,
-  moments: readonly Moment[],
-  ppc: number,
-): RenderedFrame[] {
-  const view = getActiveView();
-  if (!view) throw new Error('холст ещё не готов');
-  let previous: ComposedFrame | null = null;
-  return moments.map(({ time, delay }) => {
-    const frame: ComposedFrame = composeAt(animation, time, previous);
-    previous = frame;
-    return { ...view.renderPixels(frame, ppc), delay };
-  });
-}
-
-export async function exportGifAction(pixelsPerCell: number): Promise<void> {
-  const { animation } = useDocumentStore.getState();
-  try {
-    const moments = gifTimings(gifSamples(animation), sceneDuration(animation));
-    const frames = renderMoments(animation, moments, pixelsPerCell);
-    const bytes = encodeGif(frames, animation.background === null);
-    const blob = new Blob([bytes.slice()], { type: 'image/gif' });
-    if (await saveBlobFile(blob, `${safeFileName(animation.name)}.gif`, '.gif', 'Анимация GIF')) {
-      const capped = hasMotion(animation) && animation.fps > GIF_MAX_FPS;
-      notify(
-        capped
-          ? `GIF сохранён с частотой ${GIF_MAX_FPS} к/с: чаще формат GIF кадры не показывает`
-          : 'GIF сохранён',
-      );
-    }
-  } catch (error) {
-    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
-  }
-}
-
-/** Архив ZIP из экспорта: листы с атласами или кадры с таймингом. */
-async function saveArchive(bytes: Uint8Array, name: string, done: string): Promise<void> {
-  const blob = new Blob([bytes.slice()], { type: 'application/zip' });
-  if (await saveBlobFile(blob, name, '.zip', 'Архив ZIP')) notify(done);
-}
-
-/** Листы спрайтов PNG с атласами JSON в формате Aseprite — для движков и импортёров. */
-export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<void> {
-  const { animation } = useDocumentStore.getState();
-  const name = safeFileName(animation.name);
-  try {
-    const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
-    await saveArchive(
-      await sheetArchive(frames, name),
-      `${name}-sheet.zip`,
-      'Лист спрайтов сохранён',
-    );
-  } catch (error) {
-    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
-  }
-}
-
-/** Каждый момент экспорта отдельным PNG, тайминг — в JSON рядом. */
-export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
-  const { animation } = useDocumentStore.getState();
-  const name = safeFileName(animation.name);
-  try {
-    const frames = renderMoments(animation, exportSamples(animation), pixelsPerCell);
-    const bytes = await frameArchive(frames, name, animation.fps);
-    await saveArchive(bytes, `${name}-frames.zip`, 'Кадры сохранены');
-  } catch (error) {
-    notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');
-  }
-}
-
-/**
- * Файл `.bytefall` для рантаймов Godot и Unity: атлас символов и поток символов на каждый момент
- * экспорта. Кадры считает тот же `composeAt`, что и экран; огонь и узлы объектов уже в них.
- */
-export async function exportBytefallAction(): Promise<void> {
-  const { animation } = useDocumentStore.getState();
-  const name = safeFileName(animation.name);
-  try {
-    const view = getActiveView();
-    if (!view) throw new Error('холст ещё не готов');
-    let previous: ComposedFrame | null = null;
-    const moments: RuntimeFrame[] = exportSamples(animation).map(({ time, delay }) => {
-      const frame: ComposedFrame = composeAt(animation, time, previous);
-      previous = frame;
-      return runtimeFrame(frame, delay);
-    });
-    const frames = mergeRepeats(moments);
-    const glyphs = usedGlyphs(frames);
-    const cell = view.atlas.cellSize;
-    const grid = atlasGrid(glyphs.length, cell);
-    const atlasPng = await canvasPng(view.atlas.sheet(glyphs, grid.columns));
-    const bytes = packBytefall({
-      header: {
-        name: animation.name,
-        width: animation.width,
-        height: animation.height,
-        background: animation.background,
-        fps: animation.fps,
-        atlas: { cell, ...grid, glyphs },
-      },
-      atlasPng,
-      frames,
-    });
-    const blob = new Blob([bytes.slice()], { type: 'application/octet-stream' });
-    if (await saveBlobFile(blob, `${name}.bytefall`, '.bytefall', 'Анимация для движка')) {
-      notify('Файл для движка сохранён');
     }
   } catch (error) {
     notify(`Не удалось экспортировать: ${errorMessage(error)}`, 'error');

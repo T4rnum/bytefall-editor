@@ -130,9 +130,13 @@ export async function saveDocumentFile(
   }
 }
 
-/** true, если файл сохранён; false при отмене. */
+/**
+ * true, если файл сохранён; false при отмене. Содержимое может ещё считаться: диалог
+ * открывается сразу — браузер пускает его только по свежему щелчку, — а файл пишется, когда
+ * обещание выполнится.
+ */
 export async function saveBlobFile(
-  blob: Blob,
+  blob: Blob | Promise<Blob>,
   fileName: string,
   extension: string,
   description: string,

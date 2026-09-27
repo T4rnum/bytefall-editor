@@ -14,22 +14,29 @@ export async function canvasPng(canvas: HTMLCanvasElement): Promise<Uint8Array> 
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-/** Холст нужного размера и PNG из него. */
+/**
+ * Внеэкранный холст нужного размера и PNG из него. Без DOM: архивы собираются и в воркере
+ * кодирования, и на главном потоке, если воркера нет.
+ */
 async function png(
   width: number,
   height: number,
-  draw: (ctx: CanvasRenderingContext2D) => void,
+  draw: (ctx: OffscreenCanvasRenderingContext2D) => void,
 ): Promise<Uint8Array> {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('браузер не дал Canvas 2D');
   draw(ctx);
-  return canvasPng(canvas);
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
-function putFrame(ctx: CanvasRenderingContext2D, frame: RenderedFrame, x: number, y: number): void {
+function putFrame(
+  ctx: OffscreenCanvasRenderingContext2D,
+  frame: RenderedFrame,
+  x: number,
+  y: number,
+): void {
   const pixels = new Uint8ClampedArray(
     frame.data.buffer,
     frame.data.byteOffset,

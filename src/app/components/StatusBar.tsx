@@ -1,10 +1,11 @@
 import { findObject } from '../../core/object';
 import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
+import { cancelJobAction, useJobStore } from '../store/jobStore';
 import { useNotifyStore } from '../store/notifyStore';
 import { useUiStore } from '../store/uiStore';
 import { getTool } from '../tools';
-import { TIP_ATTR, plural } from '../ui';
+import { Button, TIP_ATTR, plural } from '../ui';
 import { OBJECTS } from './groupTargets';
 
 const GLYPHS = { one: 'символ', few: 'символа', many: 'символов' } as const;
@@ -26,6 +27,7 @@ export function StatusBar() {
   const dirty = useDocumentStore((s) => s.dirty);
   const autosavedAt = useUiStore((s) => s.autosavedAt);
   const autosaveFailed = useUiStore((s) => s.autosaveFailed);
+  const job = useJobStore((s) => s.job);
   const message = useNotifyStore((s) => s.message);
   const kind = useNotifyStore((s) => s.kind);
   const layer = doc.layers.find((l) => l.id === activeLayerId);
@@ -74,6 +76,20 @@ export function StatusBar() {
         </span>
       )}
       <span className="status-spacer" />
+      {job && (
+        <span className="status-item status-job">
+          {job.label}
+          <progress
+            className="status-progress"
+            max={Math.max(1, job.total)}
+            value={job.done}
+            aria-label={`${job.label}: сделано ${job.done} из ${job.total}`}
+          />
+          <Button size="sm" label="Отменить" hotkey="Escape" onClick={cancelJobAction}>
+            Отмена
+          </Button>
+        </span>
+      )}
       {message && <span className={`status-item status-item--${kind}`}>{message}</span>}
       {autosaveFailed ? (
         <span

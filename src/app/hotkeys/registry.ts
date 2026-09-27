@@ -15,6 +15,7 @@ import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import { deleteSelectedKeysAction, keySelectedObjectAction } from '../store/keyActions';
 import { goToStartAction, stepKeyAction } from '../store/timeActions';
 import { escapeEditAction } from '../store/objectEditActions';
+import { cancelJobAction, useJobStore } from '../store/jobStore';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { TOOLS, getTool } from '../tools';
@@ -178,6 +179,13 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     label: 'Экспорт',
     keys: 'Ctrl+E',
     run: () => useUiStore.getState().setExportOpen(true),
+  },
+  {
+    group: 'Файл',
+    label: 'Отменить идущий экспорт',
+    keys: 'Escape',
+    when: () => useJobStore.getState().job !== null,
+    run: cancelJobAction,
   },
   {
     group: 'Вид',
