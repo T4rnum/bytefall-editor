@@ -1,10 +1,11 @@
 import type { Affine } from './affine';
 import { isBlankCell } from './cell';
-import { type CellBuffer, blendCell, createCellBuffer, stackCell } from './cellBuffer';
+import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
 import type { Document, Layer } from './document';
 import { isAnimatedObject, isDeformed, objectRig } from './deformObject';
 import { applyEffects, effectSignature, hasActiveEffects } from './effects';
-import { scene3DCells } from './scene3d/render';
+import type { Sprite3D } from './scene3d/glyphs';
+import { scene3DView } from './scene3d/render';
 import type { Rect } from './geometry';
 import { type CellEdits, type CellGrid, keyOf, xOf, yOf } from './grid';
 import { type SceneObject, groupObjectsByLayer } from './object';
@@ -77,6 +78,8 @@ export interface DrawTarget {
     time: number,
     rig?: ReadonlyMap<string, Affine>,
   ): void;
+  /** Облако символов 3D-слоя, от дальних к ближним. */
+  sprites(list: readonly Sprite3D[], opacity: number): void;
 }
 
 type CellFilter = (x: number, y: number) => boolean;
@@ -150,7 +153,9 @@ export function drawDocument(
   for (const source of doc.layers) {
     if (!source.visible || source.opacity <= 0) continue;
     // У 3D-слоя растр — рендер его сцены: дальше он идёт как обычный, с эффектами и объектами.
-    const layer = source.scene ? { ...source, cells: scene3DCells(source, doc) } : source;
+    // Облако символов режима B встаёт поверх растра и под объекты, как свободный объект.
+    const view = source.scene ? scene3DView(source, doc) : null;
+    const layer = view ? { ...source, cells: view.cells } : source;
     const opacity = layer.opacity * alpha;
     const edits = preview && preview.layerId === layer.id ? preview.edits : null;
     const objects = layerDrawOrder(layer, objectsByLayer.get(layer.id) ?? [], matrices);
@@ -162,6 +167,7 @@ export function drawDocument(
       for (const [key, cell] of applyEffects(content, layer.effects, ctx)) {
         blendCell(buf, key, cell, opacity);
       }
+      if (view && view.sprites.length > 0) target.sprites(view.sprites, opacity);
       for (const obj of objects) {
         if (isDrawn(obj) && isFreeObject(obj, matrixOf(obj))) free(obj, opacity);
       }
@@ -169,6 +175,7 @@ export function drawDocument(
     }
 
     drawRaster(target.cells(), layer, edits, opacity, layout, tiles);
+    if (view && view.sprites.length > 0) target.sprites(view.sprites, opacity);
     for (const obj of objects) {
       if (!isDrawn(obj)) continue;
       const matrix = matrixOf(obj);
@@ -280,6 +287,15 @@ export function composite(
       isDeformed(obj)
         ? blendDeformed(buf, obj, matrix, opacity, wanted, t, rig)
         : blendObject(buf, obj, matrix, opacity, wanted),
+    // Символ облака ложится в ячейку под своим центром; ближние идут последними и побеждают.
+    sprites: (list, opacity) => {
+      for (const s of list) {
+        const x = Math.floor(s.x);
+        const y = Math.floor(s.y);
+        if (x >= 0 && y >= 0 && x < buf.width && y < buf.height && wanted(x, y))
+          blendAt(buf, x, y, s.cell, opacity);
+      }
+    },
   };
   for (const ghost of ghosts) {
     drawDocument(flat, ghost.doc, null, ghost.opacity, time, layout, tiles);

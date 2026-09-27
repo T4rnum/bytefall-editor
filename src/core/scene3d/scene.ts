@@ -3,6 +3,7 @@ import {
   DEFAULT_CAMERA,
   DEFAULT_LIGHT,
   DEFAULT_QUANTIZE_3D,
+  DEFAULT_RENDER_3D,
   MAX_COORD_3D,
   MAX_FOV,
   MAX_LIGHT,
@@ -26,7 +27,8 @@ export type Scene3DProperty =
   | 'sunAzimuth'
   | 'sunElevation'
   | 'sun'
-  | 'ambient';
+  | 'ambient'
+  | 'fog';
 
 export const NODE_3D_PROPERTIES: readonly Node3DProperty[] = ['position', 'rotation', 'scale'];
 export const SCENE_3D_PROPERTIES: readonly Scene3DProperty[] = [
@@ -38,6 +40,7 @@ export const SCENE_3D_PROPERTIES: readonly Scene3DProperty[] = [
   'sunElevation',
   'sun',
   'ambient',
+  'fog',
 ];
 
 export const isVectorProperty = (property: Node3DProperty | Scene3DProperty): boolean =>
@@ -68,6 +71,8 @@ export function limits3D(property: Node3DProperty | Scene3DProperty): { min: num
     case 'sun':
     case 'ambient':
       return { min: 0, max: MAX_LIGHT };
+    case 'fog':
+      return { min: 0, max: 1 };
     default:
       return { min: -MAX_COORD_3D, max: MAX_COORD_3D };
   }
@@ -109,6 +114,8 @@ export function readScene3DValue(scene: Scene3D, property: Scene3DProperty): num
     case 'fov':
     case 'size':
       return [camera[property]];
+    case 'fog':
+      return [scene.render.fog];
     default:
       return [light[property]];
   }
@@ -128,13 +135,21 @@ export function writeScene3DValue(
     case 'fov':
     case 'size':
       return { ...scene, camera: { ...scene.camera, [property]: v[0] } };
+    case 'fog':
+      return { ...scene, render: { ...scene.render, fog: v[0] } };
     default:
       return { ...scene, light: { ...scene.light, [property]: v[0] } };
   }
 }
 
 export function createScene3D(nodes: readonly Node3D[] = []): Scene3D {
-  return { nodes, camera: DEFAULT_CAMERA, light: DEFAULT_LIGHT, quantize: DEFAULT_QUANTIZE_3D };
+  return {
+    nodes,
+    camera: DEFAULT_CAMERA,
+    light: DEFAULT_LIGHT,
+    quantize: DEFAULT_QUANTIZE_3D,
+    render: DEFAULT_RENDER_3D,
+  };
 }
 
 export function createNode3D(

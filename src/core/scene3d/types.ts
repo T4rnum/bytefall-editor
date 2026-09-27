@@ -59,12 +59,34 @@ export interface Light3D {
   readonly sunElevation: number;
 }
 
+/**
+ * Как сцена становится символами (DESIGN.md, раздел 6). `raster` — режим A: рендер через
+ * квантайзер. `grid` и `cloud` — режим B: символы стоят на поверхности тел, свет считается на
+ * каждый; по сетке экрана или облаком, где у символа своё место и размер.
+ */
+export type Render3DMode = 'raster' | 'grid' | 'cloud';
+
+export const RENDER_3D_MODES: readonly Render3DMode[] = ['raster', 'grid', 'cloud'];
+
+export interface Render3D {
+  readonly mode: Render3DMode;
+  /**
+   * Шаг символов облака в ячейках. С размером по глубине — на расстоянии от камеры до цели:
+   * ближе символы крупнее и реже, дальше — мельче и гуще.
+   */
+  readonly spacing: number;
+  readonly sizeByDepth: boolean;
+  /** 0..1: туман разрежает дальнее по рампе, а не темнит цвет. Во всех режимах. */
+  readonly fog: number;
+}
+
 export interface Scene3D {
   readonly nodes: readonly Node3D[];
   readonly camera: Camera3D;
   readonly light: Light3D;
   /** Как рендер становится ячейками: те же настройки, что у импорта картинки. */
   readonly quantize: QuantizeOptions;
+  readonly render: Render3D;
 }
 
 /**
@@ -105,6 +127,8 @@ export const MAX_SCALE_3D = 1000;
 export const MIN_FOV = 1;
 export const MAX_FOV = 170;
 export const MAX_LIGHT = 10;
+export const MIN_SPACING_3D = 0.5;
+export const MAX_SPACING_3D = 8;
 
 export const DEFAULT_CAMERA: Camera3D = {
   projection: 'perspective',
@@ -121,6 +145,13 @@ export const DEFAULT_LIGHT: Light3D = {
   sun: 0.9,
   sunAzimuth: 35,
   sunElevation: 45,
+};
+
+export const DEFAULT_RENDER_3D: Render3D = {
+  mode: 'raster',
+  spacing: 1,
+  sizeByDepth: true,
+  fog: 0,
 };
 
 /** Квантизация 3D: контуры включены — без них модель выглядит шумом (DESIGN.md, раздел 5). */

@@ -1,6 +1,6 @@
 import type { ReliefDepth } from '../../core/scene3d/relief';
 import type { Node3DProperty, Scene3DProperty } from '../../core/scene3d/scene';
-import type { Node3DKind } from '../../core/scene3d/types';
+import type { Node3DKind, Render3DMode } from '../../core/scene3d/types';
 
 /** Подписи 3D-сцены: одни для панели сцены и таймлайна. */
 export const NODE_3D_LABELS: Readonly<Record<Node3DProperty, string>> = {
@@ -18,6 +18,7 @@ export const SCENE_3D_LABELS: Readonly<Record<Scene3DProperty, string>> = {
   sunElevation: 'Солнце, высота',
   sun: 'Сила солнца',
   ambient: 'Рассеянный свет',
+  fog: 'Туман',
 };
 
 export const KIND_3D_LABELS: Readonly<Record<Node3DKind, string>> = {
@@ -33,4 +34,10 @@ export const KIND_3D_LABELS: Readonly<Record<Node3DKind, string>> = {
 export const RELIEF_LABELS: Readonly<Record<ReliefDepth, string>> = {
   brightness: 'По яркости',
   inflate: 'Подушкой по силуэту',
+};
+
+export const RENDER_3D_LABELS: Readonly<Record<Render3DMode, string>> = {
+  raster: 'Растр',
+  grid: 'Символы по сетке',
+  cloud: 'Облако символов',
 };

@@ -11,15 +11,19 @@ const VERTEX_SHADER = /* glsl */ `
   #ifdef USE_VERTEX_COLOR
     attribute vec3 color;
   #endif
+  uniform float uOrtho;
   varying vec3 vNormal;
   varying vec3 vColor;
   varying vec2 vUv;
   varying float vDepth;
+  varying float vDistance;
 
   void main() {
     vec4 view = modelViewMatrix * vec4(position, 1.0);
     vNormal = normalize(normalMatrix * normal);
     vDepth = (-view.z - uNear) / (uFar - uNear);
+    // Расстояние для тумана — как у режима B: от камеры, у ортографической — вдоль взгляда.
+    vDistance = uOrtho > 0.5 ? -view.z : length(view.xyz);
     #ifdef USE_VERTEX_COLOR
       vColor = color;
     #else
@@ -41,6 +45,10 @@ const FRAGMENT_SHADER = /* glsl */ `
   uniform vec3 uSun;
   /** Направление на солнце в координатах камеры. */
   uniform vec3 uSunDir;
+  /** Туман: сила и расстояния, в которых лежит сцена (sceneReach). */
+  uniform float uFog;
+  uniform float uFogNear;
+  uniform float uFogFar;
   #ifdef USE_TEXTURE
     uniform sampler2D uMap;
   #endif
@@ -48,6 +56,7 @@ const FRAGMENT_SHADER = /* glsl */ `
   varying vec3 vColor;
   varying vec2 vUv;
   varying float vDepth;
+  varying float vDistance;
 
   void main() {
     vec3 n = normalize(vNormal);
@@ -62,7 +71,9 @@ const FRAGMENT_SHADER = /* glsl */ `
       base *= texture2D(uMap, vUv).rgb;
     #endif
     vec3 light = uAmbient + uSun * max(dot(n, uSunDir), 0.0);
-    gl_FragColor = vec4(base * light, 1.0);
+    // Туман гасит яркость, а с яркими цветами квантайзера это разрежение по рампе, как в режиме B.
+    float mist = 1.0 - uFog * clamp((vDistance - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
+    gl_FragColor = vec4(base * light * mist, 1.0);
   }
 `;
 
@@ -80,6 +91,10 @@ export interface BodyUniforms {
   readonly uSunDir: { value: THREE.Vector3 };
   readonly uNear: { value: number };
   readonly uFar: { value: number };
+  readonly uOrtho: { value: number };
+  readonly uFog: { value: number };
+  readonly uFogNear: { value: number };
+  readonly uFogFar: { value: number };
   readonly uMap: { value: THREE.Texture | null };
 }
 
@@ -100,6 +115,10 @@ export function createBodyMaterial({ vertexColors, texture }: BodyMaterialOption
     uSunDir: { value: new THREE.Vector3(0, 0, 1) },
     uNear: { value: 0.05 },
     uFar: { value: 100 },
+    uOrtho: { value: 0 },
+    uFog: { value: 0 },
+    uFogNear: { value: 0 },
+    uFogFar: { value: 1 },
     uMap: { value: texture },
   };
   const material = new THREE.ShaderMaterial({

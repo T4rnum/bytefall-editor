@@ -27,6 +27,8 @@ import v9skin from './fixtures/v9-skin.bp.json?raw';
 import v9tracks from './fixtures/v9-deformer-tracks.bp.json?raw';
 import v10 from './fixtures/v10-graph.bp.json?raw';
 import v11 from './fixtures/v11-scene3d.bp.json?raw';
+import v12 from './fixtures/v12-scene3d-cloud.bp.json?raw';
+import { scene3DView } from '../scene3d/render';
 import { tintChannels } from '../animated';
 import { EASE_IN_OUT } from '../easing';
 import { sceneDuration } from '../timeline';
@@ -52,6 +54,7 @@ const FIXTURES = {
   'v9-deformer-tracks': v9tracks,
   'v10-graph': v10,
   'v11-scene3d': v11,
+  'v12-scene3d-cloud': v12,
 } as const;
 
 /** Узел графа объекта по идентификатору. */
@@ -283,6 +286,27 @@ describe('фикстуры формата', () => {
       'node-glow:radius',
     ]);
     expect(nodeOf(evaluate(anim, 500).objects[0], 'node-offset')!.values.strength).toBe(1.25);
+  });
+
+  it('v12: облако символов с туманом по ключу, солнце по ключам ведёт плотность', () => {
+    const anim = deserialize(v12);
+    const at = (time: number) => {
+      const doc = evaluate(anim, time);
+      const layer = doc.layers[0];
+      expect(layer.scene!.render).toMatchObject({ mode: 'cloud', spacing: 1.5, fog: 0.6 });
+      const sprites = scene3DView(layer, doc).sprites;
+      // Сумма ступеней рампы по символам половины экрана: чем светлее, тем плотнее символы.
+      const ramp = layer.scene!.quantize.ramp;
+      const ink = (right: boolean) =>
+        sprites
+          .filter((s) => s.x > 12 === right)
+          .reduce((sum, s) => sum + ramp.indexOf(s.cell.glyph), 0);
+      return { right: ink(true), left: ink(false) };
+    };
+    const morning = at(0);
+    expect(morning.right).toBeGreaterThan(morning.left);
+    const evening = at(1000);
+    expect(evening.left).toBeGreaterThan(evening.right);
   });
 
   it('до v6: частота по умолчанию, длина по кадрам, треков нет, объекты без оттенка', () => {

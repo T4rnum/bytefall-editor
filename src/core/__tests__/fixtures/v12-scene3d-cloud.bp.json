@@ -1,0 +1,96 @@
+{
+  "format": "bytefall",
+  "version": 12,
+  "name": "Fixture v12",
+  "width": 24,
+  "height": 12,
+  "font": "press-start-2p",
+  "background": null,
+  "palette": ["#000000", "#ffffff"],
+  "frames": [
+    {
+      "id": "frame-only",
+      "duration": 100,
+      "layers": [
+        {
+          "id": "layer-cloud",
+          "name": "Cloud",
+          "visible": true,
+          "locked": false,
+          "opacity": 1,
+          "cells": [],
+          "scene": {
+            "nodes": [
+              {
+                "id": "body-ball",
+                "name": "Ball",
+                "kind": "sphere",
+                "visible": true,
+                "position": [0, 0, 0],
+                "rotation": [0, 0, 0],
+                "scale": [2, 2, 2],
+                "color": "#FFA300"
+              }
+            ],
+            "camera": {
+              "projection": "perspective",
+              "position": [0, 0, 5],
+              "target": [0, 0, 0],
+              "fov": 40,
+              "size": 4
+            },
+            "light": {
+              "ambientColor": "#ffffff",
+              "ambient": 0.2,
+              "sunColor": "#ffffff",
+              "sun": 1,
+              "sunAzimuth": 90,
+              "sunElevation": 0
+            },
+            "quantize": {
+              "ramp": " .:-=+*#%@",
+              "weights": "rec709",
+              "gamma": 1,
+              "contrast": 1,
+              "brightness": 0,
+              "invert": false,
+              "dither": "none",
+              "edges": true,
+              "edgeThreshold": 0.35,
+              "edgeStrength": 0.5,
+              "palette": null,
+              "vivid": true,
+              "background": "none",
+              "alphaThreshold": 0.5
+            },
+            "render": {
+              "mode": "cloud",
+              "spacing": 1.5,
+              "sizeByDepth": true,
+              "fog": 0.25
+            }
+          }
+        }
+      ],
+      "objects": []
+    }
+  ],
+  "fps": 20,
+  "tracks": [
+    {
+      "node": "scene3d",
+      "id": "layer-cloud",
+      "property": "sunAzimuth",
+      "keys": [
+        { "t": 0, "v": 90 },
+        { "t": 1000, "v": -90 }
+      ]
+    },
+    {
+      "node": "scene3d",
+      "id": "layer-cloud",
+      "property": "fog",
+      "keys": [{ "t": 0, "v": 0.6 }]
+    }
+  ]
+}

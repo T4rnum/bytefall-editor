@@ -7,6 +7,7 @@ import { deformedPoses, isDeformed, poseMatrix } from './deformObject';
 import { tintOf } from './look';
 import { type GlyphMaterial, MATERIAL_FLOATS, materialFloats } from './material';
 import type { SceneObject } from './object';
+import type { Sprite3D } from './scene3d/glyphs';
 import { glyphMatrix } from './transform';
 
 /**
@@ -209,5 +210,19 @@ export function pushObjectGlyphs(
     if (!cell) continue;
     const at = multiply(world, glyphMatrix(key, obj.overrides.get(key)));
     builder.push(at, cell.glyph, fgOf(cell), bgOf(cell));
+  }
+}
+
+/** Облако символов 3D-слоя: без поворота, размер — масштаб квадрата символа. */
+export function pushSprites(
+  builder: GlyphBatchBuilder,
+  list: readonly Sprite3D[],
+  opacity: number,
+): void {
+  for (const { x, y, size, cell } of list) {
+    const m: Affine = { a: size, b: 0, c: 0, d: size, e: x, f: y };
+    const fg = withAlpha(colorOf(cell.fg), opacity);
+    const bg = cell.bg === null ? TRANSPARENT : withAlpha(colorOf(cell.bg), opacity);
+    builder.push(m, cell.glyph, fg, bg, { rot: 0, sx: size, sy: size });
   }
 }

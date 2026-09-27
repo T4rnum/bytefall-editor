@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { CellGrid } from '../../core/grid';
 
+import { sceneReach } from '../../core/scene3d/extent';
 import { type Scene3DRequest, buffersToCells, renderSubsamples } from '../../core/scene3d/render';
 import type { Camera3D, Light3D, Node3D, Scene3D } from '../../core/scene3d/types';
 import { Geometries } from './bodies';
@@ -91,12 +92,17 @@ export class Scene3DRenderer {
     const { root, materials } = this.build(scene, meshes);
     const sunDir = sunDirection(scene.light).transformDirection(camera.matrixWorldInverse);
     const { light } = scene;
+    const reach = sceneReach(scene, meshes);
     for (const m of materials) {
       m.uniforms.uAmbient.value.set(light.ambientColor).multiplyScalar(light.ambient);
       m.uniforms.uSun.value.set(light.sunColor).multiplyScalar(light.sun);
       m.uniforms.uSunDir.value.copy(sunDir);
       m.uniforms.uNear.value = near;
       m.uniforms.uFar.value = far;
+      m.uniforms.uOrtho.value = scene.camera.projection === 'orthographic' ? 1 : 0;
+      m.uniforms.uFog.value = scene.render.fog;
+      m.uniforms.uFogNear.value = reach.near;
+      m.uniforms.uFogFar.value = reach.far;
     }
     const rgba = new Uint8Array(fw * fh * 4);
     this.pass(root, camera, this.color!, 0, rgba);

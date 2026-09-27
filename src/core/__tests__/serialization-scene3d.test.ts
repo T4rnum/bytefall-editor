@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fromBase64, toBase64 } from '../base64';
 import { frameDocument } from '../animation';
 import { evaluate } from '../evaluate';
+import { DEFAULT_RENDER_3D } from '../scene3d/types';
 import { deserialize, serialize } from '../serialization';
 import v11 from './fixtures/v11-scene3d.bp.json?raw';
 
@@ -88,5 +89,42 @@ describe('3D-сцена в файле (версия 11)', () => {
     const unknown = file();
     unknown.tracks[1].property = 'zoom';
     expect(load(unknown)).toThrow(/Unknown scene3d property: zoom/);
+  });
+});
+
+describe('режим символов 3D-сцены (версия 12)', () => {
+  it('сцена версии 11 читается растром без тумана', () => {
+    const layer = frameDocument(deserialize(v11), 0).layers[1];
+    expect(layer.scene!.render).toEqual(DEFAULT_RENDER_3D);
+  });
+
+  it('облако, шаг, размер по глубине и ключи тумана — туда и обратно, лишнее не пройдёт', () => {
+    const f = file() as File & {
+      frames: { layers: { id: string; scene?: { render?: unknown } }[] }[];
+      tracks: { node: string; id: string; property: string; keys: { t: number; v: unknown }[] }[];
+    };
+    const layer = f.frames[0].layers[1];
+    layer.scene!.render = { mode: 'cloud', spacing: 1.5, sizeByDepth: false, fog: 0.2 };
+    f.tracks.push({
+      node: 'scene3d',
+      id: layer.id,
+      property: 'fog',
+      keys: [
+        { t: 0, v: 0 },
+        { t: 1000, v: 1 },
+      ],
+    });
+    const anim = load(f)();
+    const scene = evaluate(anim, 500).layers[1].scene!;
+    expect(scene.render).toMatchObject({ mode: 'cloud', spacing: 1.5, sizeByDepth: false });
+    expect(scene.render.fog).toBeCloseTo(0.5, 6);
+    expect(deserialize(serialize(anim))).toEqual(anim);
+    layer.scene!.render = { mode: 'cloud', spacing: 100, sizeByDepth: false, fog: 0.2 };
+    expect(load(f)).toThrow();
+    layer.scene!.render = { mode: 'voxels', spacing: 1, sizeByDepth: false, fog: 0.2 };
+    expect(load(f)).toThrow();
+    layer.scene!.render = { mode: 'grid', spacing: 1, sizeByDepth: false, fog: 0 };
+    f.tracks.at(-1)!.keys[1].v = 2;
+    expect(load(f)).toThrow(/out of range/);
   });
 });

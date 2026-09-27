@@ -2,9 +2,13 @@ import { z } from 'zod';
 import { normalizeHex } from '../color';
 import { limits3D } from '../scene3d/scene';
 import {
+  DEFAULT_RENDER_3D,
   MAX_NODES_3D,
+  MAX_SPACING_3D,
+  MIN_SPACING_3D,
   type Node3D,
   PRIMITIVES_3D,
+  RENDER_3D_MODES,
   type Scene3D,
   type Vec3,
 } from '../scene3d/types';
@@ -65,12 +69,21 @@ const quantizeSchema = z.object({
   alphaThreshold: z.number().min(0).max(1),
 });
 
+/** Режим символов (версия 12). Без него — режим A, как рисовали сцены версии 11. */
+const renderSchema = z.object({
+  mode: z.enum(RENDER_3D_MODES),
+  spacing: z.number().min(MIN_SPACING_3D).max(MAX_SPACING_3D),
+  sizeByDepth: z.boolean(),
+  fog: within('fog'),
+});
+
 /** 3D-сцена слоя (версия 11). */
 export const scene3dSchema = z.object({
   nodes: z.array(nodeSchema).max(MAX_NODES_3D),
   camera: cameraSchema,
   light: lightSchema,
   quantize: quantizeSchema,
+  render: renderSchema.optional(),
 });
 
 type Scene3DFile = z.infer<typeof scene3dSchema>;
@@ -103,7 +116,7 @@ export function scene3dFromFile(
       color: normalizeHex(n.color),
     };
   });
-  const { camera, light, quantize } = file;
+  const { camera, light, quantize, render } = file;
   return {
     nodes,
     camera: { ...camera, position: asVec3(camera.position), target: asVec3(camera.target) },
@@ -113,6 +126,7 @@ export function scene3dFromFile(
       sunColor: normalizeHex(light.sunColor),
     },
     quantize: { ...quantize, palette: quantize.palette?.map(normalizeHex) ?? null },
+    render: render ?? DEFAULT_RENDER_3D,
   };
 }
 
@@ -131,5 +145,6 @@ export function scene3dToFile(scene: Scene3D): Scene3DFile {
     },
     light: { ...scene.light },
     quantize: { ...scene.quantize, palette: scene.quantize.palette && [...scene.quantize.palette] },
+    render: { ...scene.render },
   };
 }

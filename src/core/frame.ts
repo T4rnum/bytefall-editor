@@ -11,7 +11,8 @@ import {
 } from './compositor';
 import type { Document } from './document';
 import { evaluate } from './evaluate';
-import { type GlyphBatch, GlyphBatchBuilder, pushObjectGlyphs } from './instances';
+import { type GlyphBatch, GlyphBatchBuilder, pushObjectGlyphs, pushSprites } from './instances';
+import type { Sprite3D } from './scene3d/glyphs';
 import type { SceneObject } from './object';
 import { type TileLayout, tileLayout, tileRect } from './tiles';
 
@@ -62,6 +63,15 @@ class PassTarget implements DrawTarget {
     return buffer;
   }
 
+  private glyphs(): GlyphBatchBuilder {
+    let last = this.passes.at(-1);
+    if (last?.kind !== 'glyphs') {
+      last = { kind: 'glyphs', builder: new GlyphBatchBuilder() };
+      this.passes.push(last);
+    }
+    return last.builder;
+  }
+
   free(
     obj: SceneObject,
     matrix: Affine,
@@ -69,12 +79,11 @@ class PassTarget implements DrawTarget {
     time: number,
     rig?: ReadonlyMap<string, Affine>,
   ): void {
-    let last = this.passes.at(-1);
-    if (last?.kind !== 'glyphs') {
-      last = { kind: 'glyphs', builder: new GlyphBatchBuilder() };
-      this.passes.push(last);
-    }
-    pushObjectGlyphs(last.builder, obj, matrix, opacity, time, rig);
+    pushObjectGlyphs(this.glyphs(), obj, matrix, opacity, time, rig);
+  }
+
+  sprites(list: readonly Sprite3D[], opacity: number): void {
+    pushSprites(this.glyphs(), list, opacity);
   }
 }
 
