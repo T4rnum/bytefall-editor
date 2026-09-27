@@ -1,4 +1,4 @@
-import { MATERIAL_FLOATS } from './material';
+import { MATERIAL, MATERIAL_FLOATS } from './material';
 import type { RuntimeFrame, RuntimeGlyph } from './runtime';
 import { fromUtf8, utf8 } from './utf8';
 
@@ -8,8 +8,9 @@ import { fromUtf8, utf8 } from './utf8';
  *
  * - `BYTEFALL`, версия u16, запас u16;
  * - длина заголовка u32 и сам заголовок JSON в UTF-8 (`BytefallHeader`);
- * - длина атласа u32 и атлас PNG: ячейки `cell` пикселей, `columns` в строке, ячейка 0 залита
- *   белым — по ней рисуются фоны, символ `glyphs[i]` лежит в ячейке `i + 1`;
+ * - длина атласа u32 и атлас PNG: ячейки `cellWidth` × `cellHeight` пикселей, `columns` в
+ *   строке, ячейка 0 залита белым — по ней рисуются фоны, символ `glyphs[i]` лежит в ячейке
+ *   `i + 1`;
  * - кадры подряд, по `count` символов в каждом, символ — 32 байта: x, y, поворот, sx, sy во
  *   float32, номер ячейки атласа u16 (0 — только фон), материал u16, цвет символа и фона по RGBA
  *   байтами.
@@ -20,11 +21,20 @@ import { fromUtf8, utf8 } from './utf8';
  * в раскладке `MATERIAL` из `core/material.ts`, цвета sRGB. В версии 1 чисел было 17: без
  * мягкости свечения, строк развёртки и крупных пикселей — читатель добивает их нулями.
  *
+ * Версия 3 — ячейка шрифта бывает неквадратной (`docs/DESIGN.md`, раздел 3). В заголовке атласа
+ * ячейка `cellWidth` × `cellHeight` пикселей и сетка шрифта `gridWidth` × `gridHeight` — пикселей
+ * шрифта в ячейке; их отношение — отношение сторон ячейки. Поворот и масштаб символа заданы в
+ * видимом пространстве, где X ячейки умножен на это отношение, толщина контура — в пикселях
+ * шрифта. До версии 3 ячейка квадратная (`cell`), сетка 8×8, контур — в ячейках: читатель
+ * переводит его в пиксели шрифта умножением на 8.
+ *
  * Фон — белая ячейка атласа с цветом фона, символ — его ячейка с цветом символа; материал
  * рантайм считает своим шейдером.
  */
 export const BYTEFALL_MAGIC = 'BYTEFALL';
-export const BYTEFALL_VERSION = 2;
+export const BYTEFALL_VERSION = 3;
+/** Сетка шрифта файлов до версии 3: Press Start 2P, 8×8. */
+const V2_GRID = 8;
 /** Чисел на материал в файлах версии 1. */
 const V1_MATERIAL_FLOATS = 17;
 export const GLYPH_BYTES = 32;
@@ -39,12 +49,7 @@ export interface BytefallHeader {
   /** Цвет холста `#rrggbb` или null — прозрачный. */
   readonly background: string | null;
   readonly fps: number;
-  readonly atlas: {
-    readonly cell: number;
-    readonly columns: number;
-    readonly rows: number;
-    readonly glyphs: readonly string[];
-  };
+  readonly atlas: BytefallAtlas;
   /** Таблица материалов, по `MATERIAL_FLOATS` чисел подряд. */
   readonly materials: readonly number[];
   /** Кадры: момент сцены и длительность в мс, число символов. */
@@ -53,6 +58,18 @@ export interface BytefallHeader {
     readonly duration: number;
     readonly count: number;
   }[];
+}
+
+export interface BytefallAtlas {
+  /** Ячейка атласа в пикселях. */
+  readonly cellWidth: number;
+  readonly cellHeight: number;
+  /** Сетка шрифта: пикселей шрифта в ячейке. */
+  readonly gridWidth: number;
+  readonly gridHeight: number;
+  readonly columns: number;
+  readonly rows: number;
+  readonly glyphs: readonly string[];
 }
 
 export interface BytefallFile {
@@ -64,12 +81,19 @@ export interface BytefallFile {
 /** Предел стороны атласа в пикселях: столько берёт любая видеокарта и любой движок. */
 export const MAX_ATLAS_SIDE = 4096;
 
-/** Сетка атласа почти квадратом: белая ячейка и символы. Не влезает в предел — ошибка. */
-export function atlasGrid(glyphCount: number, cell: number): { columns: number; rows: number } {
+/**
+ * Сетка атласа почти квадратом по пикселям: белая ячейка и символы. Не влезает в предел —
+ * ошибка.
+ */
+export function atlasGrid(
+  glyphCount: number,
+  cellWidth: number,
+  cellHeight: number = cellWidth,
+): { columns: number; rows: number } {
   const cells = glyphCount + 1;
-  const columns = Math.ceil(Math.sqrt(cells));
+  const columns = Math.max(1, Math.ceil(Math.sqrt((cells * cellHeight) / cellWidth)));
   const rows = Math.ceil(cells / columns);
-  if (columns * cell > MAX_ATLAS_SIDE) {
+  if (columns * cellWidth > MAX_ATLAS_SIDE || rows * cellHeight > MAX_ATLAS_SIDE) {
     throw new Error(`Too many distinct glyphs for one atlas: ${glyphCount}`);
   }
   return { columns, rows };
@@ -170,6 +194,8 @@ function readGlyph(view: DataView, at: number, header: BytefallHeader): RuntimeG
   const numbers = (): number[] => {
     const out = new Array<number>(MATERIAL_FLOATS).fill(0);
     header.materials.slice(start, start + stride).forEach((v, i) => (out[i] = v));
+    // До версии 3 контур был в ячейках сетки 8×8.
+    if (header.version < 3) out[MATERIAL.outline + 3] *= V2_GRID;
     return out;
   };
   return {
@@ -186,6 +212,14 @@ function readGlyph(view: DataView, at: number, header: BytefallHeader): RuntimeG
   };
 }
 
+/** Заголовок до версии 3 — в нынешний вид: квадратная ячейка `cell` и сетка 8×8. */
+function withAtlas(header: BytefallHeader): BytefallHeader {
+  if (header.version >= 3) return header;
+  const { cell, ...rest } = header.atlas as unknown as BytefallAtlas & { cell: number };
+  const atlas = { ...rest, cellWidth: cell, cellHeight: cell };
+  return { ...header, atlas: { ...atlas, gridWidth: V2_GRID, gridHeight: V2_GRID } };
+}
+
 /** Читает файл; чужой или оборванный — ошибка с причиной. */
 export function unpackBytefall(bytes: Uint8Array): BytefallFile {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -194,9 +228,9 @@ export function unpackBytefall(bytes: Uint8Array): BytefallFile {
   }
   let at = 12;
   const jsonLength = view.getUint32(at, true);
-  const header = JSON.parse(
-    fromUtf8(bytes.subarray(at + 4, at + 4 + jsonLength)),
-  ) as BytefallHeader;
+  const header = withAtlas(
+    JSON.parse(fromUtf8(bytes.subarray(at + 4, at + 4 + jsonLength))) as BytefallHeader,
+  );
   at += 4 + jsonLength;
   const atlasLength = view.getUint32(at, true);
   const atlasPng = bytes.slice(at + 4, at + 4 + atlasLength);

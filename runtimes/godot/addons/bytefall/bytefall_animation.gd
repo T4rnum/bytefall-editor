@@ -7,7 +7,7 @@ extends Resource
 ## [BytefallPlayer]. Раскладка файла описана в `src/core/bytefall.ts` редактора.
 
 const MAGIC := "BYTEFALL"
-const VERSION := 2
+const VERSION := 3
 const GLYPH_BYTES := 32
 ## Чисел на материал в таблице, раскладка — `src/core/material.ts`.
 const MATERIAL_FLOATS := 20
@@ -15,6 +15,10 @@ const MATERIAL_FLOATS := 20
 const V1_MATERIAL_FLOATS := 17
 ## Старший бит поля материала: запись — подложка символа (контур и свечение).
 const UNDER_BIT := 0x8000
+## Сетка шрифта файлов до версии 3: ячейка 8×8 пикселей шрифта.
+const V2_GRID := 8.0
+## Смещение толщины контура в числах материала.
+const OUTLINE_WIDTH := 3
 
 ## Размер холста в ячейках.
 @export var canvas_size := Vector2i.ZERO
@@ -23,6 +27,9 @@ const UNDER_BIT := 0x8000
 @export var fps := 20.0
 ## Атлас: ячейка 0 белая, символ [member glyphs][i] — в ячейке i + 1.
 @export var atlas: Texture2D
+## Сетка шрифта: пикселей шрифта в ячейке. Её отношение сторон — форма ячейки: у шрифтов 8×16
+## ячейка вдвое выше ширины.
+@export var grid := Vector2(8, 8)
 @export var atlas_columns := 1
 @export var atlas_rows := 1
 @export var glyphs := PackedStringArray()
@@ -40,6 +47,11 @@ const UNDER_BIT := 0x8000
 @export var data := PackedByteArray()
 
 
+## Ширина ячейки к высоте.
+func cell_aspect() -> float:
+	return grid.x / grid.y
+
+
 ## Число кадров.
 func frame_count() -> int:
 	return durations.size()
@@ -54,6 +66,7 @@ func total_duration() -> float:
 
 
 ## Читает файл `.bytefall` из байтов. Чужой или оборванный файл — null и ошибка в журнале.
+@warning_ignore("integer_division")
 static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	if bytes.size() < 16 or bytes.slice(0, 8).get_string_from_ascii() != MAGIC:
 		push_error("Bytefall: это не файл .bytefall")
@@ -89,6 +102,13 @@ static func from_bytes(bytes: PackedByteArray) -> BytefallAnimation:
 	anim.glyphs = PackedStringArray(header.atlas.glyphs)
 	var stride := MATERIAL_FLOATS if version >= 2 else V1_MATERIAL_FLOATS
 	anim.materials = _widen(PackedFloat32Array(header.get("materials", [])), stride)
+	if version >= 3:
+		anim.grid = Vector2(float(header.atlas.gridWidth), float(header.atlas.gridHeight))
+	else:
+		# До версии 3 ячейка квадратная, сетка 8×8, контур — в ячейках, а не в пикселях шрифта.
+		anim.grid = Vector2(V2_GRID, V2_GRID)
+		for row in anim.materials.size() / MATERIAL_FLOATS:
+			anim.materials[row * MATERIAL_FLOATS + OUTLINE_WIDTH] *= V2_GRID
 	anim.material_texture = _material_texture(anim.materials)
 	var total := 0
 	for frame in header.frames:

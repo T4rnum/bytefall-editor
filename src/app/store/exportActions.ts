@@ -167,8 +167,8 @@ export async function exportBytefallAction(): Promise<void> {
       }
       const frames = mergeRepeats(moments);
       const glyphs = usedGlyphs(frames);
-      const cell = view.atlas.cellWidth;
-      const grid = atlasGrid(glyphs.length, cell);
+      const { cellWidth, cellHeight, gridWidth, gridHeight } = view.atlas;
+      const grid = atlasGrid(glyphs.length, cellWidth, cellHeight);
       const atlasPng = await canvasPng(view.atlas.sheet(glyphs, grid.columns));
       const header = {
         name: animation.name,
@@ -176,7 +176,7 @@ export async function exportBytefallAction(): Promise<void> {
         height: animation.height,
         background: animation.background,
         fps: animation.fps,
-        atlas: { cell, ...grid, glyphs },
+        atlas: { cellWidth, cellHeight, gridWidth, gridHeight, ...grid, glyphs },
       };
       return packBytefall({ header, atlasPng, frames });
     },

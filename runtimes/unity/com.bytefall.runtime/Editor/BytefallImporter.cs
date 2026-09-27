@@ -10,7 +10,8 @@ namespace Bytefall.Editor
     /// него атлас, таблица материалов и материал. Перетащите ассет в поле Animation компонента
     /// Bytefall Player.
     /// </summary>
-    [ScriptedImporter(2, "bytefall")]
+    // Версия импортёра — версия формата: новый пакет переимпортирует файлы, импортированные старым.
+    [ScriptedImporter(BytefallAnimation.Version, "bytefall")]
     public sealed class BytefallImporter : ScriptedImporter
     {
         const string ShaderPath = "Packages/com.bytefall.runtime/Runtime/Resources/BytefallGlyph.shader";

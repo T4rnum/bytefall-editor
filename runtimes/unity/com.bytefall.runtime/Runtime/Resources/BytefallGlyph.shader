@@ -2,7 +2,9 @@
 //
 // Квад несёт в TEXCOORD1 номер ячейки атласа, номер материала (с 1, 0 — без материала) и режим:
 // 0 — сплошной цвет (фон), 1 — символ, 2 — подложка (контур и свечение). В TEXCOORD0 —
-// координаты внутри ячейки (0..1, у подложки шире на поле), в TEXCOORD2 — координаты документа.
+// координаты внутри ячейки (0..1, у подложки шире на поле), в TEXCOORD2 — координаты документа на
+// экране: X ячейки умножен на отношение сторон ячейки. _Grid — сетка шрифта, пикселей шрифта в
+// ячейке; её отношение сторон — форма ячейки.
 // Цвета в файле sRGB; в проекте с линейным цветом шейдер переводит их сам. Лежит в Resources,
 // чтобы попасть в сборку и для анимаций, загруженных в игре через FromBytes.
 Shader "Bytefall/Glyph"
@@ -12,6 +14,7 @@ Shader "Bytefall/Glyph"
         _MainTex ("Atlas", 2D) = "white" {}
         _Materials ("Materials", 2D) = "black" {}
         _AtlasGrid ("Atlas columns, rows", Vector) = (1, 1, 0, 0)
+        _Grid ("Font pixels per cell", Vector) = (8, 8, 0, 0)
         _FrameTime ("Scene time, s", Float) = 0
     }
     SubShader
@@ -33,7 +36,13 @@ Shader "Bytefall/Glyph"
             sampler2D _Materials;
             float4 _Materials_TexelSize;
             float4 _AtlasGrid;
+            float4 _Grid;
             float _FrameTime;
+
+            float Aspect()
+            {
+                return _Grid.x / _Grid.y;
+            }
 
             struct appdata
             {
@@ -124,7 +133,7 @@ Shader "Bytefall/Glyph"
             float Cover(float4 rect, float2 c, float block)
             {
                 if (!InsideCell(c)) return 0.0;
-                if (block > 1.0) c = (min(floor(c * 8.0 / block) * block + floor(block * 0.5), 7.0) + 0.5) / 8.0;
+                if (block > 1.0) c = (min(floor(c * _Grid.xy / block) * block + floor(block * 0.5), _Grid.xy - 1.0) + 0.5) / _Grid.xy;
                 float2 p = lerp(rect.xy, rect.zw, c);
                 return step(0.5, tex2Dlod(_MainTex, float4(p.x, 1.0 - p.y, 0, 0)).a);
             }
@@ -134,17 +143,19 @@ Shader "Bytefall/Glyph"
                 return top + bottom * (1.0 - top.a);
             }
 
+            // Радиус свечения — в высотах ячейки: по X в долях ячейки он делится на отношение сторон.
             float4 Glow(v2f i)
             {
                 float sum = 0.0;
                 float total = 0.0;
+                float2 radius = float2(i.glow.w / Aspect(), i.glow.w);
                 for (int j = -3; j <= 3; j++)
                 {
                     for (int k = -3; k <= 3; k++)
                     {
                         float2 s = float2(k, j) / 3.0;
                         float weight = exp(-2.0 * dot(s, s));
-                        sum += weight * Cover(i.rect, i.cellDoc.xy + s * i.glow.w, i.extra.z);
+                        sum += weight * Cover(i.rect, i.cellDoc.xy + s * radius, i.extra.z);
                         total += weight;
                     }
                 }
@@ -155,21 +166,24 @@ Shader "Bytefall/Glyph"
             // Мягкое свечение: пятно вокруг символа без его формы, к радиусу гаснет по Гауссу.
             float4 SoftGlow(v2f i)
             {
-                float d = max(0.0, length(i.cellDoc.xy - 0.5) - 0.35) / max(i.glow.w, 0.001);
+                float2 fromCenter = (i.cellDoc.xy - 0.5) * float2(Aspect(), 1.0);
+                float d = max(0.0, length(fromCenter) - 0.35) / max(i.glow.w, 0.001);
                 float alpha = saturate(exp(-2.0 * d * d) * 0.5 * i.modeStrength.y) * i.color.a;
                 return float4(i.glow.rgb * alpha, alpha);
             }
 
+            // Толщина контура — в пикселях шрифта.
             float4 Outline(v2f i)
             {
                 float hit = 0.0;
+                float2 width = i.outline.w / _Grid.xy;
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     for (int dx = -1; dx <= 1; dx++)
                     {
                         float2 dir = float2(dx, dy);
-                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w, i.extra.z));
-                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * i.outline.w * 0.5, i.extra.z));
+                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * width, i.extra.z));
+                        hit = max(hit, Cover(i.rect, i.cellDoc.xy + dir * width * 0.5, i.extra.z));
                     }
                 }
                 float alpha = hit * i.color.a;
@@ -199,7 +213,7 @@ Shader "Bytefall/Glyph"
             // Строка развёртки: каждая вторая строка пикселей шрифта.
             bool Scanline(v2f i)
             {
-                return i.extra.y > 0.0 && fmod(floor(i.cellDoc.y * 8.0), 2.0) > 0.5;
+                return i.extra.y > 0.0 && fmod(floor(i.cellDoc.y * _Grid.y), 2.0) > 0.5;
             }
 
             // Во сколько темнее строка: редактор умножает цвет sRGB, в линейном проекте — тот же множитель
@@ -222,7 +236,7 @@ Shader "Bytefall/Glyph"
                 if (mode > 0.5)
                 {
                     float glyph = Cover(i.rect, i.cellDoc.xy, i.extra.z);
-                    if (i.shineMotion.w > 0.0 && Bayer4(floor(i.cellDoc.xy * 8.0)) < i.shineMotion.w) glyph = 0.0;
+                    if (i.shineMotion.w > 0.0 && Bayer4(floor(i.cellDoc.xy * _Grid.xy)) < i.shineMotion.w) glyph = 0.0;
                     float3 fg = i.color.rgb;
                     if (i.shine.w > 0.0) fg = lerp(fg, i.shine.rgb, Shine(i));
                     if (Scanline(i)) fg *= Darken(i);

@@ -7,7 +7,7 @@ extends Node2D
 ## Меш кадра строится при первом показе и дальше берётся из кэша. Рисует он во внутренний
 ## элемент холста со своим материалом, так что поле [member CanvasItem.material] узла
 ## свободно. Цвет всей анимации меняется через [member CanvasItem.modulate], размер —
-## [member cell_size].
+## [member cell_height]: ширину ячейки узел берёт по форме ячейки шрифта анимации.
 
 const MeshBuilder := preload("bytefall_mesh.gd")
 const GLYPH_SHADER := preload("bytefall_glyph.gdshader")
@@ -21,10 +21,10 @@ signal finished
 		_time = 0.0
 		_frame = 0
 		queue_redraw()
-## Размер ячейки в пикселях.
-@export var cell_size := Vector2(16, 16):
+## Высота ячейки в пикселях. Ширина — по форме ячейки шрифта: у 8×16 вдвое меньше.
+@export var cell_height := 16.0:
 	set(value):
-		cell_size = value
+		cell_height = value
 		_meshes.clear()
 		queue_redraw()
 ## Центр холста в начале координат узла; иначе там левый верхний угол.
@@ -134,6 +134,8 @@ func _draw() -> void:
 	_material.set_shader_parameter(
 		"atlas_grid", Vector2(animation.atlas_columns, animation.atlas_rows)
 	)
+	_material.set_shader_parameter("grid", animation.grid)
+	var cell_size := cell_pixels()
 	_material.set_shader_parameter("time", animation.times[_frame] / 1000.0)
 	var origin := _origin()
 	if draw_background and animation.background.a > 0.0:
@@ -146,7 +148,13 @@ func _draw() -> void:
 		RenderingServer.canvas_item_add_mesh(_item, mesh.get_rid())
 
 
+## Ячейка в пикселях узла: высота [member cell_height], ширина — по форме ячейки шрифта.
+func cell_pixels() -> Vector2:
+	var aspect := animation.cell_aspect() if animation != null else 1.0
+	return Vector2(cell_height * aspect, cell_height)
+
+
 func _origin() -> Vector2:
 	if not centered:
 		return Vector2.ZERO
-	return -Vector2(animation.canvas_size) * cell_size * 0.5
+	return -Vector2(animation.canvas_size) * cell_pixels() * 0.5

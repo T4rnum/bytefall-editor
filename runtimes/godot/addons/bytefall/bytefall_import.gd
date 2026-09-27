@@ -49,6 +49,11 @@ func _get_import_order() -> int:
 	return 0
 
 
+## Версия импорта — версия формата: новый аддон переимпортирует файлы, импортированные старым.
+func _get_format_version() -> int:
+	return AnimationScript.VERSION
+
+
 func _can_import_threaded() -> bool:
 	return false
 

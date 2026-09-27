@@ -15,7 +15,7 @@ namespace Bytefall
     public sealed class BytefallPlayer : MonoBehaviour
     {
         [SerializeField] BytefallAnimation _animation;
-        [Tooltip("Размер ячейки в единицах мира. 0.16 — 16 пикселей при 100 пикселях на единицу.")]
+        [Tooltip("Высота ячейки в единицах мира, 0.16 — 16 пикселей при 100 пикселях на единицу. Ширина — по форме ячейки шрифта.")]
         public float cellSize = 0.16f;
         [Tooltip("Центр холста в начале координат объекта; иначе там левый верхний угол.")]
         public bool centered = true;

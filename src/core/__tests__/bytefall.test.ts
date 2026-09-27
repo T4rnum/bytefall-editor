@@ -4,6 +4,7 @@ import { makeCell } from '../cell';
 import {
   BYTEFALL_VERSION,
   GLYPH_BYTES,
+  type BytefallAtlas,
   atlasGrid,
   packBytefall,
   unpackBytefall,
@@ -54,18 +55,28 @@ function scene() {
   return transformObject(addObject(doc, obj), 'o', { rot: 90 });
 }
 
-/** Тот же файл, записанный версией 1: таблица материалов по 17 чисел. */
+/**
+ * Тот же файл, записанный версией 1: таблица материалов по 17 чисел, квадратная ячейка `cell`
+ * без сетки шрифта, контур в ячейках сетки 8×8.
+ */
 function asVersion1(bytes: Uint8Array): Uint8Array {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const length = view.getUint32(12, true);
   const header = JSON.parse(new TextDecoder().decode(bytes.subarray(16, 16 + length))) as {
     materials: number[];
+    atlas: BytefallAtlas;
   };
   const rows = header.materials.length / MATERIAL_FLOATS;
-  const materials = Array.from({ length: rows }, (_, r) =>
-    header.materials.slice(r * MATERIAL_FLOATS, r * MATERIAL_FLOATS + 17),
-  ).flat();
-  const json = new TextEncoder().encode(JSON.stringify({ ...header, version: 1, materials }));
+  const materials = Array.from({ length: rows }, (_, r) => {
+    const row = header.materials.slice(r * MATERIAL_FLOATS, r * MATERIAL_FLOATS + 17);
+    row[MATERIAL.outline + 3] /= 8;
+    return row;
+  }).flat();
+  const { cellWidth, columns, rows: atlasRows, glyphs } = header.atlas;
+  const atlas = { cell: cellWidth, columns, rows: atlasRows, glyphs };
+  const json = new TextEncoder().encode(
+    JSON.stringify({ ...header, version: 1, materials, atlas }),
+  );
   const out = new Uint8Array(16 + json.length + bytes.length - 16 - length);
   out.set(bytes.subarray(0, 16));
   out.set(json, 16);
@@ -75,6 +86,9 @@ function asVersion1(bytes: Uint8Array): Uint8Array {
   outView.setUint32(12, json.length, true);
   return out;
 }
+
+/** Атлас Press Start 2P на экспорте: ячейка 8×8 пикселей при сетке шрифта 8×8. */
+const SQUARE = { cellWidth: 8, cellHeight: 8, gridWidth: 8, gridHeight: 8 } as const;
 
 describe('кадр для рантайма', () => {
   it('ячейки и свободные символы одним потоком, по порядку отрисовки', () => {
@@ -110,7 +124,7 @@ describe('файл .bytefall', () => {
         height: 4,
         background: '#000000',
         fps: createAnimation(doc).fps,
-        atlas: { cell: 16, columns: 16, rows: 1, glyphs },
+        atlas: { ...SQUARE, cellWidth: 16, cellHeight: 16, columns: 16, rows: 1, glyphs },
       },
       atlasPng: png,
       frames,
@@ -145,7 +159,7 @@ describe('файл .bytefall', () => {
         height: 4,
         background: null,
         fps: 20,
-        atlas: { cell: 8, columns: 4, rows: 1, glyphs: usedGlyphs(frames) },
+        atlas: { ...SQUARE, columns: 4, rows: 1, glyphs: usedGlyphs(frames) },
       },
       atlasPng: new Uint8Array(0),
       frames,
@@ -158,6 +172,8 @@ describe('файл .bytefall', () => {
     expect(atlasGrid(3, 32)).toEqual({ columns: 2, rows: 2 });
     expect(atlasGrid(95, 32)).toEqual({ columns: 10, rows: 10 });
     expect(() => atlasGrid(128 * 128, 32)).toThrow(/Too many/);
+    // Ячейка 16×32: столбцов больше, чем строк, — квадратом атлас получается в пикселях.
+    expect(atlasGrid(95, 16, 32)).toEqual({ columns: 14, rows: 7 });
   });
 
   it('материалы: таблица в заголовке, подложки перед символами прохода', () => {
@@ -175,7 +191,7 @@ describe('файл .bytefall', () => {
         height: 4,
         background: null,
         fps: 20,
-        atlas: { cell: 8, columns: 2, rows: 2, glyphs: usedGlyphs([frame]) },
+        atlas: { ...SQUARE, columns: 2, rows: 2, glyphs: usedGlyphs([frame]) },
       },
       atlasPng: new Uint8Array(0),
       frames: [frame],
@@ -189,12 +205,14 @@ describe('файл .bytefall', () => {
     expect(at.material?.[MATERIAL.glow + 3]).toBeCloseTo(DEFAULT_GLOW.radius, 5);
     expect(at.material).toEqual(under.material);
 
-    // Файл версии 1: 17 чисел на материал, хвост читатель добивает нулями.
-    const v1 = asVersion1(bytes);
-    const old = unpackBytefall(v1).frames[0].glyphs[3];
+    // Файл версии 1: 17 чисел на материал, хвост читатель добивает нулями, контур — из ячеек
+    // в пиксели шрифта, ячейка квадратная, сетка 8×8.
+    const v1 = unpackBytefall(asVersion1(bytes));
+    const old = v1.frames[0].glyphs[3];
     expect(old.material).toHaveLength(MATERIAL_FLOATS);
     expect(old.material?.slice(0, 17)).toEqual(at.material?.slice(0, 17));
     expect(old.material?.slice(17)).toEqual([0, 0, 0]);
+    expect(v1.header.atlas).toMatchObject({ ...SQUARE, columns: 2, rows: 2 });
   });
 
   it('бегущий блик не даёт склеить кадры, даже если символы стоят', () => {

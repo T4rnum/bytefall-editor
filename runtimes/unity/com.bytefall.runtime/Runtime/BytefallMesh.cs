@@ -14,6 +14,7 @@ namespace Bytefall
     {
         public struct Options
         {
+            /// <summary>Высота ячейки в единицах мира; ширина — по форме ячейки шрифта.</summary>
             public float cellSize;
             public bool centered;
             public bool drawBackground;
@@ -31,7 +32,7 @@ namespace Bytefall
             if (options.drawBackground && anim.background.a > 0f)
             {
                 var size = new Vector2(anim.canvasSize.x, anim.canvasSize.y);
-                builder.Quad(size * 0.5f, 0f, size, 0f, anim.background, new Vector3(0, 0, ModeSolid));
+                builder.Quad(size * 0.5f, 0f, size, Vector2.zero, anim.background, new Vector3(0, 0, ModeSolid));
             }
             byte[] data = anim.data;
             for (int i = anim.offsets[frame]; i < anim.offsets[frame + 1]; i++)
@@ -47,13 +48,18 @@ namespace Bytefall
                 Color bg = new Color32(data[at + 28], data[at + 29], data[at + 30], data[at + 31]);
                 if ((flags & BytefallAnimation.UnderBit) != 0)
                 {
-                    // Поле подложки — самое широкое из контура и свечения, в ячейках.
-                    float margin = Mathf.Max(anim.MaterialValue(material, 3), anim.MaterialValue(material, 7));
+                    // Поле подложки в долях ячейки — самое широкое из контура (в пикселях шрифта) и
+                    // свечения (в высотах ячейки).
+                    float outline = anim.MaterialValue(material, BytefallAnimation.OutlineWidth);
+                    float glow = anim.MaterialValue(material, 7);
+                    var margin = Vector2.Max(
+                        new Vector2(outline / anim.grid.x, outline / anim.grid.y),
+                        new Vector2(glow / anim.CellAspect, glow));
                     builder.Quad(center, rot, size, margin, fg, new Vector3(glyph, material, ModeUnder));
                     continue;
                 }
-                if (bg.a > 0f) builder.Quad(center, rot, size, 0f, bg, new Vector3(0, material, ModeSolid));
-                if (glyph > 0 && fg.a > 0f) builder.Quad(center, rot, size, 0f, fg, new Vector3(glyph, material, ModeGlyph));
+                if (bg.a > 0f) builder.Quad(center, rot, size, Vector2.zero, bg, new Vector3(0, material, ModeSolid));
+                if (glyph > 0 && fg.a > 0f) builder.Quad(center, rot, size, Vector2.zero, fg, new Vector3(glyph, material, ModeGlyph));
             }
             builder.Fill(mesh);
             return mesh;
@@ -69,40 +75,49 @@ namespace Bytefall
             readonly List<int> _triangles = new List<int>();
             readonly Options _options;
             readonly Vector2 _origin;
+            /// <summary>
+            /// Ширина ячейки к высоте: поворот и масштаб символа заданы на экране, где X ячейки
+            /// умножен на это отношение, — так символ неквадратной ячейки вращается как жёсткое тело.
+            /// </summary>
+            readonly float _aspect;
 
             public Builder(BytefallAnimation anim, Options options)
             {
                 _options = options;
+                _aspect = anim.CellAspect;
                 _origin = options.centered ? -0.5f * new Vector2(anim.canvasSize.x, anim.canvasSize.y) : Vector2.zero;
             }
 
             /// <summary>
             /// Квад вокруг центра в ячейках документа: ячейка с полем <paramref name="margin"/>,
-            /// масштаб, поворот по часовой (ось Y документа вниз), затем в мир — ось Y вверх.
+            /// масштаб, поворот по часовой (ось Y документа вниз) — на экране, в видимом
+            /// пространстве, — затем в мир: ось Y вверх, ячейка шириной в <c>_aspect</c> высоты.
             /// </summary>
-            public void Quad(Vector2 center, float rot, Vector2 size, float margin, Color color, Vector3 custom)
+            public void Quad(Vector2 center, float rot, Vector2 size, Vector2 margin, Color color, Vector3 custom)
             {
                 float c = Mathf.Cos(rot);
                 float s = Mathf.Sin(rot);
-                float lo = -0.5f - margin;
-                float hi = 0.5f + margin;
+                var lo = -new Vector2(0.5f, 0.5f) - margin;
+                var hi = new Vector2(0.5f, 0.5f) + margin;
                 color *= _options.tint;
                 int start = _vertices.Count;
-                AddCorner(lo, lo);
-                AddCorner(hi, lo);
-                AddCorner(hi, hi);
-                AddCorner(lo, hi);
+                AddCorner(lo.x, lo.y);
+                AddCorner(hi.x, lo.y);
+                AddCorner(hi.x, hi.y);
+                AddCorner(lo.x, hi.y);
                 _triangles.AddRange(new[] { start, start + 1, start + 2, start, start + 2, start + 3 });
 
                 void AddCorner(float x, float y)
                 {
-                    var local = new Vector2(x * size.x, y * size.y);
-                    var doc = center + new Vector2(c * local.x - s * local.y, s * local.x + c * local.y);
+                    var local = new Vector2(x * size.x * _aspect, y * size.y);
+                    var turned = new Vector2(c * local.x - s * local.y, s * local.x + c * local.y);
+                    var doc = center + new Vector2(turned.x / _aspect, turned.y);
                     var at = doc + _origin;
-                    _vertices.Add(new Vector3(at.x, -at.y, 0f) * _options.cellSize);
+                    _vertices.Add(new Vector3(at.x * _aspect, -at.y, 0f) * _options.cellSize);
                     _cells.Add(new Vector2(x + 0.5f, y + 0.5f));
                     _custom0.Add(new Vector4(custom.x, custom.y, custom.z, 0f));
-                    _custom1.Add(new Vector4(doc.x, doc.y, 0f, 0f));
+                    // Блик бежит по экрану: координаты документа — в видимом пространстве.
+                    _custom1.Add(new Vector4(doc.x * _aspect, doc.y, 0f, 0f));
                     _colors.Add(color);
                 }
             }

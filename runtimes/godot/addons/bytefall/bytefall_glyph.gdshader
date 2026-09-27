@@ -2,7 +2,8 @@
 //
 // Квад несёт в CUSTOM0 номер ячейки атласа, номер материала (с 1, 0 — без материала) и режим:
 // 0 — сплошной цвет (фон), 1 — символ, 2 — подложка (контур и свечение). В UV — координаты
-// внутри ячейки символа (0..1, у подложки шире на поле), в CUSTOM1 — координаты документа.
+// внутри ячейки символа (0..1, у подложки шире на поле), в CUSTOM1 — координаты документа на
+// экране: X ячейки умножен на отношение сторон ячейки.
 shader_type canvas_item;
 render_mode unshaded;
 
@@ -11,6 +12,8 @@ uniform sampler2D atlas : filter_nearest, repeat_disable;
 // скорость, угол блика), (дизеринг, мягкость свечения, строки развёртки, крупный пиксель).
 uniform sampler2D materials : filter_nearest, repeat_disable;
 uniform vec2 atlas_grid = vec2(1.0, 1.0);
+// Сетка шрифта — пикселей шрифта в ячейке; её отношение сторон — форма ячейки.
+uniform vec2 grid = vec2(8.0, 8.0);
 // Момент сцены, секунды: по нему бежит блик.
 uniform float time = 0.0;
 
@@ -53,6 +56,10 @@ void vertex() {
 	}
 }
 
+float aspect() {
+	return grid.x / grid.y;
+}
+
 bool inside_cell(vec2 c) {
 	return c.x >= 0.0 && c.y >= 0.0 && c.x < 1.0 && c.y < 1.0;
 }
@@ -63,7 +70,7 @@ float cover(vec2 c) {
 	if (!inside_cell(c)) return 0.0;
 	if (extra.z > 1.0) {
 		float n = extra.z;
-		c = (min(floor(c * 8.0 / n) * n + floor(n * 0.5), vec2(7.0)) + 0.5) / 8.0;
+		c = (min(floor(c * grid / n) * n + floor(n * 0.5), grid - 1.0) + 0.5) / grid;
 	}
 	return step(0.5, texture(atlas, mix(rect.xy, rect.zw, c)).a);
 }
@@ -73,14 +80,16 @@ vec4 over(vec4 top, vec4 bottom) {
 	return top + bottom * (1.0 - top.a);
 }
 
+// Радиус свечения — в высотах ячейки: по X в долях ячейки он делится на отношение сторон.
 vec4 glow(float fg_alpha) {
 	float sum = 0.0;
 	float total = 0.0;
+	vec2 radius = vec2(glow_m.w / aspect(), glow_m.w);
 	for (int j = -3; j <= 3; j++) {
 		for (int i = -3; i <= 3; i++) {
 			vec2 s = vec2(float(i), float(j)) / 3.0;
 			float weight = exp(-2.0 * dot(s, s));
-			sum += weight * cover(cell + s * glow_m.w);
+			sum += weight * cover(cell + s * radius);
 			total += weight;
 		}
 	}
@@ -90,18 +99,21 @@ vec4 glow(float fg_alpha) {
 
 // Мягкое свечение: пятно вокруг символа без его формы, к радиусу гаснет по Гауссу.
 vec4 soft_glow(float fg_alpha) {
-	float d = max(0.0, length(cell - 0.5) - 0.35) / max(glow_m.w, 0.001);
+	vec2 from_center = (cell - 0.5) * vec2(aspect(), 1.0);
+	float d = max(0.0, length(from_center) - 0.35) / max(glow_m.w, 0.001);
 	float alpha = clamp(exp(-2.0 * d * d) * 0.5 * glow_strength, 0.0, 1.0) * fg_alpha;
 	return vec4(glow_m.rgb * alpha, alpha);
 }
 
+// Толщина контура — в пикселях шрифта.
 vec4 outline(float fg_alpha) {
 	float hit = 0.0;
+	vec2 width = vec2(outline_m.w) / grid;
 	for (int dy = -1; dy <= 1; dy++) {
 		for (int dx = -1; dx <= 1; dx++) {
 			vec2 dir = vec2(float(dx), float(dy));
-			hit = max(hit, cover(cell + dir * outline_m.w));
-			hit = max(hit, cover(cell + dir * outline_m.w * 0.5));
+			hit = max(hit, cover(cell + dir * width));
+			hit = max(hit, cover(cell + dir * width * 0.5));
 		}
 	}
 	float alpha = hit * fg_alpha;
@@ -133,12 +145,12 @@ void fragment() {
 		COLOR = c.a > 0.0 ? vec4(c.rgb / c.a, c.a) : vec4(0.0);
 	} else if (mode > 0.5) {
 		float glyph = cover(cell);
-		if (shine_motion.w > 0.0 && bayer4(floor(cell * 8.0)) < shine_motion.w) glyph = 0.0;
+		if (shine_motion.w > 0.0 && bayer4(floor(cell * grid)) < shine_motion.w) glyph = 0.0;
 		vec3 fg = COLOR.rgb;
 		if (shine_m.w > 0.0) fg = mix(fg, shine_m.rgb, shine());
-		if (extra.y > 0.0 && mod(floor(cell.y * 8.0), 2.0) > 0.5) fg *= 1.0 - extra.y;
+		if (extra.y > 0.0 && mod(floor(cell.y * grid.y), 2.0) > 0.5) fg *= 1.0 - extra.y;
 		COLOR = vec4(fg, glyph * COLOR.a);
-	} else if (extra.y > 0.0 && mod(floor(cell.y * 8.0), 2.0) > 0.5) {
+	} else if (extra.y > 0.0 && mod(floor(cell.y * grid.y), 2.0) > 0.5) {
 		// Фон под символом с развёрткой темнеет теми же строками.
 		COLOR.rgb *= 1.0 - extra.y;
 	}

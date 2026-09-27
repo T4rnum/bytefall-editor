@@ -11,7 +11,7 @@ namespace Bytefall
     /// </summary>
     public sealed class BytefallAnimation : ScriptableObject
     {
-        public const int Version = 2;
+        public const int Version = 3;
         public const int GlyphBytes = 32;
         /// <summary>Чисел на материал в таблице, раскладка — <c>src/core/material.ts</c>.</summary>
         public const int MaterialFloats = 20;
@@ -19,6 +19,10 @@ namespace Bytefall
         const int V1MaterialFloats = 17;
         /// <summary>Старший бит поля материала: запись — подложка символа (контур и свечение).</summary>
         public const int UnderBit = 0x8000;
+        /// <summary>Смещение толщины контура в числах материала.</summary>
+        public const int OutlineWidth = 3;
+        /// <summary>Сетка шрифта файлов до версии 3: ячейка 8×8 пикселей шрифта.</summary>
+        const float V2Grid = 8f;
         const string Magic = "BYTEFALL";
 
         [Tooltip("Размер холста в ячейках.")]
@@ -28,11 +32,13 @@ namespace Bytefall
         public float fps = 20f;
         [Tooltip("Ячейка 0 белая, символ glyphs[i] — в ячейке i + 1.")]
         public Texture2D atlas;
+        [Tooltip("Сетка шрифта: пикселей шрифта в ячейке. Её отношение сторон — форма ячейки.")]
+        public Vector2 grid = new Vector2(8, 8);
         public Material material;
         public int atlasColumns = 1;
         public int atlasRows = 1;
         public string[] glyphs = Array.Empty<string>();
-        [Tooltip("Таблица материалов, по 17 чисел подряд.")]
+        [Tooltip("Таблица материалов, по 20 чисел подряд.")]
         public float[] materials = Array.Empty<float>();
         [Tooltip("Та же таблица текстурой для шейдера: 5 текселей на материал, строка на материал.")]
         public Texture2D materialTexture;
@@ -46,6 +52,9 @@ namespace Bytefall
         public byte[] data = Array.Empty<byte>();
 
         public int FrameCount => durations.Length;
+
+        /// <summary>Ширина ячейки к высоте: у шрифтов 8×16 — половина.</summary>
+        public float CellAspect => grid.x / grid.y;
 
         /// <summary>Длительность всей анимации, мс.</summary>
         public float TotalDuration
@@ -89,6 +98,8 @@ namespace Bytefall
         [Serializable]
         class AtlasInfo
         {
+            public int gridWidth;
+            public int gridHeight;
             public int columns;
             public int rows;
             public string[] glyphs;
@@ -158,6 +169,19 @@ namespace Bytefall
             anim.atlasRows = header.atlas.rows;
             anim.glyphs = header.atlas.glyphs;
             anim.materials = Widen(header.materials ?? Array.Empty<float>(), version >= 2 ? MaterialFloats : V1MaterialFloats);
+            if (version >= 3)
+            {
+                anim.grid = new Vector2(header.atlas.gridWidth, header.atlas.gridHeight);
+            }
+            else
+            {
+                // До версии 3 ячейка квадратная, сетка 8×8, контур — в ячейках, а не в пикселях шрифта.
+                anim.grid = new Vector2(V2Grid, V2Grid);
+                for (int row = 0; row < anim.materials.Length / MaterialFloats; row++)
+                {
+                    anim.materials[row * MaterialFloats + OutlineWidth] *= V2Grid;
+                }
+            }
             anim.materialTexture = MaterialTexture(anim.materials);
             shader = shader != null ? shader : Shader.Find("Bytefall/Glyph");
             if (shader == null)
@@ -169,6 +193,7 @@ namespace Bytefall
             anim.material.SetTexture("_MainTex", anim.atlas);
             anim.material.SetTexture("_Materials", anim.materialTexture);
             anim.material.SetVector("_AtlasGrid", new Vector4(anim.atlasColumns, anim.atlasRows, 0, 0));
+            anim.material.SetVector("_Grid", new Vector4(anim.grid.x, anim.grid.y, 0, 0));
             anim.data = new byte[total * GlyphBytes];
             Array.Copy(bytes, at, anim.data, 0, anim.data.Length);
             return anim;
