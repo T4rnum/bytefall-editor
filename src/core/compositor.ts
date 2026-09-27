@@ -1,3 +1,4 @@
+import { cellAspect } from './font/font';
 import type { Affine } from './affine';
 import { isBlankCell } from './cell';
 import { type CellBuffer, blendAt, blendCell, createCellBuffer, stackCell } from './cellBuffer';
@@ -285,7 +286,7 @@ export function composite(
     cells: () => buf,
     free: (obj, matrix, opacity, t, rig) =>
       isDeformed(obj)
-        ? blendDeformed(buf, obj, matrix, opacity, wanted, t, rig)
+        ? blendDeformed(buf, obj, matrix, opacity, wanted, t, rig, cellAspect(doc.font))
         : blendObject(buf, obj, matrix, opacity, wanted),
     // Символ облака ложится в ячейку под своим центром; ближние идут последними и побеждают.
     sprites: (list, opacity) => {

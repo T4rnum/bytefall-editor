@@ -163,8 +163,9 @@ export function imageToCells(
   image: RgbaImage,
   cellsWide: number,
   options: QuantizeOptions = DEFAULT_QUANTIZE,
+  aspect = 1,
 ): { width: number; height: number; cells: Map<CellKey, Cell> } {
-  const height = cellsHighFor(image, cellsWide);
+  const height = cellsHighFor(image, cellsWide, aspect);
   const samples = sampleImage(image, cellsWide, height);
   return { width: cellsWide, height, cells: quantize(samples, options) };
 }

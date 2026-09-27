@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import type { PanelId } from '../../workspace/layout';
 import { BrushPanel } from '../BrushPanel';
 import { CellAttrsPanel } from '../CellAttrsPanel';
@@ -17,7 +16,7 @@ export interface PanelSpec {
   readonly title: string;
   /** Подсказка к вкладке: что в панели. */
   readonly hint: string;
-  readonly render: (atlas: GlyphAtlas) => ReactNode;
+  readonly render: () => ReactNode;
   /** Панель тянется на свободную высоту колонки. */
   readonly grow?: boolean;
 }
@@ -56,7 +55,7 @@ export const PANELS: Readonly<Record<PanelId, PanelSpec>> = {
   timeline: {
     title: 'Таймлайн',
     hint: 'Кадры и ключи сцены',
-    render: (atlas) => <TimelinePanel atlas={atlas} />,
+    render: () => <TimelinePanel />,
     grow: true,
   },
   nodes: {

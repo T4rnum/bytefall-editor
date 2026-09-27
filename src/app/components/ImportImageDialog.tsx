@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConvertedImage, isDocumentEmpty } from '../../core/imageLayer';
 import { cellsHighFor, quantize, sampleImage } from '../../core/quantize';
@@ -32,8 +33,9 @@ interface BodyProps {
  */
 function useConversion(source: ImageImportSource, settings: ImportSettings, atlas: GlyphAtlas) {
   const palette = useDocumentStore((s) => s.doc.palette);
+  const aspect = useDocumentStore((s) => cellAspect(s.doc.font));
   const { image, name } = source;
-  const height = cellsHighFor(image, settings.width);
+  const height = cellsHighFor(image, settings.width, aspect);
   const samples = useMemo(
     () => sampleImage(image, settings.width, height),
     [image, settings.width, height],

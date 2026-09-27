@@ -62,6 +62,11 @@ export function sinCosDeg(deg: number): { readonly sin: number; readonly cos: nu
 /**
  * Масштаб вдоль осей и поворот вокруг опорной точки, затем сдвиг:
  * p ↦ shift + pivot + R·S·(p − pivot).
+ *
+ * `aspect` — ширина ячейки к высоте. Поворот идёт в видимом пространстве, где X ячейки умножен
+ * на `aspect` (`docs/DESIGN.md`, раздел 3): в ячейках это A⁻¹·R·S·A при A = diag(aspect, 1).
+ * Символ неквадратной ячейки тогда вращается как жёсткое тело. Без поворота матрица та же, что
+ * у квадратной ячейки, и целый сдвиг остаётся целым.
  */
 export function rotateScaleAbout(
   deg: number,
@@ -69,11 +74,12 @@ export function rotateScaleAbout(
   sy: number,
   pivot: Point,
   shift: Point,
+  aspect = 1,
 ): Affine {
   const { sin, cos } = sinCosDeg(deg);
   const a = cos * sx;
-  const b = sin * sx;
-  const c = -sin * sy;
+  const b = sin * sx * aspect;
+  const c = (-sin * sy) / aspect;
   const d = cos * sy;
   // Вклад опорной точки считается отдельно: без поворота и масштаба он ровно ноль, и целый
   // сдвиг остаётся целым без хвостов округления.
@@ -97,14 +103,54 @@ export function integerOffset(m: Affine): Point | null {
 /**
  * Поворот и масштаб, которыми символ уходит на GPU. Матрица без перекоса восстанавливается
  * из них точно. Перекос появляется только при неравном масштабе родителя и повороте ребёнка;
- * тогда сохраняются направление оси X и площадь символа.
+ * тогда сохраняются направление оси X и площадь символа. Раскладывается матрица в видимом
+ * пространстве, как её и строит `rotateScaleAbout` с тем же `aspect`.
  */
-export function decomposeAffine(m: Affine): {
+export function decomposeAffine(
+  m: Affine,
+  aspect = 1,
+): {
   readonly rot: number;
   readonly sx: number;
   readonly sy: number;
 } {
-  const sx = Math.hypot(m.a, m.b);
+  const b = m.b / aspect;
+  const c = m.c * aspect;
+  const sx = Math.hypot(m.a, b);
   if (sx === 0) return { rot: 0, sx: 0, sy: 0 };
-  return { rot: Math.atan2(m.b, m.a), sx, sy: (m.a * m.d - m.b * m.c) / sx };
+  return { rot: Math.atan2(b, m.a), sx, sy: (m.a * m.d - b * c) / sx };
+}
+
+/**
+ * Видимое пространство (`docs/DESIGN.md`, раздел 3): ячейки, у которых X умножен на отношение
+ * сторон `aspect`. Углы и длины на экране — там; у квадратной ячейки оно совпадает с ячейками.
+ */
+
+/** Угол оси X матрицы на экране, радианы. */
+export const visualAngle = (m: Affine, aspect = 1): number => Math.atan2(m.b / aspect, m.a);
+
+/** Направление от точки к точке на экране, радианы. */
+export const visualDirection = (from: Point, to: Point, aspect = 1): number =>
+  Math.atan2(to.y - from.y, (to.x - from.x) * aspect);
+
+/** Расстояние на экране, в высотах ячейки. */
+export const visualDistance = (from: Point, to: Point, aspect = 1): number =>
+  Math.hypot((to.x - from.x) * aspect, to.y - from.y);
+
+/** Поворот на `rad` вокруг точки `pivot` в ячейках: на экране — поворот, как у жёсткого тела. */
+export function rotationAbout(rad: number, pivot: Point, aspect = 1): Affine {
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const a = cos;
+  const b = sin * aspect;
+  const c = -sin / aspect;
+  const d = cos;
+  return {
+    a,
+    b,
+    c,
+    d,
+    e: pivot.x - (a * pivot.x + c * pivot.y),
+    f: pivot.y - (b * pivot.x + d * pivot.y),
+  };
 }

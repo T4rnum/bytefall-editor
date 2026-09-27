@@ -168,9 +168,11 @@ export const distanceNode: NodeImpl = {
   },
   run: (r) => {
     const { x, y } = r.ctx.center;
+    const aspect = r.ctx.aspect ?? 1;
     const value: Field = (poses) => {
       const out = new Float64Array(poses.length);
-      for (let i = 0; i < out.length; i++) out[i] = Math.hypot(poses[i].x - x, poses[i].y - y);
+      for (let i = 0; i < out.length; i++)
+        out[i] = Math.hypot((poses[i].x - x) * aspect, poses[i].y - y);
       return out;
     };
     return { value };

@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import { type Animation, type Frame, frameDocument } from '../../core/animation';
 import type { CellBuffer } from '../../core/cellBuffer';
 import { composite } from '../../core/compositor';
@@ -73,8 +74,11 @@ export class ThumbnailCache {
     this.timer = null;
   }
 
+  /** Миниатюры устаревают с размером, фоном, плотностью экрана и шрифтом: у него своя ячейка. */
   private keyOf(animation: Animation): string {
-    return `${animation.width}x${animation.height}:${animation.background}:${this.pixelRatio()}`;
+    const { width, height, background, font } = animation;
+    const cell = `${font.id}:${font.cellWidth}x${font.cellHeight}`;
+    return `${width}x${height}:${background}:${this.pixelRatio()}:${cell}`;
   }
 
   private nextStale(animation: Animation, key: string): number {
@@ -120,7 +124,8 @@ export class ThumbnailCache {
     // Тот же композитор, что и у экрана: слои, непрозрачность, объекты и эффекты сходятся сами.
     this.scratch = composite(doc, null, this.scratch);
     const ratio = this.pixelRatio();
-    const size = fitThumbnail(doc.width, doc.height, THUMB_MAX_WIDTH * ratio, THUMB_HEIGHT * ratio);
+    const wide = doc.width * cellAspect(doc.font);
+    const size = fitThumbnail(wide, doc.height, THUMB_MAX_WIDTH * ratio, THUMB_HEIGHT * ratio);
     const thumb = renderThumbnail(
       this.scratch,
       size.width,

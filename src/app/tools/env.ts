@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import { type Cell, isBlankCell, makeCell } from '../../core/cell';
 import type { CellEdits } from '../../core/grid';
 import { clipEditsToSelection } from '../../core/selection';
@@ -62,6 +63,7 @@ export function buildToolEnv(): ToolEnv {
           ? [editor.selectedObjectId]
           : [],
     zoom: editor.camera.zoom,
+    aspect: cellAspect(docState.doc.font),
     setPreview: (edits) => {
       if (edit) edit.preview(edits);
       else editor.setPreview(edits && layer ? { layerId: layer.id, edits: clip(edits) } : null);

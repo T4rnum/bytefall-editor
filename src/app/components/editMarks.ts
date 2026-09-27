@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import { type Affine, applyAffine } from '../../core/affine';
 import { type Document, findLayer } from '../../core/document';
 import type { Point } from '../../core/geometry';
@@ -69,7 +70,8 @@ const CANVAS_HANDLE_PX = 8;
 function body3DFrame(doc: Document, layerId: string, bodyId: string | null): Point[] {
   const layer = findLayer(doc, layerId);
   if (!bodyId || !layer?.scene || !layer.visible) return [];
-  const r = body3DBounds(layer.scene, doc.width, doc.height, doc.meshes, bodyId);
+  const aspect = cellAspect(doc.font);
+  const r = body3DBounds(layer.scene, doc.width, doc.height, doc.meshes, bodyId, aspect);
   if (!r) return [];
   return loopSegments([
     [
@@ -103,12 +105,14 @@ export function canvasMarks(
     const q = corners[(i + 1) % 4];
     return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
   });
+  // Ручка квадратная на экране: по X в ячейках её половина в `aspect` раз больше.
   const half = CANVAS_HANDLE_PX / 2 / editor.camera.zoom;
+  const halfX = half / cellAspect(doc.font);
   const square = (p: Point): Point[] => [
-    { x: p.x - half, y: p.y - half },
-    { x: p.x + half, y: p.y - half },
-    { x: p.x + half, y: p.y + half },
-    { x: p.x - half, y: p.y + half },
+    { x: p.x - halfX, y: p.y - half },
+    { x: p.x + halfX, y: p.y - half },
+    { x: p.x + halfX, y: p.y + half },
+    { x: p.x - halfX, y: p.y + half },
   ];
   return {
     frame: [...loopSegments([corners]), ...body],

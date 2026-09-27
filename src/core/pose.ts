@@ -1,35 +1,38 @@
-import { type Affine, applyAffine, multiply } from './affine';
+import {
+  type Affine,
+  applyAffine,
+  multiply,
+  rotationAbout,
+  visualAngle,
+  visualDirection,
+  visualDistance,
+} from './affine';
 import { type Constraint, type Pose, aimKey, isTemporal } from './constraints';
 import type { Document } from './document';
+import { cellAspect } from './font/font';
 import type { Point } from './geometry';
 import { type IkLink, solveFabrik, wrapAngle } from './ik';
 import type { SceneObject } from './object';
 import { transformMatrix } from './transform';
 
+/**
+ * Углы и длины рига — на экране, в видимом пространстве (`docs/DESIGN.md`, раздел 3): у
+ * неквадратной ячейки кость на 45° смотрит на 45° и на экране, а IK дотягивается до цели.
+ */
 const DEG = 180 / Math.PI;
-const angleOf = (m: Affine): number => Math.atan2(m.b, m.a) * DEG;
 const pivotOf = (obj: SceneObject, world: Affine): Point =>
   applyAffine(world, obj.transform.px, obj.transform.py);
+const seen = (p: Point, aspect: number): Point => ({ x: p.x * aspect, y: p.y });
 
 /**
  * Поворачивает мир объекта вокруг опоры так, чтобы его ось X стояла под углом `offset` к
  * направлению на точку.
  */
-function aimAt(world: Affine, pivot: Point, point: Point, offset: number): Affine {
-  if (Math.hypot(point.x - pivot.x, point.y - pivot.y) < 1e-9) return world;
-  const toward = Math.atan2(point.y - pivot.y, point.x - pivot.x) + offset / DEG;
-  const turn = toward - Math.atan2(world.b, world.a);
-  const cos = Math.cos(turn);
-  const sin = Math.sin(turn);
-  const around: Affine = {
-    a: cos,
-    b: sin,
-    c: -sin,
-    d: cos,
-    e: pivot.x - cos * pivot.x + sin * pivot.y,
-    f: pivot.y - sin * pivot.x - cos * pivot.y,
-  };
-  return multiply(around, world);
+function aimAt(world: Affine, pivot: Point, point: Point, offset: number, aspect: number): Affine {
+  if (visualDistance(pivot, point, aspect) < 1e-9) return world;
+  const toward = visualDirection(pivot, point, aspect) + offset / DEG;
+  const turn = toward - visualAngle(world, aspect);
+  return multiply(rotationAbout(turn, pivot, aspect), world);
 }
 
 const enabled = (obj: SceneObject, kind: Constraint['kind']): Constraint[] =>
@@ -46,6 +49,7 @@ function resolveAll(
   const byId = new Map(doc.objects.map((o) => [o.id, o]));
   const out = new Map<string, Affine>();
   const visiting = new Set<string>();
+  const aspect = cellAspect(doc.font);
   const targetPoint = (id: string | null): Point | null => {
     const target = id === null ? undefined : byId.get(id);
     return target && !visiting.has(target.id) ? pivotOf(target, resolve(target)) : null;
@@ -55,7 +59,8 @@ function resolveAll(
     if (known) return known;
     visiting.add(obj.id);
     const rot = rotations?.get(obj.id);
-    const local = transformMatrix(rot === undefined ? obj.transform : { ...obj.transform, rot });
+    const own = rot === undefined ? obj.transform : { ...obj.transform, rot };
+    const local = transformMatrix(own, aspect);
     const parent = obj.parentId === null ? undefined : byId.get(obj.parentId);
     const parentWorld =
       doc.pose?.parents.get(obj.id) ??
@@ -65,7 +70,7 @@ function resolveAll(
       if (c.kind !== 'aim') continue;
       const point =
         doc.pose?.aims.get(aimKey(obj.id, c.id)) ?? targetPoint(c.target ?? obj.parentId);
-      if (point) world = aimAt(world, pivotOf(obj, world), point, c.offset);
+      if (point) world = aimAt(world, pivotOf(obj, world), point, c.offset, aspect);
     }
     visiting.delete(obj.id);
     out.set(obj.id, world);
@@ -87,10 +92,15 @@ function chainOf(tip: SceneObject, count: number, byId: ReadonlyMap<string, Scen
   return chain;
 }
 
-/** Собственные повороты костей, решённых IK, по id. Решение идёт по матрицам без IK. */
+/**
+ * Собственные повороты костей, решённых IK, по id. Решение идёт по матрицам без IK, в видимом
+ * пространстве: там длины костей не зависят от их угла.
+ */
 function solveIk(doc: Document, base: ReadonlyMap<string, Affine>): Map<string, number> {
   const rotations = new Map<string, number>();
   const byId = new Map(doc.objects.map((o) => [o.id, o]));
+  const aspect = cellAspect(doc.font);
+  const angleOf = (m: Affine): number => visualAngle(m, aspect) * DEG;
   for (const tip of doc.objects) {
     for (const c of enabled(tip, 'ik')) {
       const target = c.kind === 'ik' && c.target !== null ? byId.get(c.target) : undefined;
@@ -98,8 +108,9 @@ function solveIk(doc: Document, base: ReadonlyMap<string, Affine>): Map<string, 
       const chain = chainOf(tip, c.chain, byId);
       if (chain.includes(target)) continue;
       const worlds = chain.map((bone) => base.get(bone.id) as Affine);
-      const heads = worlds.map((w) => applyAffine(w, 0, 0));
-      const ends = [...heads.slice(1), applyAffine(worlds[worlds.length - 1], tip.rig.length, 0)];
+      const heads = worlds.map((w) => seen(applyAffine(w, 0, 0), aspect));
+      const tail = applyAffine(worlds[worlds.length - 1], tip.rig.length, 0);
+      const ends = [...heads.slice(1), seen(tail, aspect)];
       const angles = worlds.map(angleOf);
       const links: IkLink[] = chain.map((bone, i) => ({
         length: Math.hypot(ends[i].x - heads[i].x, ends[i].y - heads[i].y),
@@ -110,7 +121,7 @@ function solveIk(doc: Document, base: ReadonlyMap<string, Affine>): Map<string, 
       }));
       const root = chain[0].parentId === null ? undefined : base.get(chain[0].parentId);
       const parentAngle = root ? angleOf(root) : 0;
-      const goal = pivotOf(target, base.get(target.id) as Affine);
+      const goal = seen(pivotOf(target, base.get(target.id) as Affine), aspect);
       const solved = solveFabrik(heads[0], links, angles, parentAngle, goal);
       chain.forEach((bone, i) => {
         const parent = i === 0 ? parentAngle : solved[i - 1];
@@ -192,8 +203,9 @@ export function restAimOffset(doc: Document, objectId: string, targetId: string 
   const world = obj && matrices.get(obj.id);
   const aim = target && matrices.get(target.id);
   if (!obj || !target || !world || !aim) return 0;
+  const aspect = cellAspect(doc.font);
   const from = pivotOf(obj, world);
   const to = pivotOf(target, aim);
-  if (Math.hypot(to.x - from.x, to.y - from.y) < 1e-9) return 0;
-  return wrapAngle(angleOf(world) - Math.atan2(to.y - from.y, to.x - from.x) * DEG);
+  if (visualDistance(from, to, aspect) < 1e-9) return 0;
+  return wrapAngle((visualAngle(world, aspect) - visualDirection(from, to, aspect)) * DEG);
 }

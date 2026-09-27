@@ -79,8 +79,10 @@ export interface ToolEnv {
   readonly selectedObjectId: string | null;
   /** Все выбранные объекты, главный — последний. */
   readonly selectedObjectIds: readonly string[];
-  /** Пикселей экрана на ячейку: ручки гизмо хватаются в пикселях, а не в ячейках. */
+  /** Пикселей экрана на высоту ячейки: ручки гизмо хватаются в пикселях, а не в ячейках. */
   readonly zoom: number;
+  /** Ширина ячейки к высоте: по X в ячейке `zoom * aspect` пикселей экрана. */
+  readonly aspect: number;
   setPreview: (edits: CellEdits | null) => void;
   commit: (edits: CellEdits, label: string) => void;
   setSelection: (selection: Selection | null) => void;

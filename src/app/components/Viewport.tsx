@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import { useEffect, useRef } from 'react';
 import { type Ghost, effectsSignature } from '../../core/compositor';
 import { evaluate } from '../../core/evaluate';
@@ -132,7 +133,7 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
       const world = obj ? objectMatrix(doc, obj) : null;
       const gizmo =
         obj && world && tool === 'object' && canEditObject(doc, obj)
-          ? gizmoLayout(obj, world, camera.zoom)
+          ? gizmoLayout(obj, world, camera.zoom, cellAspect(doc.font))
           : null;
       view.setGizmo(gizmo && { ...gizmo, handles: gizmo.scale.map((s) => s.at) });
       view.setRig(rigLayout(doc, selectedObjectId, camera.zoom));

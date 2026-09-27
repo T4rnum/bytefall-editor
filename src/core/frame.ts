@@ -1,3 +1,4 @@
+import { cellAspect } from './font/font';
 import type { Affine } from './affine';
 import type { Animation } from './animation';
 import { type CellBuffer, createCellBuffer } from './cellBuffer';
@@ -66,7 +67,7 @@ class PassTarget implements DrawTarget {
   private glyphs(): GlyphBatchBuilder {
     let last = this.passes.at(-1);
     if (last?.kind !== 'glyphs') {
-      last = { kind: 'glyphs', builder: new GlyphBatchBuilder() };
+      last = { kind: 'glyphs', builder: new GlyphBatchBuilder(cellAspect(this.doc.font)) };
       this.passes.push(last);
     }
     return last.builder;

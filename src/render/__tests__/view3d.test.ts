@@ -15,35 +15,39 @@ describe('камера и тела ядра совпадают с Three.js', () 
     { projection: 'perspective', position: [0, 7, 0], target: [0, 0, 0], fov: 40, size: 4 },
   ];
 
-  it('проекция точки на экран', () => {
+  it('проекция точки на экран — и у неквадратной ячейки', () => {
     const width = 80;
     const height = 45;
-    for (const spec of cameras) {
-      const camera =
-        spec.projection === 'perspective'
-          ? new THREE.PerspectiveCamera(spec.fov, width / height, 0.01, 100)
-          : new THREE.OrthographicCamera(
-              (-spec.size * width) / height / 2,
-              (spec.size * width) / height / 2,
-              spec.size / 2,
-              -spec.size / 2,
-              0.01,
-              100,
-            );
-      camera.position.set(...spec.position);
-      camera.lookAt(...spec.target);
-      camera.updateMatrixWorld();
-      const view = viewOf(spec, width, height);
-      const at = new Float64Array(3);
-      for (const p of [
-        [0, 0, 0],
-        [1, 0.5, -0.3],
-        [-0.7, 1.2, 0.4],
-      ] as const) {
-        const ndc = new THREE.Vector3(...p).project(camera);
-        project(view, p[0], p[1], p[2], at);
-        expect(at[0]).toBeCloseTo(((ndc.x + 1) / 2) * width, 6);
-        expect(at[1]).toBeCloseTo(((1 - ndc.y) / 2) * height, 6);
+    // Ячейка 8×16: кадр в ячейках тот же, а камера видит его вдвое уже.
+    for (const aspect of [1, 0.5]) {
+      for (const spec of cameras) {
+        const frame = (width * aspect) / height;
+        const camera =
+          spec.projection === 'perspective'
+            ? new THREE.PerspectiveCamera(spec.fov, frame, 0.01, 100)
+            : new THREE.OrthographicCamera(
+                (-spec.size * frame) / 2,
+                (spec.size * frame) / 2,
+                spec.size / 2,
+                -spec.size / 2,
+                0.01,
+                100,
+              );
+        camera.position.set(...spec.position);
+        camera.lookAt(...spec.target);
+        camera.updateMatrixWorld();
+        const view = viewOf(spec, width, height, aspect);
+        const at = new Float64Array(3);
+        for (const p of [
+          [0, 0, 0],
+          [1, 0.5, -0.3],
+          [-0.7, 1.2, 0.4],
+        ] as const) {
+          const ndc = new THREE.Vector3(...p).project(camera);
+          project(view, p[0], p[1], p[2], at);
+          expect(at[0]).toBeCloseTo(((ndc.x + 1) / 2) * width, 6);
+          expect(at[1]).toBeCloseTo(((1 - ndc.y) / 2) * height, 6);
+        }
       }
     }
   });

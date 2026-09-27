@@ -96,6 +96,7 @@ export function cloudSprites(
   width: number,
   height: number,
   meshes: readonly Mesh3D[],
+  aspect = 1,
 ): Sprite3D[] {
   const { render, camera } = scene;
   const world = render.sizeByDepth && camera.projection === 'perspective';
@@ -103,8 +104,9 @@ export function cloudSprites(
     spacing: render.spacing,
     world,
     nearEdge: false,
+    aspect,
   });
-  const view = viewOf(camera, width, height);
+  const view = viewOf(camera, width, height, aspect);
   const kept = visiblePoints(points, width, height, Math.max(1, 2 * render.spacing), (depth) =>
     cellsPerUnit(view, depth),
   );
@@ -183,11 +185,13 @@ export function gridCells(
   width: number,
   height: number,
   meshes: readonly Mesh3D[],
+  aspect = 1,
 ): CellGrid {
   const points = scenePoints(scene, width, height, meshes, {
     spacing: GRID_SPACING,
     world: false,
     nearEdge: true,
+    aspect,
   });
   const source = fillHoles(nearestPoints(points, width, height), points, width, height);
   // Глубина в долях дальней границы сцены, как у буфера режима A: контуры той же толщины.

@@ -12,11 +12,18 @@ const PICK_SPACING = 0.7;
 /** Насколько далеко от указателя может быть точка тела, ячеек. */
 const PICK_REACH = 0.75;
 
-const pointsOf = (scene: Scene3D, width: number, height: number, meshes: readonly Mesh3D[]) =>
+const pointsOf = (
+  scene: Scene3D,
+  width: number,
+  height: number,
+  meshes: readonly Mesh3D[],
+  aspect: number,
+) =>
   scenePoints(scene, width, height, meshes, {
     spacing: PICK_SPACING,
     world: false,
     nearEdge: true,
+    aspect,
   });
 
 /** Ближнее к камере тело под точкой экрана (ячейки документа), или null — там пусто. */
@@ -27,8 +34,9 @@ export function pickBody3D(
   meshes: readonly Mesh3D[],
   x: number,
   y: number,
+  aspect = 1,
 ): string | null {
-  const points = pointsOf(scene, width, height, meshes);
+  const points = pointsOf(scene, width, height, meshes, aspect);
   let best = -1;
   for (let i = 0; i < points.count; i++) {
     if (Math.abs(points.x[i] - x) > PICK_REACH || Math.abs(points.y[i] - y) > PICK_REACH) continue;
@@ -67,17 +75,19 @@ export function body3DBounds(
   height: number,
   meshes: readonly Mesh3D[],
   bodyId: string,
+  aspect = 1,
 ): Rect | null {
   let known = boundsCache.get(scene);
   if (!known || known.meshes !== meshes) {
     known = { meshes, rects: new Map() };
     boundsCache.set(scene, known);
   }
-  const key = `${width}x${height}:${bodyId}`;
+  const key = `${width}x${height}@${aspect}:${bodyId}`;
   const cached = known.rects.get(key);
   if (cached !== undefined) return cached;
   const node = scene.nodes.find((n) => n.id === bodyId);
-  const rect = node ? boundsOf(pointsOf({ ...scene, nodes: [node] }, width, height, meshes)) : null;
+  const alone = { ...scene, nodes: node ? [node] : [] };
+  const rect = node ? boundsOf(pointsOf(alone, width, height, meshes, aspect)) : null;
   known.rects.set(key, rect);
   return rect;
 }

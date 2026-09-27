@@ -52,10 +52,11 @@ export function deformedPoses(
   obj: SceneObject,
   time: number,
   rig?: ReadonlyMap<string, Affine>,
+  aspect = 1,
 ): GlyphPose[] {
   const poses = sourcePoses(obj);
   if (!obj.graph) return poses;
-  const ctx = { time, center: centerPivot(obj.cells), rig, cells: obj.cells };
+  const ctx = { time, center: centerPivot(obj.cells), rig, cells: obj.cells, aspect };
   return evaluateGraph(obj.graph, poses, ctx);
 }
 
@@ -66,8 +67,8 @@ export const objectRig = (
 ): ReadonlyMap<string, Affine> | undefined => skinRig(obj.id, graphBones(obj.graph), matrices);
 
 /** Символ в координаты документа: поворот и масштаб вокруг его центра, потом объект. */
-export const poseMatrix = (world: Affine, p: GlyphPose): Affine =>
-  multiply(world, rotateScaleAbout(p.rot, p.sx, p.sy, { x: 0, y: 0 }, { x: p.x, y: p.y }));
+export const poseMatrix = (world: Affine, p: GlyphPose, aspect = 1): Affine =>
+  multiply(world, rotateScaleAbout(p.rot, p.sx, p.sy, { x: 0, y: 0 }, { x: p.x, y: p.y }, aspect));
 
 /**
  * Деформированный объект в ячейки прямым путём (DESIGN.md, раздел 2): деформер не обратить,
@@ -81,9 +82,10 @@ export function rasterizeDeformed(
   clip: Rect,
   visit: (x: number, y: number, cell: Cell) => void,
   rig?: ReadonlyMap<string, Affine>,
+  aspect = 1,
 ): void {
-  for (const p of deformedPoses(obj, time, rig)) {
-    const m = poseMatrix(world, p);
+  for (const p of deformedPoses(obj, time, rig, aspect)) {
+    const m = poseMatrix(world, p, aspect);
     const x = Math.floor(m.e);
     const y = Math.floor(m.f);
     if (x < clip.x || y < clip.y || x >= clip.x + clip.w || y >= clip.y + clip.h) continue;

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { sceneDuration } from '../../../core/timeline';
 import { keyTimes } from '../../../core/tracks';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { useDocumentStore } from '../../store/documentStore';
 import { LANE_PAD, clampScale, fitScale, timelineSpan } from '../../timeline/timelineMath';
 import { TimelineBody } from './TimelineBody';
@@ -22,7 +21,7 @@ function useSpan(): number {
  * Таймлайн: время сцены в секундах, кадры спрайт-трека на нём и ключи свойств. Масштаб
  * вписывается при открытии документа и по кнопке, Ctrl с колесом меняет его вокруг указателя.
  */
-export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
+export function TimelinePanel() {
   const epoch = useDocumentStore((s) => s.epoch);
   const span = useSpan();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +64,7 @@ export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
   return (
     <section className="timeline" aria-label="Таймлайн">
       <TimelineToolbar onFit={fit} />
-      <TimelineBody atlas={atlas} scale={scale} span={span} scrollerRef={scrollerRef} />
+      <TimelineBody scale={scale} span={span} scrollerRef={scrollerRef} />
     </section>
   );
 }

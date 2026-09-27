@@ -1,5 +1,4 @@
 import { type CSSProperties, Fragment, type RefObject, useMemo } from 'react';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { frameDocument } from '../../../core/animation';
 import { sceneDuration } from '../../../core/timeline';
 import { useKeyState } from '../../hooks/useKeyState';
@@ -15,7 +14,6 @@ import { TrackLane } from './TrackLane';
 import { useKeyGestures } from './useKeyGestures';
 
 interface Props {
-  readonly atlas: GlyphAtlas;
   readonly scale: number;
   readonly span: number;
   readonly scrollerRef: RefObject<HTMLDivElement | null>;
@@ -53,7 +51,7 @@ function Overlay({ scale, span }: { readonly scale: number; readonly span: numbe
  * Строки таймлайна на общей шкале: линейка, спрайт-трек и свойства с ключами. Подписи прилипают
  * к левому краю, линейка — к верхнему, всё остальное прокручивается вместе.
  */
-export function TimelineBody({ atlas, scale, span, scrollerRef }: Props) {
+export function TimelineBody({ scale, span, scrollerRef }: Props) {
   const animation = useDocumentStore((s) => s.animation);
   const frameIndex = useDocumentStore((s) => s.frameIndex);
   const selectedObjectId = useEditorStore((s) => s.selectedObjectId);
@@ -80,7 +78,7 @@ export function TimelineBody({ atlas, scale, span, scrollerRef }: Props) {
         <div className="tl-corner" />
         <TimeRuler scale={scale} span={span} />
         <div className="tl-label tl-label--sprite">Кадры</div>
-        <SpriteLane atlas={atlas} scale={scale} span={span} />
+        <SpriteLane scale={scale} span={span} />
         {rows.map((row) =>
           row.kind === 'node' ? (
             <Fragment key={row.key}>

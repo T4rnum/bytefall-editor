@@ -1,4 +1,4 @@
-import { type Affine, applyAffine } from './affine';
+import { type Affine, applyAffine, visualDirection, visualDistance } from './affine';
 import { type Constraint, MAX_CONSTRAINTS_PER_OBJECT, createConstraint } from './constraints';
 import { type Document, MAX_DIMENSION } from './document';
 import type { Point } from './geometry';
@@ -70,11 +70,18 @@ interface NodeInit {
   readonly id?: string;
 }
 
-/** Кость от `head` к `tail` в координатах документа, пока без родителя. */
-export function createBone(init: NodeInit & { readonly head: Point; readonly tail: Point }): Bone {
+/**
+ * Кость от `head` к `tail` в координатах документа, пока без родителя. Угол — на экране; длина —
+ * в единицах оси X кости, то есть в ширинах ячейки: так конец встаёт ровно в `tail` при любой
+ * форме ячейки (`aspect` — ширина к высоте).
+ */
+export function createBone(
+  init: NodeInit & { readonly head: Point; readonly tail: Point; readonly aspect?: number },
+): Bone {
   const { head, tail } = init;
-  const rot = (Math.atan2(tail.y - head.y, tail.x - head.x) * 180) / Math.PI;
-  const length = clampLength(Math.hypot(tail.x - head.x, tail.y - head.y));
+  const aspect = init.aspect ?? 1;
+  const rot = (visualDirection(head, tail, aspect) * 180) / Math.PI;
+  const length = clampLength(visualDistance(head, tail, aspect) / aspect);
   const base = createObject({ name: init.name, layerId: init.layerId, x: 0, y: 0, id: init.id });
   return { ...base, transform: placeAt(head, rot), rig: { kind: 'bone', length, limit: null } };
 }

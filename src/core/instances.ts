@@ -77,8 +77,13 @@ function writeRgba(d: Float32Array, at: number, c: Rgba): void {
   d[at + 3] = c.a;
 }
 
-/** Собирает поток по мере обхода объектов. Память растёт удвоением. */
+/**
+ * Собирает поток по мере обхода объектов. Память растёт удвоением. `aspect` — ширина ячейки к
+ * высоте: поворот символа на GPU раскладывается в видимом пространстве.
+ */
 export class GlyphBatchBuilder {
+  constructor(readonly aspect = 1) {}
+
   private data = new Float32Array(INSTANCE_FLOATS * 64);
   private count = 0;
   private readonly index = new Map<string, number>();
@@ -94,7 +99,7 @@ export class GlyphBatchBuilder {
     glyph: string,
     fg: Rgba,
     bg: Rgba,
-    pose = decomposeAffine(m),
+    pose = decomposeAffine(m, this.aspect),
     material: Float32Array | null = null,
   ): void {
     if ((this.count + 1) * INSTANCE_FLOATS > this.data.length) {
@@ -173,7 +178,8 @@ export function pushObjectGlyphs(
   time = 0,
   rig?: ReadonlyMap<string, Affine>,
 ): void {
-  const pose = decomposeAffine(world);
+  const aspect = builder.aspect;
+  const pose = decomposeAffine(world, aspect);
   const alpha = opacity * obj.opacity;
   const tint = tintOf(obj);
   const paint = (hex: string): Rgba => withAlpha(tintColor(colorOf(hex), tint), alpha);
@@ -182,13 +188,13 @@ export function pushObjectGlyphs(
     // Соседние символы почти всегда с одним материалом: числа берутся из кэша раз на серию.
     let material: GlyphMaterial | null = null;
     let floats: Float32Array | null = null;
-    for (const p of deformedPoses(obj, time, rig)) {
+    for (const p of deformedPoses(obj, time, rig, aspect)) {
       if (p.material !== material) {
         material = p.material;
         floats = floatsOf(material);
       }
-      const m = poseMatrix(world, p);
-      builder.push(m, p.glyph, tinted(p.fg), tinted(p.bg), decomposeAffine(m), floats);
+      const m = poseMatrix(world, p, aspect);
+      builder.push(m, p.glyph, tinted(p.fg), tinted(p.bg), decomposeAffine(m, aspect), floats);
     }
     return;
   }
@@ -208,7 +214,7 @@ export function pushObjectGlyphs(
   for (const key of sortedKeys(obj.overrides)) {
     const cell = obj.cells.get(key);
     if (!cell) continue;
-    const at = multiply(world, glyphMatrix(key, obj.overrides.get(key)));
+    const at = multiply(world, glyphMatrix(key, obj.overrides.get(key), aspect));
     builder.push(at, cell.glyph, fgOf(cell), bgOf(cell));
   }
 }

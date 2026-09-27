@@ -1,3 +1,4 @@
+import { cellAspect } from './font/font';
 import { isDeformed } from './deformObject';
 import { type Affine, applyAffine, integerOffset, invertAffine } from './affine';
 import type { Cell } from './cell';
@@ -14,7 +15,7 @@ import { transformMatrix } from './transform';
 export { objectMatrices };
 
 export function objectMatrix(doc: Document, obj: SceneObject): Affine {
-  return objectMatrices(doc).get(obj.id) ?? transformMatrix(obj.transform);
+  return objectMatrices(doc).get(obj.id) ?? transformMatrix(obj.transform, cellAspect(doc.font));
 }
 
 /**

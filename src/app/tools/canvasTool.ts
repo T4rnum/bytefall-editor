@@ -17,7 +17,7 @@ export function createCanvasTool(): Tool {
   let gesture: { readonly handle: CanvasHandle; readonly from: Point } | null = null;
 
   const handleAt = (env: ToolEnv, info: PointerInfo): CanvasHandle | null =>
-    canvasHandleAt(env.doc.width, env.doc.height, info.point, HANDLE_HIT_PX / env.zoom);
+    canvasHandleAt(env.doc.width, env.doc.height, info.point, HANDLE_HIT_PX / env.zoom, env.aspect);
 
   const result = (env: ToolEnv, info: PointerInfo) => {
     if (!gesture) return null;

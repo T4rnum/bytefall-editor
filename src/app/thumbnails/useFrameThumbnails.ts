@@ -1,19 +1,18 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { GlyphAtlas } from '../../render/font/GlyphAtlas';
 import { useDocumentStore } from '../store/documentStore';
+import { useFontStore } from '../store/fontStore';
 import { ThumbnailCache } from './thumbnailCache';
+
+/** Плотность символа — у атласа нынешнего шрифта: кэш живёт дольше, чем шрифт документа. */
+const coverage = (glyph: string): number => useFontStore.getState().atlas?.coverage(glyph) ?? 0.5;
 
 /**
  * Кэш миниатюр, который следит за документом. Перерисовка компонента происходит, только когда
  * какая-то миниатюра действительно пересчиталась, а не на каждую правку документа.
  */
-export function useFrameThumbnails(atlas: GlyphAtlas): ThumbnailCache {
+export function useFrameThumbnails(): ThumbnailCache {
   const [cache] = useState(
-    () =>
-      new ThumbnailCache(
-        (glyph) => atlas.coverage(glyph),
-        () => globalThis.devicePixelRatio || 1,
-      ),
+    () => new ThumbnailCache(coverage, () => globalThis.devicePixelRatio || 1),
   );
 
   useEffect(() => {

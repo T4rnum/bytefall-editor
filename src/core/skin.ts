@@ -1,6 +1,6 @@
-import { type Affine, IDENTITY, applyAffine, invertAffine, multiply } from './affine';
+import { type Affine, IDENTITY, applyAffine, invertAffine, multiply, visualAngle } from './affine';
 import type { GlyphPose } from './graph/types';
-import { segmentDistance } from './geometry';
+import { type Point, segmentDistance } from './geometry';
 import { type CellKey, xOf, yOf } from './grid';
 import { wrapAngle } from './ik';
 
@@ -30,21 +30,30 @@ export const MAX_FALLOFF = 64;
 
 type Influence = readonly [bone: number, weight: number];
 
-/** Веса по исходной ячейке: считаются раз на привязку, пока она та же. */
-const weightCache = new WeakMap<SkinBinding, Map<CellKey, readonly Influence[]>>();
+/** Веса по исходной ячейке: считаются раз на привязку и форму ячейки, пока они те же. */
+const weightCache = new WeakMap<
+  SkinBinding,
+  { readonly aspect: number; readonly weights: Map<CellKey, readonly Influence[]> }
+>();
 
 /**
  * Веса символа ячейки `key`: ближняя кость в полную силу, остальные — чем ближе к ней, тем
- * сильнее, до `falloff` ячеек сверх её расстояния. Сумма весов — единица.
+ * сильнее, до `falloff` ячеек сверх её расстояния. Сумма весов — единица. Расстояние — на
+ * экране, в высотах ячейки.
  */
-function influences(d: SkinBinding, key: CellKey): readonly Influence[] {
+function influences(d: SkinBinding, key: CellKey, aspect: number): readonly Influence[] {
   let cache = weightCache.get(d);
-  if (!cache) weightCache.set(d, (cache = new Map<CellKey, readonly Influence[]>()));
-  const known = cache.get(key);
+  if (cache?.aspect !== aspect) weightCache.set(d, (cache = { aspect, weights: new Map() }));
+  const known = cache.weights.get(key);
   if (known) return known;
-  const center = { x: xOf(key) + 0.5, y: yOf(key) + 0.5 };
+  const seen = (p: Point): Point => ({ x: p.x * aspect, y: p.y });
+  const center = seen({ x: xOf(key) + 0.5, y: yOf(key) + 0.5 });
   const distances = d.bones.map((b) =>
-    segmentDistance(center, applyAffine(b.bind, 0, 0), applyAffine(b.bind, b.length, 0)),
+    segmentDistance(
+      center,
+      seen(applyAffine(b.bind, 0, 0)),
+      seen(applyAffine(b.bind, b.length, 0)),
+    ),
   );
   const nearest = Math.min(...distances);
   const falloff = Math.max(MIN_FALLOFF, d.falloff);
@@ -55,7 +64,7 @@ function influences(d: SkinBinding, key: CellKey): readonly Influence[] {
   const kept = raw.filter(([, w]) => w > 0);
   const total = kept.reduce((sum, [, w]) => sum + w, 0);
   const out = kept.map(([i, w]): Influence => [i, w / total]);
-  cache.set(key, out);
+  cache.weights.set(key, out);
   return out;
 }
 
@@ -82,8 +91,9 @@ export function skinRig(
 export function skin(
   poses: GlyphPose[],
   d: SkinBinding,
-  ctx: { readonly rig?: ReadonlyMap<string, Affine> },
+  ctx: { readonly rig?: ReadonlyMap<string, Affine>; readonly aspect?: number },
 ): void {
+  const aspect = ctx.aspect ?? 1;
   if (d.bones.length === 0) return;
   // Перенос кости от покоя к сейчас; пропавшая кость стоит в покое.
   const moves = d.bones.map((b) => {
@@ -91,9 +101,9 @@ export function skin(
     const rest = invertAffine(b.bind);
     return now && rest ? multiply(now, rest) : IDENTITY;
   });
-  const turns = moves.map((m) => (Math.atan2(m.b, m.a) * 180) / Math.PI);
+  const turns = moves.map((m) => (visualAngle(m, aspect) * 180) / Math.PI);
   for (const p of poses) {
-    const weights = influences(d, p.key);
+    const weights = influences(d, p.key, aspect);
     const base = turns[weights[0][0]];
     let x = 0;
     let y = 0;

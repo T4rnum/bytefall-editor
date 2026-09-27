@@ -1,7 +1,7 @@
+import { cellAspect } from '../../../core/font/font';
 import type { Animation } from '../../../core/animation';
 import { fitThumbnail } from '../../../core/thumbnail';
 import { spriteTiming } from '../../../core/timeline';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { useDocumentStore } from '../../store/documentStore';
 import { useEditorStore } from '../../store/editorStore';
 import { THUMB_HEIGHT, THUMB_MAX_WIDTH } from '../../thumbnails/thumbnailCache';
@@ -10,7 +10,6 @@ import { timeToPx } from '../../timeline/timelineMath';
 import { PixelCanvas } from '../../ui';
 
 interface Props {
-  readonly atlas: GlyphAtlas;
   readonly scale: number;
   readonly span: number;
 }
@@ -36,11 +35,13 @@ function spriteBlocks(anim: Animation, span: number) {
  * Спрайт-трек: кадры лежат на шкале времени, ширина — их длительность. Повторы после первого
  * круга бледнее: это те же кадры, идущие по кругу. Щелчок ставит указатель на начало кадра.
  */
-export function SpriteLane({ atlas, scale, span }: Props) {
+export function SpriteLane({ scale, span }: Props) {
   const animation = useDocumentStore((s) => s.animation);
   const frameIndex = useDocumentStore((s) => s.frameIndex);
-  const thumbnails = useFrameThumbnails(atlas);
-  const thumb = fitThumbnail(animation.width, animation.height, THUMB_MAX_WIDTH, THUMB_HEIGHT);
+  const thumbnails = useFrameThumbnails();
+  // Миниатюра в пропорциях экрана: у ячейки 8×16 кадр вдвое уже, чем число ячеек.
+  const wide = animation.width * cellAspect(animation.font);
+  const thumb = fitThumbnail(wide, animation.height, THUMB_MAX_WIDTH, THUMB_HEIGHT);
 
   const select = (start: number): void => {
     const editor = useEditorStore.getState();

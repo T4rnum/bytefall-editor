@@ -39,9 +39,16 @@ const FINE_WEIGHTS = [0.2126, 0.7152, 0.0722] as const;
 /** Потолок мелкой сетки: 4 миллиона образцов, 16 МБ. Дальше образцов на ячейку становится меньше. */
 const MAX_FINE_SAMPLES = 4 * 1024 * 1024;
 
-/** Высота в ячейках при заданной ширине: ячейки квадратные, пропорции картинки сохраняются. */
-export function cellsHighFor(image: { width: number; height: number }, cellsWide: number): number {
-  return Math.max(1, Math.round((cellsWide * image.height) / image.width));
+/**
+ * Высота в ячейках при заданной ширине: пропорции картинки сохраняются. `aspect` — ширина ячейки
+ * к высоте: у ячеек 8×16 рядов вдвое меньше, чем у квадратных.
+ */
+export function cellsHighFor(
+  image: { width: number; height: number },
+  cellsWide: number,
+  aspect = 1,
+): number {
+  return Math.max(1, Math.round((cellsWide * aspect * image.height) / image.width));
 }
 
 /** Образцов на сторону ячейки: четыре, пока мелкая сетка не упирается в потолок памяти. */

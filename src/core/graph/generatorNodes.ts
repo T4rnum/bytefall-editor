@@ -83,6 +83,7 @@ export const particlesNode: NodeImpl = {
       sample(r.num(n), sources),
     );
     const t = r.ctx.time / 1000;
+    const aspect = r.ctx.aspect ?? 1;
     // Живые — кто уже родился и ещё не дожил до конца: 0 ≤ возраст < life. Сверх предела — младшие.
     const last = Math.floor(t * rate);
     const first = Math.max(Math.floor((t - life) * rate) + 1, last - MAX_PARTICLES + 1);
@@ -101,7 +102,8 @@ export const particlesNode: NodeImpl = {
         particle: i,
         // Символ стареет по ряду: от первого к последнему, как искра, что гаснет.
         glyph: glyphs[Math.min(glyphs.length - 1, Math.floor(u * glyphs.length))],
-        x: source.x + Math.cos(direction) * velocity * age,
+        // Скорость — в высотах ячейки: по X в ячейках путь короче у широкой ячейки.
+        x: source.x + (Math.cos(direction) * velocity * age) / aspect,
         y: source.y + Math.sin(direction) * velocity * age + 0.5 * gravity[origin] * age * age,
         rot: 0,
         sx: 1,

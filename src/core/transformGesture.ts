@@ -1,4 +1,4 @@
-import { type Affine, applyAffine, invertAffine } from './affine';
+import { type Affine, applyAffine, invertAffine, visualDirection } from './affine';
 import type { Point } from './geometry';
 import { type Transform2D, withPivot } from './transform';
 
@@ -23,8 +23,12 @@ export function normalizeAngle(deg: number): number {
   return turn > 180 ? turn - 360 : turn;
 }
 
-const angleOf = (center: Point, p: Point): number =>
-  (Math.atan2(p.y - center.y, p.x - center.x) * 180) / Math.PI;
+/**
+ * Жесты мерят углы и длины на экране (`docs/DESIGN.md`, раздел 3): `aspect` — ширина ячейки к
+ * высоте. Указатель, обошедший опору на четверть круга на экране, повернул объект на 90°.
+ */
+const angleOf = (center: Point, p: Point, aspect: number): number =>
+  (visualDirection(center, p, aspect) * 180) / Math.PI;
 
 /** Опорная точка объекта в координатах документа. */
 export function pivotInDocument(t: Transform2D, world: Affine): Point {
@@ -35,8 +39,8 @@ export function pivotInDocument(t: Transform2D, world: Affine): Point {
  * На сколько градусов указатель повернулся вокруг опоры между двумя точками: кратчайший угол.
  * Жест складывает такие шаги, поэтому может сделать и несколько оборотов подряд.
  */
-export function turnAround(pivot: Point, from: Point, to: Point): number {
-  return normalizeAngle(angleOf(pivot, to) - angleOf(pivot, from));
+export function turnAround(pivot: Point, from: Point, to: Point, aspect = 1): number {
+  return normalizeAngle(angleOf(pivot, to, aspect) - angleOf(pivot, from, aspect));
 }
 
 /**
@@ -72,10 +76,11 @@ export function scaleByGesture(
   from: Point,
   to: Point,
   uniform: boolean,
+  aspect = 1,
 ): { sx: number; sy: number } {
   const pivot = pivotInDocument(start, world);
-  const a = { x: from.x - pivot.x, y: from.y - pivot.y };
-  const b = { x: to.x - pivot.x, y: to.y - pivot.y };
+  const a = { x: (from.x - pivot.x) * aspect, y: from.y - pivot.y };
+  const b = { x: (to.x - pivot.x) * aspect, y: to.y - pivot.y };
   if (uniform) {
     const lengthSq = a.x * a.x + a.y * a.y;
     const k = lengthSq > 1e-9 ? (a.x * b.x + a.y * b.y) / lengthSq : 1;
@@ -88,8 +93,12 @@ export function scaleByGesture(
   };
   const axes = axesOf(handle);
   return {
-    sx: axes.x ? roundTo(start.sx * ratio({ x: world.a, y: world.b }), SCALE_STEP) : start.sx,
-    sy: axes.y ? roundTo(start.sy * ratio({ x: world.c, y: world.d }), SCALE_STEP) : start.sy,
+    sx: axes.x
+      ? roundTo(start.sx * ratio({ x: world.a * aspect, y: world.b }), SCALE_STEP)
+      : start.sx,
+    sy: axes.y
+      ? roundTo(start.sy * ratio({ x: world.c * aspect, y: world.d }), SCALE_STEP)
+      : start.sy,
   };
 }
 
@@ -97,9 +106,15 @@ export function scaleByGesture(
  * Опора в точку документа `point`, объект при этом стоит на месте. Точка прилипает к половинам
  * ячеек объекта. `world` — матрица объекта сейчас.
  */
-export function pivotByGesture(t: Transform2D, world: Affine, point: Point): Transform2D {
+export function pivotByGesture(
+  t: Transform2D,
+  world: Affine,
+  point: Point,
+  aspect = 1,
+): Transform2D {
   const inverse = invertAffine(world);
   if (!inverse) return t;
   const local = applyAffine(inverse, point.x, point.y);
-  return withPivot(t, { x: roundTo(local.x, PIVOT_STEP), y: roundTo(local.y, PIVOT_STEP) });
+  const pivot = { x: roundTo(local.x, PIVOT_STEP), y: roundTo(local.y, PIVOT_STEP) };
+  return withPivot(t, pivot, aspect);
 }

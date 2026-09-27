@@ -40,6 +40,7 @@ export function blendDeformed(
   wanted: (x: number, y: number) => boolean,
   time: number,
   rig?: ReadonlyMap<string, Affine>,
+  aspect = 1,
 ): void {
   const canvas = { x: 0, y: 0, w: buf.width, h: buf.height };
   const alpha = opacity * obj.opacity;
@@ -47,5 +48,5 @@ export function blendDeformed(
   const visit = (x: number, y: number, cell: Cell): void => {
     if (wanted(x, y)) blendAt(buf, x, y, tint ? lookCell(cell, tint, 1) : cell, alpha);
   };
-  rasterizeDeformed(obj, matrix, time, canvas, visit, rig);
+  rasterizeDeformed(obj, matrix, time, canvas, visit, rig, aspect);
 }

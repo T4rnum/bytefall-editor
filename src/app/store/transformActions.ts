@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import type { Point } from '../../core/geometry';
 import { findObject, transformObject } from '../../core/object';
 import { type Transform2D, withPivot } from '../../core/transform';
@@ -29,7 +30,7 @@ export function setObjectPivotAction(id: string, pivot: Point, mergeKey?: string
   if (!obj) return;
   commitStructural(
     'Move pivot',
-    transformObject(doc, id, withPivot(obj.transform, pivot)),
+    transformObject(doc, id, withPivot(obj.transform, pivot, cellAspect(doc.font))),
     mergeKey,
   );
 }

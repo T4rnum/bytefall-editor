@@ -176,6 +176,7 @@ export const gradientNode: NodeImpl = {
   run: (r) => {
     const axis = r.option<string>('axis');
     const { center, time } = r.ctx;
+    const aspect = r.ctx.aspect ?? 1;
     const length = r.num('length');
     const period = r.num('period');
     const field: Field = (poses) => {
@@ -186,7 +187,7 @@ export const gradientNode: NodeImpl = {
         const key = poses[i].key;
         const dx = xOf(key) + 0.5 - center.x;
         const dy = yOf(key) + 0.5 - center.y;
-        const along = axis === 'x' ? dx : axis === 'y' ? dy : Math.hypot(dx, dy);
+        const along = axis === 'x' ? dx : axis === 'y' ? dy : Math.hypot(dx * aspect, dy);
         const per = periods[i];
         const u = along / Math.max(0.01, lengths[i]) - (per > 0 ? time / per : 0);
         // Туда и обратно: градиент замыкается, и бегущий цвет не прыгает на стыке.

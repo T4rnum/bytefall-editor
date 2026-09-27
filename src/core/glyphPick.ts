@@ -1,6 +1,7 @@
 import { type Affine, applyAffine, invertAffine } from './affine';
 import { deformedPoses, isDeformed, objectRig, poseMatrix } from './deformObject';
 import type { Document } from './document';
+import { cellAspect } from './font/font';
 import type { Point, Rect } from './geometry';
 import { type CellKey, keyOf, xOf, yOf } from './grid';
 import type { SceneObject } from './object';
@@ -25,14 +26,15 @@ export function placedGlyphs(doc: Document, obj: SceneObject, time: number): Pla
   const matrices = objectMatrices(doc);
   const world = matrices.get(obj.id);
   if (!world) return [];
+  const aspect = cellAspect(doc.font);
   if (isDeformed(obj)) {
-    return deformedPoses(obj, time, objectRig(obj, matrices))
+    return deformedPoses(obj, time, objectRig(obj, matrices), aspect)
       .filter((p) => p.particle === null)
-      .map((p) => ({ key: p.key, matrix: poseMatrix(world, p) }));
+      .map((p) => ({ key: p.key, matrix: poseMatrix(world, p, aspect) }));
   }
   return [...obj.cells.keys()].map((key) => ({
     key,
-    matrix: glyphWorldMatrix(world, key, obj.overrides.get(key)),
+    matrix: glyphWorldMatrix(world, key, obj.overrides.get(key), aspect),
   }));
 }
 

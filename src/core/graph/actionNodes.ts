@@ -67,16 +67,17 @@ export const rotateNode: NodeImpl = {
     const [angle, s] = ['angle', 'strength'].map((n) => sample(r.num(n), poses));
     const around = r.option<string>('pivot') === 'center';
     const { x: cx, y: cy } = r.ctx.center;
+    const aspect = r.ctx.aspect ?? 1;
     for (let i = 0; i < poses.length; i++) {
       const p = poses[i];
       const a = s[i] * angle[i];
       if (around) {
-        const dx = p.x - cx;
+        const dx = (p.x - cx) * aspect;
         const dy = p.y - cy;
         const rad = (a * Math.PI) / 180;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
-        p.x = cx + dx * cos - dy * sin;
+        p.x = cx + (dx * cos - dy * sin) / aspect;
         p.y = cy + dx * sin + dy * cos;
       }
       p.rot += a;
@@ -198,15 +199,16 @@ export const bendNode: NodeImpl = {
     const poses = r.glyphs('glyphs');
     const strength = sample(r.num('strength'), poses);
     const { x: cx, y: cy } = r.ctx.center;
+    const aspect = r.ctx.aspect ?? 1;
     for (let i = 0; i < poses.length; i++) {
       const p = poses[i];
       const k = (strength[i] * Math.PI) / 180;
       if (Math.abs(k) < 1e-9) continue;
       const radius = 1 / k;
       // Центр дуги на радиус ниже центра объекта; символ ниже средней линии — ближе к нему.
-      const theta = k * (p.x - cx);
+      const theta = k * (p.x - cx) * aspect;
       const reach = radius - (p.y - cy);
-      p.x = cx + reach * Math.sin(theta);
+      p.x = cx + (reach * Math.sin(theta)) / aspect;
       p.y = cy + radius - reach * Math.cos(theta);
       p.rot += (theta * 180) / Math.PI;
     }

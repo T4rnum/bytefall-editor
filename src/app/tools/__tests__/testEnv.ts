@@ -1,3 +1,4 @@
+import { cellAspect } from '../../../core/font/font';
 import { type Cell, makeCell } from '../../../core/cell';
 import type { Document, Layer, ResizeAnchor } from '../../../core/document';
 import type { Point, Rect } from '../../../core/geometry';
@@ -94,6 +95,7 @@ export function makeToolEnv(
     selectedObjectId,
     selectedObjectIds,
     zoom,
+    aspect: cellAspect(doc.font),
     setPreview: (edits) => calls.previews.push(edits),
     commit: (edits, label) => calls.commits.push({ label, edits }),
     setSelection: (rect) => calls.selections.push(rect),

@@ -10,6 +10,11 @@ const DEG = Math.PI / 180;
 export interface View3D {
   readonly width: number;
   readonly height: number;
+  /**
+   * Ширина ячейки к высоте. `focal` — ячеек по вертикали; по горизонтали их в `aspect` раз
+   * меньше на ту же длину сцены: у неквадратной ячейки шар остаётся круглым на экране.
+   */
+  readonly aspect: number;
   readonly eye: Vec3;
   /** Оси камеры в мире: вправо, вверх и назад — от цели к камере. */
   readonly right: Vec3;
@@ -52,11 +57,12 @@ function basis(camera: Camera3D): { right: Vec3; up: Vec3; back: Vec3 } {
   return { right, up: cross(back, right), back };
 }
 
-export function viewOf(camera: Camera3D, width: number, height: number): View3D {
+export function viewOf(camera: Camera3D, width: number, height: number, aspect = 1): View3D {
   const perspective = camera.projection === 'perspective';
   return {
     width,
     height,
+    aspect,
     eye: camera.position,
     ...basis(camera),
     perspective,
@@ -80,7 +86,7 @@ export function project(view: View3D, x: number, y: number, z: number, out: Floa
   const dz = z - eye[2];
   const depth = -(dx * back[0] + dy * back[1] + dz * back[2]);
   const k = view.perspective ? view.focal / depth : view.focal;
-  out[0] = view.width / 2 + (dx * right[0] + dy * right[1] + dz * right[2]) * k;
+  out[0] = view.width / 2 + ((dx * right[0] + dy * right[1] + dz * right[2]) * k) / view.aspect;
   out[1] = view.height / 2 - (dx * up[0] + dy * up[1] + dz * up[2]) * k;
   out[2] = depth;
 }

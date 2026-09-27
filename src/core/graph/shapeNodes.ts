@@ -233,10 +233,13 @@ export const curveNode: NodeImpl = {
         );
       });
     const { x: cx, y: cy } = r.ctx.center;
+    // Кривая строится на экране: шаг — ширина ячейки, радиус — в высотах ячейки.
+    const aspect = r.ctx.aspect ?? 1;
     order.forEach((i, n) => {
       const p = poses[i];
-      const at = curvePoint(shape, n * spacing[i], radius[i], (angle[i] * Math.PI) / 180);
-      p.x = cx + at.x;
+      const step = n * spacing[i] * aspect;
+      const at = curvePoint(shape, step, radius[i], (angle[i] * Math.PI) / 180);
+      p.x = cx + at.x / aspect;
       p.y = cy + at.y;
       if (tangent) p.rot += (at.angle * 180) / Math.PI;
     });

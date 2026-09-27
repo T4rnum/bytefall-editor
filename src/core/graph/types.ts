@@ -147,6 +147,11 @@ export interface GraphContext {
   /** Кости скиннинга сейчас в координатах объекта, см. `skinRig`. */
   readonly rig?: ReadonlyMap<string, Affine>;
   readonly cells: CellGrid;
+  /**
+   * Ширина ячейки к высоте; по умолчанию 1. Углы, круги и расстояния узлы считают на экране:
+   * по X в ячейках это деление на `aspect` (`docs/DESIGN.md`, раздел 3).
+   */
+  readonly aspect?: number;
 }
 
 /**

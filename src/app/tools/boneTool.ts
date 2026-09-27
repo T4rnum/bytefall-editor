@@ -1,3 +1,4 @@
+import { visualDistance } from '../../core/affine';
 import { type Document, newId } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import { findObject } from '../../core/object';
@@ -42,7 +43,7 @@ function startDraw(env: ToolEnv, info: PointerInfo): Draw | null {
 /** Документ с новой костью до точки под указателем. null — кость ещё слишком короткая. */
 function drawResult(env: ToolEnv, draw: Draw, info: PointerInfo): Document | null {
   const tail = info.shift ? info.point : snap(info.point);
-  if (Math.hypot(tail.x - draw.head.x, tail.y - draw.head.y) < MIN_BONE_LENGTH) return null;
+  if (visualDistance(draw.head, tail, env.aspect) / env.aspect < MIN_BONE_LENGTH) return null;
   const bones = env.doc.objects.filter(isBone).length;
   const bone = createBone({
     id: draw.id,
@@ -50,6 +51,7 @@ function drawResult(env: ToolEnv, draw: Draw, info: PointerInfo): Document | nul
     layerId: draw.layerId,
     head: draw.head,
     tail,
+    aspect: env.aspect,
   });
   return addRigNode(env.doc, bone, draw.parentId);
 }

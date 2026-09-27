@@ -85,14 +85,14 @@ export function App() {
       <TopBar />
       <div className="app-body">
         <ToolBar />
-        <DockZone zone="left" atlas={atlas} />
+        <DockZone zone="left" />
         <ZoneResizer zone="left" />
         <Viewport atlas={atlas} />
         <ZoneResizer zone="right" />
-        <DockZone zone="right" atlas={atlas} />
+        <DockZone zone="right" />
       </div>
       <ZoneResizer zone="bottom" />
-      <DockZone zone="bottom" atlas={atlas} />
+      <DockZone zone="bottom" />
       <StatusBar />
       <HotkeysDialog open={hotkeysOpen} onClose={() => setHotkeysOpen(false)} />
       <RecoveryDialog />
@@ -100,7 +100,7 @@ export function App() {
       <ThemeDialog />
       <ErrorLogDialog />
       {windows.map((id) => (
-        <PanelWindow key={id} id={id} atlas={atlas} />
+        <PanelWindow key={id} id={id} />
       ))}
       <DropIndicator />
       {dropping && (

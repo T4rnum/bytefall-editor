@@ -1,3 +1,4 @@
+import { cellAspect } from './font/font';
 import {
   type Affine,
   IDENTITY,
@@ -60,10 +61,11 @@ export function transformForWorld(
   t: Transform2D,
   world: Affine,
   parentWorld: Affine | null,
+  aspect = 1,
 ): Transform2D {
   const inverse = parentWorld ? invertAffine(parentWorld) : null;
   const local = inverse ? multiply(inverse, world) : world;
-  const { rot, sx, sy } = decomposeAffine(local);
+  const { rot, sx, sy } = decomposeAffine(local, aspect);
   const deg = (rot * 180) / Math.PI;
   // Опора встаёт ровно туда же, куда её ставит local: при перекосе ошибка остаётся только
   // вдали от неё, а не по всему объекту.
@@ -87,7 +89,7 @@ export function setParent(doc: Document, childId: string, parentId: string | nul
   const matrices = objectMatrices(doc);
   const world = matrices.get(childId) as Affine;
   const parentWorld = parentId === null ? null : (matrices.get(parentId) as Affine);
-  const transform = transformForWorld(child.transform, world, parentWorld);
+  const transform = transformForWorld(child.transform, world, parentWorld, cellAspect(doc.font));
   return updateObject(doc, childId, { parentId, transform });
 }
 

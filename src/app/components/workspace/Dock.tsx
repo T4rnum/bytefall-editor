@@ -1,6 +1,5 @@
 import { ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { hidePanelAction, openPanelWindowAction } from '../../store/workspaceActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Menu, PanelHostContext, TIP_ATTR } from '../../ui';
@@ -43,14 +42,13 @@ interface GroupProps {
   /** Номер группы в раскладке: по нему считаются места вставки. */
   readonly index: number;
   readonly group: PanelGroup;
-  readonly atlas: GlyphAtlas;
 }
 
 /**
  * Группа панелей: вкладки в заголовке, видна активная. Вкладку тянут в другое место, щелчок
  * делает её активной. В заголовок активная панель выносит свою приписку и кнопки.
  */
-function DockGroup({ zone, index, group, atlas }: GroupProps) {
+function DockGroup({ zone, index, group }: GroupProps) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const edit = useWorkspaceStore((s) => s.editLayout);
   const spec = PANELS[group.active];
@@ -94,9 +92,7 @@ function DockGroup({ zone, index, group, atlas }: GroupProps) {
       </header>
       {!group.collapsed && (
         <div className="dock-body">
-          <PanelHostContext.Provider value={{ slot }}>
-            {spec.render(atlas)}
-          </PanelHostContext.Provider>
+          <PanelHostContext.Provider value={{ slot }}>{spec.render()}</PanelHostContext.Provider>
         </div>
       )}
     </section>
@@ -107,7 +103,7 @@ function DockGroup({ zone, index, group, atlas }: GroupProps) {
  * Зона рабочего места: колонка или нижняя полоса. Пустая зона не занимает места, но пока тянут
  * панель — показывает полосу, куда её можно бросить.
  */
-export function DockZone({ zone, atlas }: { readonly zone: ZoneId; readonly atlas: GlyphAtlas }) {
+export function DockZone({ zone }: { readonly zone: ZoneId }) {
   const layout = useWorkspaceStore((s) => s.layouts[s.workspace]);
   const windows = useWorkspaceStore((s) => s.windows);
   const dragging = useWorkspaceStore((s) => s.dragging);
@@ -135,7 +131,7 @@ export function DockZone({ zone, atlas }: { readonly zone: ZoneId; readonly atla
         <span className="dock-drop-hint">{ZONE_NAMES[zone]}</span>
       ) : (
         shown.map(({ index, group }) => (
-          <DockGroup key={index} zone={zone} index={index} group={group} atlas={atlas} />
+          <DockGroup key={index} zone={zone} index={index} group={group} />
         ))
       )}
     </div>

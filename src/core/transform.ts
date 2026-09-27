@@ -94,14 +94,18 @@ export function isPlainTransform(t: Transform2D): boolean {
   return t.dx === 0 && t.dy === 0 && t.rot % 360 === 0 && t.sx === 1 && t.sy === 1;
 }
 
-/** Локальные координаты объекта в координаты родителя. */
-export function transformMatrix(t: Transform2D): Affine {
+/**
+ * Локальные координаты объекта в координаты родителя. `aspect` — ширина ячейки к высоте: поворот
+ * идёт на экране, а не в сетке, см. `rotateScaleAbout`.
+ */
+export function transformMatrix(t: Transform2D, aspect = 1): Affine {
   return rotateScaleAbout(
     t.rot,
     t.sx,
     t.sy,
     { x: t.px, y: t.py },
     { x: t.x + t.dx, y: t.y + t.dy },
+    aspect,
   );
 }
 
@@ -111,8 +115,8 @@ export function transformMatrix(t: Transform2D): Affine {
  * подстраиваются так, чтобы матрица осталась прежней: целая часть уходит в ячейку, дробная — в
  * сдвиг, и он не выходит за полклетки.
  */
-export function withPivot(t: Transform2D, pivot: Point): Transform2D {
-  const m = transformMatrix(t);
+export function withPivot(t: Transform2D, pivot: Point, aspect = 1): Transform2D {
+  const m = transformMatrix(t, aspect);
   const ddx = t.px - pivot.x;
   const ddy = t.py - pivot.y;
   // Без поворота и масштаба поправка ровно ноль: целая позиция остаётся целой.
@@ -143,7 +147,7 @@ export function normalizeOverride(o: GlyphOverride): GlyphOverride | null {
  * Символ ячейки `key` в локальные координаты объекта. Символ живёт в квадрате [−0.5, 0.5]
  * вокруг своего начала: без правки это центр ячейки.
  */
-export function glyphMatrix(key: CellKey, override: GlyphOverride | undefined): Affine {
+export function glyphMatrix(key: CellKey, override: GlyphOverride | undefined, aspect = 1): Affine {
   const center = { x: xOf(key) + 0.5, y: yOf(key) + 0.5 };
   if (!override) return { a: 1, b: 0, c: 0, d: 1, e: center.x, f: center.y };
   const shift = { x: center.x + (override.dx ?? 0), y: center.y + (override.dy ?? 0) };
@@ -153,6 +157,7 @@ export function glyphMatrix(key: CellKey, override: GlyphOverride | undefined): 
     override.sy ?? 1,
     { x: 0, y: 0 },
     shift,
+    aspect,
   );
 }
 
@@ -161,8 +166,9 @@ export function glyphWorldMatrix(
   world: Affine,
   key: CellKey,
   override: GlyphOverride | undefined,
+  aspect = 1,
 ): Affine {
-  return multiply(world, glyphMatrix(key, override));
+  return multiply(world, glyphMatrix(key, override, aspect));
 }
 
 /** Правки только тех ячеек, что у объекта есть: стёртая ячейка уносит свою правку с собой. */

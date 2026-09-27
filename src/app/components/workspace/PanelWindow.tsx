@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { handleHotkey } from '../../hooks/useHotkeys';
 import { closePanelWindowAction } from '../../store/workspaceActions';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -15,7 +14,7 @@ import { PANELS } from './panels';
  * сторы, поэтому правка в окне сразу видна в главном и наоборот. Горячие клавиши работают и
  * отсюда. Закрыли окно — панель возвращается на прежнее место.
  */
-export function PanelWindow({ id, atlas }: { readonly id: PanelId; readonly atlas: GlyphAtlas }) {
+export function PanelWindow({ id }: { readonly id: PanelId }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const theme = useWorkspaceStore((s) => s.theme);
   const target = windowRootOf(id);
@@ -45,7 +44,7 @@ export function PanelWindow({ id, atlas }: { readonly id: PanelId; readonly atla
       </header>
       <div className="dock-body">
         <PanelHostContext.Provider value={{ slot }}>
-          {PANELS[id].render(atlas)}
+          {PANELS[id].render()}
         </PanelHostContext.Provider>
       </div>
     </div>,

@@ -82,13 +82,15 @@ export class Scene3DRenderer {
     this.floats = this.renderer.extensions.has('EXT_color_buffer_float');
   }
 
-  render({ scene, width, height, meshes }: Scene3DRequest): CellGrid {
+  render({ scene, width, height, aspect, meshes }: Scene3DRequest): CellGrid {
     const sub = renderSubsamples(width, height);
     const fw = width * sub;
     const fh = height * sub;
     this.ensureTargets(fw, fh);
     const { near, far } = depthRange(scene);
-    const camera = makeCamera(scene.camera, width / height, near, far);
+    // Кадр — ячейки, а ячейка бывает неквадратной: пикселей рендера на ячейку поровну по осям,
+    // а камера видит кадр шириной в `aspect` раз больше числа ячеек.
+    const camera = makeCamera(scene.camera, (width * aspect) / height, near, far);
     const { root, materials } = this.build(scene, meshes);
     const sunDir = sunDirection(scene.light).transformDirection(camera.matrixWorldInverse);
     const { light } = scene;

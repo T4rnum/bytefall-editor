@@ -89,7 +89,8 @@ function grabHandle(env: ToolEnv, info: PointerInfo): Gesture | null {
     return tail ? { kind: 'rotate', ...base, last: info.point, turned: 0 } : null;
   }
   if (info.alt) return { kind: 'pivot', ...base };
-  const handle = hitGizmo(gizmoLayout(obj, world, env.zoom), info.point, env.zoom);
+  const layout = gizmoLayout(obj, world, env.zoom, env.aspect);
+  const handle = hitGizmo(layout, info.point, env.zoom, env.aspect);
   if (!handle) return null;
   return handle.kind === 'scale'
     ? { kind: 'scale', handle: handle.handle, ...base }
@@ -146,7 +147,7 @@ function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | 
     }
     case 'rotate': {
       // Угол копится по шагам: так жест проходит и полный оборот, и несколько.
-      g.turned += turnAround(pivotInDocument(g.start, g.world), g.last, info.point);
+      g.turned += turnAround(pivotInDocument(g.start, g.world), g.last, info.point, env.aspect);
       g.last = info.point;
       const rot = rotateByGesture(g.start, g.turned, info.shift ? ROTATE_SNAP : null);
       return transformObject(env.doc, g.id, { rot });
@@ -155,10 +156,14 @@ function gestureResult(env: ToolEnv, g: Gesture, info: PointerInfo): Document | 
       return transformObject(
         env.doc,
         g.id,
-        scaleByGesture(g.start, g.world, g.handle, g.from, info.point, info.shift),
+        scaleByGesture(g.start, g.world, g.handle, g.from, info.point, info.shift, env.aspect),
       );
     case 'pivot':
-      return transformObject(env.doc, g.id, pivotByGesture(g.start, g.world, info.point));
+      return transformObject(
+        env.doc,
+        g.id,
+        pivotByGesture(g.start, g.world, info.point, env.aspect),
+      );
   }
 }
 
@@ -229,9 +234,9 @@ export function createObjectTool(): Tool {
         if (isBone(obj) && onBoneTail(env.doc, obj, info.point, env.zoom)) return 'grab';
       } else if (obj && canEditObject(env.doc, obj)) {
         if (info.alt) return 'crosshair';
-        const layout = gizmoLayout(obj, objectMatrix(env.doc, obj), env.zoom);
-        const handle = hitGizmo(layout, info.point, env.zoom);
-        if (handle) return handleCursor(layout, handle);
+        const layout = gizmoLayout(obj, objectMatrix(env.doc, obj), env.zoom, env.aspect);
+        const handle = hitGizmo(layout, info.point, env.zoom, env.aspect);
+        if (handle) return handleCursor(layout, handle, env.aspect);
       }
       const hit =
         rigNodeAt(env.doc, info.point, env.zoom) ?? objectAt(env.doc, info.cell.x, info.cell.y);

@@ -20,10 +20,13 @@ export function canvasHandleAt(
   height: number,
   p: Point,
   tolerance: number,
+  aspect = 1,
 ): CanvasHandle | null {
-  const nearX = (x: number): boolean => Math.abs(p.x - x) <= tolerance;
+  // Допуск — в высотах ячейки: по X в ячейках он в `aspect` раз больше.
+  const across = tolerance / aspect;
+  const nearX = (x: number): boolean => Math.abs(p.x - x) <= across;
   const nearY = (y: number): boolean => Math.abs(p.y - y) <= tolerance;
-  const alongX = p.x >= -tolerance && p.x <= width + tolerance;
+  const alongX = p.x >= -across && p.x <= width + across;
   const alongY = p.y >= -tolerance && p.y <= height + tolerance;
   const v = nearY(0) && alongX ? 'n' : nearY(height) && alongX ? 's' : '';
   const h = nearX(0) && alongY ? 'w' : nearX(width) && alongY ? 'e' : '';

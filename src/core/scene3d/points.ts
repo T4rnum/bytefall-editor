@@ -33,6 +33,8 @@ export interface ScenePoints {
 }
 
 export interface PointOptions {
+  /** Ширина ячейки к высоте, см. `View3D.aspect`; по умолчанию 1. */
+  readonly aspect?: number;
   /** Шаг точек в ячейках экрана. */
   readonly spacing: number;
   /**
@@ -229,9 +231,10 @@ function inView(view: View3D, node: Node3D, radius: number, at: Float64Array): b
   if (depth + radius <= view.near) return false;
   if (depth - radius <= view.near) return true;
   const reach = radius * cellsPerUnit(view, depth - radius);
+  const across = reach / view.aspect;
   return (
-    at[0] + reach >= 0 &&
-    at[0] - reach <= view.width &&
+    at[0] + across >= 0 &&
+    at[0] - across <= view.width &&
     at[1] + reach >= 0 &&
     at[1] - reach <= view.height
   );
@@ -245,7 +248,7 @@ export function scenePoints(
   meshes: readonly Mesh3D[],
   options: PointOptions,
 ): ScenePoints {
-  const view = viewOf(scene.camera, width, height);
+  const view = viewOf(scene.camera, width, height, options.aspect);
   const { position, target } = scene.camera;
   const reference = Math.max(
     view.near,

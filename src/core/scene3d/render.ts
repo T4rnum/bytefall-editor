@@ -1,5 +1,6 @@
 import type { Cell } from '../cell';
 import type { Document, Layer } from '../document';
+import { cellAspect } from '../font/font';
 import { type CellGrid, type CellKey, emptyGrid } from '../grid';
 import { type QuantizeOptions, quantize, sampleImage, subsamplesFor } from '../quantize';
 import { type Sprite3D, cloudSprites, gridCells } from './glyphs';
@@ -16,6 +17,8 @@ export interface Scene3DRequest {
   /** Размер холста в ячейках. */
   readonly width: number;
   readonly height: number;
+  /** Ширина ячейки к высоте: кадр рендера шире или уже, чем число ячеек. */
+  readonly aspect: number;
   readonly meshes: readonly Mesh3D[];
 }
 
@@ -55,15 +58,18 @@ export function setScene3DRenderer(next: Scene3DRenderer | null): void {
 
 function computeView(scene: Scene3D, doc: Document): Scene3DView {
   const { width, height, meshes } = doc;
+  const aspect = cellAspect(doc.font);
   switch (scene.render.mode) {
     case 'raster':
       return renderer
-        ? { cells: renderer({ scene, width, height, meshes }), sprites: [] }
+        ? { cells: renderer({ scene, width, height, aspect, meshes }), sprites: [] }
         : EMPTY_VIEW;
     case 'grid':
-      return { cells: gridCells(scene, width, height, meshes), sprites: [] };
-    case 'cloud':
-      return { cells: emptyGrid(), sprites: cloudSprites(scene, width, height, meshes) };
+      return { cells: gridCells(scene, width, height, meshes, aspect), sprites: [] };
+    case 'cloud': {
+      const sprites = cloudSprites(scene, width, height, meshes, aspect);
+      return { cells: emptyGrid(), sprites };
+    }
   }
 }
 
@@ -71,7 +77,7 @@ function computeView(scene: Scene3D, doc: Document): Scene3DView {
 export function scene3DView(layer: Layer, doc: Document): Scene3DView {
   const scene = layer.scene;
   if (!scene) return EMPTY_VIEW;
-  const key = `${doc.width}x${doc.height}`;
+  const key = `${doc.width}x${doc.height}@${cellAspect(doc.font)}`;
   const known = cache.get(scene);
   if (known && known.key === key && known.meshes === doc.meshes) return known.view;
   const view = computeView(scene, doc);

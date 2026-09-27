@@ -1,3 +1,4 @@
+import { cellAspect } from '../../core/font/font';
 import type { Point } from '../../core/geometry';
 import { dollyCamera, orbitCamera, panCamera } from '../../core/scene3d/camera';
 import { pickBody3D } from '../../core/scene3d/pick';
@@ -30,7 +31,8 @@ function cameraAt(env: ToolEnv, g: Gesture, point: Point): Camera3D {
   const { width, height } = env.doc;
   switch (g.mode) {
     case 'pan':
-      return panCamera(g.camera, dx / height, dy / height);
+      // Доли высоты кадра: по X ячейка короче высоты в `aspect` раз, и мир едет за указателем.
+      return panCamera(g.camera, (dx * cellAspect(env.doc.font)) / height, dy / height);
     case 'dolly':
       return dollyCamera(g.camera, Math.exp((dy * 2) / height));
     case 'orbit':
@@ -87,7 +89,9 @@ export function createOrbitTool(): Tool {
       const { doc, scene3d } = env;
       if (!scene3d) return;
       const { x, y } = info.point;
-      env.selectBody3D(pickBody3D(scene3d.scene, doc.width, doc.height, doc.meshes, x, y));
+      const { scene } = scene3d;
+      const aspect = cellAspect(doc.font);
+      env.selectBody3D(pickBody3D(scene, doc.width, doc.height, doc.meshes, x, y, aspect));
     },
     hoverCursor(env) {
       return env.scene3d ? null : 'not-allowed';
