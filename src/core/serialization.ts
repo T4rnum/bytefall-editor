@@ -10,6 +10,7 @@ import {
 } from './animation';
 import { MAX_DIMENSION, MAX_PALETTE, MIN_DIMENSION } from './document';
 import type { CellGrid } from './grid';
+import { fontFromFile, fontSchema, fontToFile } from './format/font';
 import type { DeformerMigration } from './format/graph';
 import {
   assertSharedLayers,
@@ -26,7 +27,6 @@ import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION }
 import {
   type CellFile,
   DocumentFormatError,
-  MAX_ID_LENGTH,
   MAX_NAME_LENGTH,
   cellsToFile,
   hex,
@@ -53,11 +53,12 @@ export const LEGACY_FORMAT_NAMES = ['blendphoto'] as const;
  * объекта, 7 — деформеры объекта, 8 — GPU-материал объекта, 9 — кости и контроллеры рига,
  * 10 — граф узлов на объекте вместо стека деформеров и материала: старые стеки мигрируют в граф,
  * ключи их параметров — на входы узлов, 11 — 3D-сцена на слое и модели документа, 12 — режим
- * символов 3D-сцены: растр или символы на поверхности, туман. Сцена без него — растр.
+ * символов 3D-сцены: растр или символы на поверхности, туман. Сцена без него — растр. 13 — свой
+ * шрифт в документе: файл TTF или лист символов и ячейка; встроенный по-прежнему строкой.
  * Старые версии читаются как один кадр, позиция объекта до версии 5 — это `x`, `y`.
  * Кадры старых файлов без изменений становятся спрайт-треком: у них уже были длительности.
  */
-export const FORMAT_VERSION = 12;
+export const FORMAT_VERSION = 13;
 /** bp — bytefall project. Расширение осталось от прототипа, чтобы старые файлы открывались. */
 export const FILE_EXTENSION = '.bp.json';
 
@@ -85,11 +86,12 @@ const documentSchema = z.object({
     z.literal(10),
     z.literal(11),
     z.literal(12),
+    z.literal(13),
   ]),
   name: z.string().max(MAX_NAME_LENGTH),
   width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
   height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
-  font: z.string().min(1).max(MAX_ID_LENGTH),
+  font: fontSchema,
   background: hex.nullable(),
   palette: z.array(hex).max(MAX_PALETTE),
   /** Версии 1 и 2: один кадр в корне. */
@@ -126,7 +128,7 @@ export function toFileObject(
     name: anim.name,
     width: anim.width,
     height: anim.height,
-    font: anim.font,
+    font: fontToFile(anim.font),
     background: anim.background,
     palette: [...anim.palette],
     frames: anim.frames.map((frame) => ({
@@ -223,7 +225,7 @@ export function fromFileObject(file: DocumentFile): Animation {
     name: file.name,
     width: file.width,
     height: file.height,
-    font: file.font,
+    font: fontFromFile(file.font),
     background: file.background,
     palette: file.palette,
     frames,

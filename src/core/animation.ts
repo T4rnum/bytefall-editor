@@ -7,6 +7,7 @@ import {
   resizeDocument,
   resizeOffset,
 } from './document';
+import type { DocumentFont } from './font/font';
 import { emptyGrid } from './grid';
 import type { SceneObject } from './object';
 import type { Mesh3D } from './scene3d/types';
@@ -34,7 +35,7 @@ export interface Animation {
   readonly name: string;
   readonly width: number;
   readonly height: number;
-  readonly font: string;
+  readonly font: DocumentFont;
   readonly background: string | null;
   readonly palette: readonly string[];
   readonly frames: readonly Frame[];

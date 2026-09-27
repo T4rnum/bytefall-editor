@@ -1,5 +1,6 @@
 import type { Pose } from './constraints';
 import type { LayerEffect } from './effects';
+import { BUILTIN_FONT, type DocumentFont } from './font/font';
 import type { Point } from './geometry';
 import { type CellGrid, emptyGrid, shiftGrid } from './grid';
 import type { SceneObject } from './object';
@@ -33,8 +34,8 @@ export interface Document {
   readonly name: string;
   readonly width: number;
   readonly height: number;
-  /** Идентификатор шрифта, см. src/render/font. */
-  readonly font: string;
+  /** Шрифт документа и с ним форма ячейки, см. `core/font/font.ts`. */
+  readonly font: DocumentFont;
   /** Цвет холста, hex, либо null для прозрачного. */
   readonly background: string | null;
   readonly palette: readonly string[];
@@ -53,7 +54,7 @@ export const MIN_DIMENSION = 1;
 export const MAX_DIMENSION = 1024;
 export const MAX_LAYERS = 256;
 export const MAX_PALETTE = 256;
-export const DEFAULT_FONT = 'press-start-2p';
+export const DEFAULT_FONT: DocumentFont = BUILTIN_FONT;
 
 /** Палитра PICO-8: контрастная и хорошо смотрится на пиксельном шрифте. */
 export const DEFAULT_PALETTE: readonly string[] = [
