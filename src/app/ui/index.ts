@@ -11,7 +11,8 @@ export { ColorField, type ColorFieldProps } from './ColorField';
 export { Field, FieldGroup, type FieldProps } from './Field';
 export { KeyButton, type KeyButtonProps, type KeyButtonState } from './KeyButton';
 export { NumberField, type NumberFieldProps } from './NumberField';
-export { Panel, type PanelProps } from './Panel';
+export { Menu, type MenuItem, type MenuProps } from './Menu';
+export { Panel, PanelHostContext, type PanelHost, type PanelProps } from './Panel';
 export { PixelCanvas, type PixelCanvasProps, type Pixels } from './PixelCanvas';
 export {
   PropertyEditor,

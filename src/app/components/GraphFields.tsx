@@ -11,7 +11,7 @@ import {
 } from '../../core/graph/types';
 import type { SceneObject } from '../../core/object';
 import { addPresetAction, removeNodeAction, setNodeMutedAction } from '../store/graphActions';
-import { useUiStore } from '../store/uiStore';
+import { revealPanelAction } from '../store/workspaceActions';
 import { Button, Checkbox, Field, Select, type SelectOption, plural } from '../ui';
 import { OBJECTS, useGroupTargets } from './groupTargets';
 import { InputField, OptionField } from './NodeFields';
@@ -130,7 +130,7 @@ export function GraphFields({ object }: { readonly object: SceneObject }) {
           size="sm"
           label="Граф узлов внизу: связи, ветки, свои цепочки"
           hotkey="N"
-          onClick={() => useUiStore.getState().setBottomView('nodes')}
+          onClick={() => revealPanelAction('nodes')}
         >
           <Workflow size={14} />
         </Button>

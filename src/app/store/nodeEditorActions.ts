@@ -4,7 +4,6 @@ import { findObject } from '../../core/object';
 import { useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { removeNodesAction, setNodesMutedAction } from './graphActions';
-import { useUiStore } from './uiStore';
 
 /** Что умеет открытый редактор узлов по команде извне: из реестра клавиш. */
 export interface NodeEditorHandle {
@@ -26,11 +25,6 @@ export const activeNodeEditor = (): NodeEditorHandle | null => active;
 /** Клавиши редактора узлов действуют, пока фокус в нём: X там удаляет узел, а не меняет цвета. */
 export const nodeEditorFocused = (): boolean =>
   active !== null && document.activeElement?.closest('.node-editor') != null;
-
-export function toggleBottomViewAction(): void {
-  const ui = useUiStore.getState();
-  ui.setBottomView(ui.bottomView === 'nodes' ? 'timeline' : 'nodes');
-}
 
 /** Выбранный объект и те выделенные узлы, что есть в его графе. */
 function selectedInGraph(): { objectId: string; ids: string[] } | null {

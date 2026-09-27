@@ -6,14 +6,14 @@ import { useUiStore } from '../store/uiStore';
 import { getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
 
+/**
+ * Ввод ли это текста. Без `instanceof`: у панели в отдельном окне свои конструкторы элементов,
+ * и проверка по классу главного окна там всегда ложна.
+ */
 export function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  );
+  const el = target as Partial<HTMLElement> | null;
+  if (!el || typeof el.tagName !== 'string') return false;
+  return el.isContentEditable === true || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
 }
 
 /**
@@ -22,7 +22,8 @@ export function isEditableTarget(target: EventTarget | null): boolean {
  * предпросмотром.
  */
 function insideModal(target: EventTarget | null): boolean {
-  if (target instanceof Element && target.closest('dialog[open]')) return true;
+  const el = target as Partial<Element> | null;
+  if (el && typeof el.closest === 'function' && el.closest('dialog[open]')) return true;
   return document.querySelector('dialog:modal') !== null;
 }
 
@@ -32,37 +33,39 @@ function insideModal(target: EventTarget | null): boolean {
  * Escape, пока ведёт своё взаимодействие. Всё остальное разбирается по реестру из
  * hotkeys/registry.ts, который же рисует справку.
  */
+export const handleHotkey = (event: KeyboardEvent): void => {
+  if (isEditableTarget(event.target) || insideModal(event.target)) return;
+  // Пока открыт импорт картинки, документ заперт: работают только клавиши вида, Escape
+  // закрывает импорт. Иначе Ctrl+Z откатил бы документ прямо под предпросмотром.
+  if (useUiStore.getState().imageImport) {
+    const view = findHotkey(event);
+    if (event.key === 'Escape') closeImageImport();
+    else if (view?.group === 'Вид') view.run();
+    else return;
+    event.preventDefault();
+    return;
+  }
+  const contextual = findHotkey(event, true);
+  if (contextual) {
+    event.preventDefault();
+    contextual.run();
+    return;
+  }
+  const tool = getTool(useEditorStore.getState().tool);
+  if (tool.onKeyDown?.(buildToolEnv(), event)) {
+    event.preventDefault();
+    return;
+  }
+  const hotkey = findHotkey(event);
+  if (!hotkey) return;
+  event.preventDefault();
+  hotkey.run();
+};
+
+/** Глобальные клавиши главного окна; окна панелей подписываются на `handleHotkey` сами. */
 export function useHotkeys(): void {
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (isEditableTarget(event.target) || insideModal(event.target)) return;
-      // Пока открыт импорт картинки, документ заперт: работают только клавиши вида, Escape
-      // закрывает импорт. Иначе Ctrl+Z откатил бы документ прямо под предпросмотром.
-      if (useUiStore.getState().imageImport) {
-        const view = findHotkey(event);
-        if (event.key === 'Escape') closeImageImport();
-        else if (view?.group === 'Вид') view.run();
-        else return;
-        event.preventDefault();
-        return;
-      }
-      const contextual = findHotkey(event, true);
-      if (contextual) {
-        event.preventDefault();
-        contextual.run();
-        return;
-      }
-      const tool = getTool(useEditorStore.getState().tool);
-      if (tool.onKeyDown?.(buildToolEnv(), event)) {
-        event.preventDefault();
-        return;
-      }
-      const hotkey = findHotkey(event);
-      if (!hotkey) return;
-      event.preventDefault();
-      hotkey.run();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', handleHotkey);
+    return () => window.removeEventListener('keydown', handleHotkey);
   }, []);
 }

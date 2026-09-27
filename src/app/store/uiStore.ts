@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { RgbaImage } from '../../core/quantize';
-import { readSetting, writeSetting } from '../ui/persist';
 
 /** Картинка, которую сейчас настраивают в диалоге импорта. */
 export interface ImageImportSource {
@@ -8,26 +7,9 @@ export interface ImageImportSource {
   readonly image: RgbaImage;
 }
 
-const MIN_SIDEBAR = 220;
-const MAX_SIDEBAR = 520;
-const DEFAULT_SIDEBAR = 300;
-const MIN_TIMELINE = 120;
-const MAX_TIMELINE = 520;
-const DEFAULT_TIMELINE = 200;
-
-/** Что показывает нижняя область: время сцены или узлы выбранного объекта. */
-export type BottomView = 'timeline' | 'nodes';
-
-const clampTimeline = (height: number): number =>
-  Math.min(MAX_TIMELINE, Math.max(MIN_TIMELINE, Math.round(height)));
-
 interface UiState {
-  /** Ширина правого сайдбара в пикселях. */
-  readonly sidebarWidth: number;
-  /** Высота таймлайна в пикселях. */
-  readonly timelineHeight: number;
-  readonly bottomView: BottomView;
   readonly hotkeysOpen: boolean;
+  readonly themeOpen: boolean;
   readonly resizeOpen: boolean;
   readonly exportOpen: boolean;
   /** Открыт ли диалог импорта и с какой картинкой. */
@@ -36,10 +18,8 @@ interface UiState {
   readonly autosavedAt: number | null;
   /** Автосохранение не смогло записать: хранилище браузера недоступно или переполнено. */
   readonly autosaveFailed: boolean;
-  setSidebarWidth: (width: number) => void;
-  setTimelineHeight: (height: number) => void;
-  setBottomView: (view: BottomView) => void;
   setHotkeysOpen: (open: boolean) => void;
+  setThemeOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
   setImageImport: (source: ImageImportSource | null) => void;
@@ -47,41 +27,22 @@ interface UiState {
 }
 
 /**
- * Состояние оболочки редактора: раскладка и служебные окна. Отдельно от editorStore, потому что
- * к документу и к инструментам это отношения не имеет и в файл не сохраняется.
+ * Состояние оболочки редактора: служебные окна. Отдельно от editorStore, потому что к документу
+ * и к инструментам это отношения не имеет и в файл не сохраняется. Раскладка панелей — в
+ * workspaceStore.
  */
 export const useUiStore = create<UiState>((set) => ({
-  sidebarWidth: Math.min(
-    MAX_SIDEBAR,
-    Math.max(MIN_SIDEBAR, readSetting('sidebarWidth', DEFAULT_SIDEBAR)),
-  ),
-  timelineHeight: clampTimeline(readSetting('timelineHeight', DEFAULT_TIMELINE)),
-  bottomView: readSetting<BottomView>('bottomView', 'timeline') === 'nodes' ? 'nodes' : 'timeline',
   hotkeysOpen: false,
+  themeOpen: false,
   resizeOpen: false,
   exportOpen: false,
   imageImport: null,
   autosavedAt: null,
   autosaveFailed: false,
-  setSidebarWidth: (width) => {
-    const clamped = Math.min(MAX_SIDEBAR, Math.max(MIN_SIDEBAR, Math.round(width)));
-    writeSetting('sidebarWidth', clamped);
-    set({ sidebarWidth: clamped });
-  },
-  setTimelineHeight: (height) => {
-    const clamped = clampTimeline(height);
-    writeSetting('timelineHeight', clamped);
-    set({ timelineHeight: clamped });
-  },
-  setBottomView: (bottomView) => {
-    writeSetting('bottomView', bottomView);
-    set({ bottomView });
-  },
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
+  setThemeOpen: (themeOpen) => set({ themeOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setImageImport: (imageImport) => set({ imageImport }),
   setAutosaveStatus: ({ at, failed }) => set({ autosavedAt: at, autosaveFailed: failed }),
 }));
-
-export const SIDEBAR_LIMITS = { min: MIN_SIDEBAR, max: MAX_SIDEBAR } as const;

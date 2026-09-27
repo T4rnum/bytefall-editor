@@ -97,6 +97,43 @@
   --z-tooltip: 200;
 }
 
+/**
+ * Светлая тема: те же переменные, другие значения. Холст и его окружение рисует WebGL по
+ * документу, поэтому цвет вокруг холста — свой, в настройках вида.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --workspace: #d6d6dd;
+  --bg: #e8e8ed;
+  --panel: #f3f3f6;
+  --panel-raised: #ffffff;
+  --panel-overlay: #ffffff;
+
+  --border: #d3d3db;
+  --border-strong: #b8b8c5;
+
+  --text: #1c1c23;
+  --text-dim: #5b5b6a;
+  --text-faint: #8c8c9a;
+
+  --accent: #c96f00;
+  --accent-hover: #e0800a;
+  --accent-text: #ffffff;
+  --danger: #d12f2f;
+  --danger-text: #ffffff;
+
+  --state-hover: rgb(0 0 0 / 6%);
+  --state-pressed: rgb(0 0 0 / 12%);
+  --state-selected: rgb(201 111 0 / 16%);
+
+  --shadow-popover: 0 6px 20px rgb(0 0 0 / 18%);
+  --shadow-dialog: 0 20px 60px rgb(0 0 0 / 25%);
+  --scrim: rgb(0 0 0 / 30%);
+
+  --node-grid: rgb(0 0 0 / 6%);
+}
+
 /** Пользователь просит меньше анимации — отдаём меньше анимации. */
 @media (prefers-reduced-motion: reduce) {
   :root {

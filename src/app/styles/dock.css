@@ -1,0 +1,236 @@
+/**
+ * Рабочее место: зоны вокруг холста, группы панелей со вкладками, подсветка места вставки при
+ * перетаскивании, окно отдельной панели. Только токены из tokens.css.
+ */
+
+/* ── Зоны ──────────────────────────────────────────────────────────────── */
+.dock {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--panel);
+  scrollbar-width: thin;
+}
+
+.dock--bottom {
+  flex-direction: row;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+}
+
+/** Пустая зона видна, только пока тянут панель: полоса, куда её можно бросить. */
+.dock--empty {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  outline: 1px dashed var(--border-strong);
+  outline-offset: -4px;
+}
+
+.dock--left.dock--empty,
+.dock--right.dock--empty {
+  width: 44px;
+}
+
+.dock--bottom.dock--empty {
+  height: 44px;
+}
+
+.dock-drop-hint {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  writing-mode: vertical-rl;
+}
+
+.dock--bottom .dock-drop-hint {
+  writing-mode: horizontal-tb;
+}
+
+/* ── Группа панелей ────────────────────────────────────────────────────── */
+.dock-group {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+/**
+ * Растущая группа занимает свободную высоту колонки, но не сжимается ниже содержимого: когда
+ * групп много и колонка прокручивается, свободного места нет, и сжатие уводило её в ноль.
+ */
+.dock-group--grow {
+  flex: 1 0 auto;
+}
+
+.dock--bottom .dock-group {
+  flex: 1 1 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: none;
+}
+
+.dock--bottom .dock-group:last-child {
+  border-right: none;
+}
+
+.dock-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.dock--bottom .dock-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.dock-fold {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dock-fold:hover {
+  color: var(--text);
+}
+
+.dock-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/** Вкладка — и заголовок, и ручка: её тянут, чтобы переставить панель. */
+.dock-tab {
+  padding: var(--space-1) var(--space-3);
+  color: var(--text-faint);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.dock-tab:hover {
+  color: var(--text);
+  background: var(--state-hover);
+}
+
+.dock-tab.is-active {
+  color: var(--text-dim);
+}
+
+/** Вкладок несколько — активная отмечена, как выбранное в списке. */
+.dock-tabs:has(.dock-tab + .dock-tab) .dock-tab.is-active {
+  color: var(--text);
+  background: var(--state-selected);
+}
+
+.dock-slot {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dock-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dock-group--grow .dock-body {
+  min-height: 160px;
+}
+
+.dock--bottom .dock-body > .timeline {
+  flex: 1;
+}
+
+/** Панель в группе: заголовок у группы, у панели — только содержимое. */
+.panel--docked {
+  padding-top: 0;
+  border-bottom: none;
+}
+
+/* ── Перетаскивание ────────────────────────────────────────────────────── */
+.dock-drop {
+  position: fixed;
+  z-index: var(--z-popover);
+  background: var(--state-selected);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  pointer-events: none;
+  transition:
+    left var(--motion-fast) var(--ease),
+    top var(--motion-fast) var(--ease),
+    width var(--motion-fast) var(--ease),
+    height var(--motion-fast) var(--ease);
+}
+
+/* ── Рабочие места в шапке ─────────────────────────────────────────────── */
+.workspace-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+/* ── Окно отдельной панели ─────────────────────────────────────────────── */
+.panel-window {
+  height: 100vh;
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-ui);
+  background: var(--panel);
+}
+
+.panel-window-root,
+.panel-window-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-window-frame .dock-body {
+  overflow-y: auto;
+}
+
+/* ── Тема ──────────────────────────────────────────────────────────────── */
+.theme-dialog {
+  min-width: 360px;
+}
+
+.theme-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+}

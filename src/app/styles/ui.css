@@ -506,3 +506,74 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ── Меню ──────────────────────────────────────────────────────────────── */
+.menu {
+  position: relative;
+  flex: none;
+}
+
+.menu-list {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  padding: var(--space-2);
+  background: var(--panel-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+}
+
+.menu-list--left {
+  left: 0;
+}
+
+.menu-list--right {
+  right: 0;
+}
+
+.menu-item {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--state-hover);
+}
+
+.menu-item:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: default;
+}
+
+.menu-check {
+  display: flex;
+  color: var(--accent);
+}
+
+.menu-hotkey {
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: var(--text-xs);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--border);
+}

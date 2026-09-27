@@ -3,7 +3,6 @@ import { sceneDuration } from '../../../core/timeline';
 import { keyTimes } from '../../../core/tracks';
 import type { GlyphAtlas } from '../../../render/font/GlyphAtlas';
 import { useDocumentStore } from '../../store/documentStore';
-import { useUiStore } from '../../store/uiStore';
 import { LANE_PAD, clampScale, fitScale, timelineSpan } from '../../timeline/timelineMath';
 import { TimelineBody } from './TimelineBody';
 import { TimelineToolbar } from './TimelineToolbar';
@@ -24,7 +23,6 @@ function useSpan(): number {
  * вписывается при открытии документа и по кнопке, Ctrl с колесом меняет его вокруг указателя.
  */
 export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
-  const height = useUiStore((s) => s.timelineHeight);
   const epoch = useDocumentStore((s) => s.epoch);
   const span = useSpan();
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +63,7 @@ export function TimelinePanel({ atlas }: { readonly atlas: GlyphAtlas }) {
   }, []);
 
   return (
-    <section className="timeline" style={{ height }} aria-label="Таймлайн">
+    <section className="timeline" aria-label="Таймлайн">
       <TimelineToolbar onFit={fit} />
       <TimelineBody atlas={atlas} scale={scale} span={span} scrollerRef={scrollerRef} />
     </section>

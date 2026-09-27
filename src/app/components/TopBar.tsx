@@ -24,6 +24,7 @@ import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { Button, TextField } from '../ui';
 import { ExportDialog } from './ExportDialog';
+import { WorkspaceBar } from './workspace/WorkspaceBar';
 import { NewDocumentDialog } from './NewDocumentDialog';
 import { ResizeCanvasDialog } from './ResizeCanvasDialog';
 
@@ -121,6 +122,8 @@ export function TopBar() {
           <Redo2 size={16} />
         </Button>
       </div>
+
+      <WorkspaceBar />
 
       <div className="topbar-group topbar-group--right">
         <Button icon label="Отдалить" hotkey="-" onClick={() => zoomByAction(0.8)}>

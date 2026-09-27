@@ -3,9 +3,9 @@ import {
   nodeEditorFocused,
   removeSelectedNodesAction,
   selectAllNodesAction,
-  toggleBottomViewAction,
   toggleMuteSelectedNodesAction,
 } from '../store/nodeEditorActions';
+import { toggleNodesAction } from '../store/workspaceActions';
 import type { Hotkey } from './types';
 
 /**
@@ -14,7 +14,7 @@ import type { Hotkey } from './types';
  * в начало. Раскладка — как в Blender.
  */
 export const NODE_HOTKEYS: readonly Hotkey[] = [
-  { group: 'Вид', label: 'Узлы или таймлайн внизу', keys: 'N', run: toggleBottomViewAction },
+  { group: 'Вид', label: 'Узлы или таймлайн', keys: 'N', run: toggleNodesAction },
   {
     group: 'Узлы',
     label: 'Добавить узел под указателем',

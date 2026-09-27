@@ -3,7 +3,8 @@ import { cellsWithAttr, isValidAttrKey, removeAttrEdits, setAttrEdits } from '..
 import { findLayer } from '../../core/document';
 import { selectionFromPoints } from '../../core/selection';
 import { MAX_ATTR_STRING_LENGTH, MAX_ID_LENGTH } from '../../core/serialization';
-import { revealPanel } from '../ui/Panel';
+import type { PanelId } from '../workspace/layout';
+import { revealPanelAction } from './workspaceActions';
 import { plural } from '../ui/plural';
 import { paintableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
@@ -12,7 +13,7 @@ import { notify } from './notifyStore';
 const cellForms = { one: 'ячейке', few: 'ячейках', many: 'ячейках' };
 
 /** Панель свойств ячеек и поле нового свойства: к ним ведёт горячая клавиша. */
-export const CELL_ATTRS_PANEL_ID = 'cell-attrs';
+export const CELL_ATTRS_PANEL_ID = 'cell-attrs' satisfies PanelId;
 export const CELL_ATTR_KEY_INPUT_ID = 'cell-attr-key';
 
 /** Слой и выделение, с которыми работают свойства ячеек; иначе сообщение и null. */
@@ -83,7 +84,7 @@ export function selectCellsWithAttrAction(key: string): void {
 
 /** Горячая клавиша: развернуть панель свойств и поставить курсор в имя нового свойства. */
 export function focusCellAttrInputAction(): void {
-  revealPanel(CELL_ATTRS_PANEL_ID);
+  revealPanelAction(CELL_ATTRS_PANEL_ID);
   // Поле появляется после отрисовки развёрнутой панели, поэтому фокус — на следующем шаге.
   setTimeout(() => {
     const input = document.getElementById(CELL_ATTR_KEY_INPUT_ID);

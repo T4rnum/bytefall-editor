@@ -19,8 +19,9 @@ const KINDS: readonly SelectOption<Node3DKind>[] = PRIMITIVES_3D.map((kind) => (
 }));
 
 /**
- * 3D-сцена активного слоя: тела, камера, свет и то, как рендер становится символами. Панель
- * видна, только когда активный слой — 3D. Значения — из вычисленной сцены в момент указателя.
+ * 3D-сцена активного слоя: тела, камера, свет и то, как рендер становится символами. Без
+ * 3D-слоя панель подсказывает, как его получить. Значения — из вычисленной сцены в момент
+ * указателя.
  */
 export function Scene3DPanel() {
   const doc = useDocumentStore((s) => s.doc);
@@ -30,7 +31,16 @@ export function Scene3DPanel() {
   const setSelected = useEditorStore((s) => s.setSelectedBody3D);
   const layer = findLayer(doc, activeLayerId);
   const scene = layer?.scene;
-  if (!layer || !scene) return null;
+  // Панель стоит в рабочем месте и без 3D-слоя: вместо пустой вкладки — что сделать.
+  if (!layer || !scene) {
+    return (
+      <Panel id="scene3d" title="3D-сцена">
+        <p className="panel-hint">
+          Активный слой не 3D. Выберите 3D-слой в панели слоёв или создайте новый: Ctrl+Shift+3.
+        </p>
+      </Panel>
+    );
+  }
   const body = scene.nodes.find((n) => n.id === selected) ?? scene.nodes[0];
 
   return (

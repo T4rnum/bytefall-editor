@@ -57,13 +57,17 @@ select {
   height: 100%;
 }
 
+/** Инструменты, левая колонка, холст, правая колонка: колонки — зоны рабочего места. */
 .app-body {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto var(--sidebar-w, 300px);
+  display: flex;
   min-width: 0;
   min-height: 0;
   /* Без этого высокая панель инструментов распирает строку и налезает на таймлайн. */
   overflow: hidden;
+}
+
+.app-body > .viewport {
+  flex: 1 1 0;
 }
 
 .app-body > * {
@@ -239,15 +243,6 @@ select {
 
 .viewport canvas {
   display: block;
-}
-
-/* ── Сайдбар ───────────────────────────────────────────────────────────── */
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  background: var(--panel);
 }
 
 /* ── Списки слоёв и объектов ───────────────────────────────────────────── */

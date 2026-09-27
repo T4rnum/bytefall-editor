@@ -19,7 +19,7 @@ import { editableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { plural } from '../ui/plural';
 import { notify } from './notifyStore';
-import { revealPanel } from '../ui/Panel';
+import { revealPanelAction } from './workspaceActions';
 
 const docState = () => useDocumentStore.getState();
 const editor = () => useEditorStore.getState();
@@ -138,7 +138,7 @@ export function focusParentSelectAction(): void {
     notify('Сначала выберите объект');
     return;
   }
-  revealPanel('objects');
+  revealPanelAction('objects');
   // Поле появляется после отрисовки развёрнутой панели, поэтому фокус — на следующем шаге.
   setTimeout(() => document.getElementById(OBJECT_PARENT_SELECT_ID)?.focus(), 0);
 }

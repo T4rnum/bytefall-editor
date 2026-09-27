@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, createContext, useContext, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { readSetting, writeSetting } from './persist';
 
 export interface PanelProps {
@@ -18,16 +19,28 @@ export interface PanelProps {
   readonly className?: string;
 }
 
-const REVEAL_EVENT = 'panel:reveal';
+/**
+ * Где стоит панель, если её держит рабочее место: заголовок, вкладки и сворачивание тогда у
+ * группы, а панель выносит в `slot` — место в заголовке группы — только приписку и кнопки.
+ */
+export interface PanelHost {
+  readonly slot: HTMLElement | null;
+}
 
-/** Разворачивает панель по id: горячая клавиша может вести к полю в свёрнутой панели. */
-export function revealPanel(id: string): void {
-  window.dispatchEvent(new CustomEvent<string>(REVEAL_EVENT, { detail: id }));
+export const PanelHostContext = createContext<PanelHost | null>(null);
+
+function HeaderExtras({ badge, actions }: Pick<PanelProps, 'badge' | 'actions'>) {
+  return (
+    <>
+      {badge !== undefined && <span className="panel-badge">{badge}</span>}
+      {actions !== undefined && <div className="panel-actions">{actions}</div>}
+    </>
+  );
 }
 
 /**
- * Секция сайдбара с заголовком. Сворачивание запоминается, иначе на длинном сайдбаре
- * приходится сворачивать одно и то же после каждой перезагрузки.
+ * Секция с заголовком. Сама по себе сворачивается и запоминает это между сессиями; в рабочем
+ * месте (`PanelHostContext`) отдаёт заголовок группе, где стоит.
  */
 export function Panel({
   title,
@@ -40,20 +53,22 @@ export function Panel({
   grow = false,
   className,
 }: PanelProps) {
+  const host = useContext(PanelHostContext);
   const [collapsed, setCollapsed] = useState(() =>
     id ? readSetting(`panel.${id}.collapsed`, defaultCollapsed) : defaultCollapsed,
   );
 
-  useEffect(() => {
-    if (!id) return;
-    const onReveal = (event: Event): void => {
-      if ((event as CustomEvent<string>).detail !== id) return;
-      setCollapsed(false);
-      writeSetting(`panel.${id}.collapsed`, false);
-    };
-    window.addEventListener(REVEAL_EVENT, onReveal);
-    return () => window.removeEventListener(REVEAL_EVENT, onReveal);
-  }, [id]);
+  if (host) {
+    const extras = badge !== undefined || actions !== undefined;
+    return (
+      <section className={`panel panel--docked${className ? ` ${className}` : ''}`}>
+        {extras &&
+          host.slot &&
+          createPortal(<HeaderExtras badge={badge} actions={actions} />, host.slot)}
+        <div className="panel-body">{children}</div>
+      </section>
+    );
+  }
 
   const toggle = (): void => {
     if (!collapsible) return;
@@ -88,8 +103,7 @@ export function Panel({
         ) : (
           <span className="panel-title">{title}</span>
         )}
-        {badge !== undefined && <span className="panel-badge">{badge}</span>}
-        {actions !== undefined && <div className="panel-actions">{actions}</div>}
+        <HeaderExtras badge={badge} actions={actions} />
       </header>
       {!collapsed && <div className="panel-body">{children}</div>}
     </section>

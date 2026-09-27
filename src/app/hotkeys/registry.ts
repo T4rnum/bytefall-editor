@@ -23,6 +23,7 @@ import { type KeyChord, MatchQuality, matchQuality } from './match';
 import { NODE_HOTKEYS } from './nodeHotkeys';
 import { OBJECT_HOTKEYS } from './objectHotkeys';
 import { SCENE_3D_HOTKEYS } from './scene3dHotkeys';
+import { WORKSPACE_HOTKEYS } from './workspaceHotkeys';
 import type { Hotkey, HotkeyGroup } from './types';
 
 export type { Hotkey, HotkeyGroup } from './types';
@@ -218,6 +219,7 @@ export const HOTKEYS: readonly Hotkey[] = [
   ...STATIC_HOTKEYS,
   ...NODE_HOTKEYS,
   ...SCENE_3D_HOTKEYS,
+  ...WORKSPACE_HOTKEYS,
   ...TOOL_HOTKEYS,
 ];
 
@@ -251,5 +253,6 @@ export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [
   '3D',
   'Анимация',
   'Вид',
+  'Рабочее место',
   'Файл',
 ];
