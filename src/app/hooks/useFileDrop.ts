@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
+import { isModelFile } from '../io/files';
 import { isImageFile } from '../io/image';
 import { openDroppedDocumentAction } from '../store/fileActions';
 import { importImageFileAction } from '../store/importActions';
+import { importModelFileAction } from '../store/modelActions';
 
 /** Несёт ли перетаскивание файлы: текст и ссылки окну не нужны. */
 const carriesFiles = (event: DragEvent): boolean =>
   event.dataTransfer?.types.includes('Files') ?? false;
 
-/** Картинка уходит в диалог импорта, всё остальное открывается как документ. */
+/** Картинка уходит в диалог импорта, модель — в 3D-сцену, остальное открывается как документ. */
 function openDropped(file: File): void {
   if (isImageFile(file)) void importImageFileAction(file);
+  else if (isModelFile(file)) void importModelFileAction(file);
   else void openDroppedDocumentAction(file);
 }
 

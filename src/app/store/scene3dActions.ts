@@ -29,7 +29,11 @@ const state = () => useDocumentStore.getState();
  * 3D-сцена слоя общая для всех кадров, как эффекты: правка идёт во все кадры, иначе сцена
  * менялась бы при смене кадра.
  */
-function withScene(anim: Animation, layerId: string, fn: (scene: Scene3D) => Scene3D): Animation {
+export function withScene(
+  anim: Animation,
+  layerId: string,
+  fn: (scene: Scene3D) => Scene3D,
+): Animation {
   return mapFrames(anim, (doc) => {
     const index = layerIndex(doc, layerId);
     const layer = doc.layers[index] as (typeof doc.layers)[number] | undefined;

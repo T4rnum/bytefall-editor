@@ -69,6 +69,26 @@ export async function openImageFile(): Promise<File | null> {
   }
 }
 
+const MODEL_EXTENSIONS = ['.glb', '.gltf'];
+
+/** Модель glTF: двоичная .glb или .gltf, у которой данные встроены в сам файл. */
+export const isModelFile = (file: { readonly name: string }): boolean =>
+  MODEL_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+
+/** Файл 3D-модели. null, если пользователь отменил диалог. */
+export async function openModelFile(): Promise<File | null> {
+  try {
+    return await fileOpen({
+      description: '3D-модель glTF',
+      extensions: MODEL_EXTENSIONS,
+      mimeTypes: ['model/gltf-binary', 'model/gltf+json'],
+    });
+  } catch (error) {
+    if (isAbort(error)) return null;
+    throw error;
+  }
+}
+
 /** Палитры меньше мегабайта: больше — это не палитра, и читать её целиком незачем. */
 export const MAX_PALETTE_FILE_BYTES = 1024 * 1024;
 

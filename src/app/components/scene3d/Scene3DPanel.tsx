@@ -1,9 +1,10 @@
-import { Plus, X } from 'lucide-react';
+import { FileBox, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { findLayer } from '../../../core/document';
 import { type Node3DKind, PRIMITIVES_3D } from '../../../core/scene3d/types';
 import { KIND_3D_LABELS } from '../../scene3d/labels';
 import { useDocumentStore } from '../../store/documentStore';
+import { importModelAction } from '../../store/modelActions';
 import { addBody3DAction, removeBody3DAction } from '../../store/scene3dActions';
 import { Button, Panel, Select, type SelectOption } from '../../ui';
 import { Body3DFields } from './Body3DFields';
@@ -50,6 +51,15 @@ export function Scene3DPanel() {
             onClick={() => setSelected(addBody3DAction(layer.id, kind))}
           >
             <Plus size={14} />
+          </Button>
+          <Button
+            icon
+            size="sm"
+            label="Модель glTF в сцену: .glb или .gltf со встроенными данными"
+            hotkey="Ctrl+Shift+M"
+            onClick={() => void importModelAction()}
+          >
+            <FileBox size={14} />
           </Button>
         </>
       }

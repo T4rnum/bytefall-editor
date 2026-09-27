@@ -19,6 +19,7 @@ import {
 } from './format/layers';
 import { meshesFromFile, meshesSchema, meshesToFile } from './format/meshes';
 import { objectSchema, objectsFromFile, objectsToFile } from './format/objects';
+import { usedMeshes } from './scene3d/mesh';
 import { tracksFromFile, tracksSchema, tracksToFile } from './format/tracks';
 import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION } from './time';
 import { DocumentFormatError, MAX_ID_LENGTH, MAX_NAME_LENGTH, hex, id } from './format/primitives';
@@ -97,6 +98,10 @@ export type DocumentFile = z.infer<typeof documentSchema>;
 export type FrameFile = z.infer<typeof frameSchema>;
 
 export function toFileObject(anim: Animation): DocumentFile {
+  const meshes = usedMeshes(
+    anim.meshes,
+    anim.frames.flatMap((f) => f.layers),
+  );
   return {
     format: FORMAT_NAME,
     version: FORMAT_VERSION,
@@ -115,7 +120,7 @@ export function toFileObject(anim: Animation): DocumentFile {
     fps: anim.fps,
     ...(anim.duration !== null ? { duration: anim.duration } : {}),
     ...(anim.tracks.length > 0 ? { tracks: tracksToFile(anim.tracks) } : {}),
-    ...(anim.meshes.length > 0 ? { meshes: meshesToFile(anim.meshes) } : {}),
+    ...(meshes.length > 0 ? { meshes: meshesToFile(meshes) } : {}),
   };
 }
 

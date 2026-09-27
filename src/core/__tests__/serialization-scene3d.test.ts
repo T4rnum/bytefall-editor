@@ -47,6 +47,9 @@ describe('3D-сцена в файле (версия 11)', () => {
     expect(evaluate(anim, 500).layers[1].scene!.nodes[0].rotation).toEqual([15, 210, 0]);
     expect(evaluate(anim, 500).layers[1].scene!.camera.fov).toBe(50);
     expect(deserialize(serialize(anim))).toEqual(anim);
+    // Модель без тел в файл не идёт: её держала бы только история отмены.
+    const orphan = { ...anim.meshes[0], id: 'mesh-orphan' };
+    expect(deserialize(serialize({ ...anim, meshes: [...anim.meshes, orphan] }))).toEqual(anim);
   });
 
   it('тело модели без модели, модель с чужим индексом или длиной файл не пройдут', () => {
