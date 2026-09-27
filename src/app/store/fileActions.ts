@@ -3,7 +3,13 @@ import { composite } from '../../core/compositor';
 import { type CreateDocumentOptions, createDocument } from '../../core/document';
 import { safeFileName } from '../../core/filename';
 import { bufferToText } from '../../core/text';
-import { openDocumentFile, readDocumentFile, saveBlobFile, saveDocumentFile } from '../io/files';
+import {
+  droppedFile,
+  openDocumentFile,
+  readDocumentFile,
+  saveBlobFile,
+  saveDocumentFile,
+} from '../io/files';
 import type { SourceKind } from '../io/readDocument';
 import { useDocumentStore } from './documentStore';
 import { errorMessage, notify } from './notifyStore';
@@ -48,7 +54,7 @@ export async function openDocumentAction(): Promise<void> {
 export async function openDroppedDocumentAction(file: File): Promise<void> {
   if (!confirmDiscard()) return;
   try {
-    const opened = await readDocumentFile(file);
+    const opened = await readDocumentFile(droppedFile(file));
     useDocumentStore.getState().replaceAnimation(opened.animation, opened.file);
     notify(OPENED_MESSAGES[opened.kind](opened.sourceName));
   } catch (error) {

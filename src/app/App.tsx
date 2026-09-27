@@ -11,6 +11,7 @@ import { Viewport } from './components/Viewport';
 import { DockZone, DropIndicator, useZoneShown } from './components/workspace/Dock';
 import { PanelWindow } from './components/workspace/PanelWindow';
 import { ThemeDialog } from './components/workspace/ThemeDialog';
+import { ErrorLogDialog } from './components/ErrorLogDialog';
 import { useAutosave } from './hooks/useAutosave';
 import { useEffectClock } from './hooks/useEffectClock';
 import { useFileDrop } from './hooks/useFileDrop';
@@ -18,7 +19,9 @@ import { useHotkeys } from './hooks/useHotkeys';
 import { usePlayback } from './hooks/usePlayback';
 import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
 import { useUiStore } from './store/uiStore';
+import { startFileWatch } from './store/desktopActions';
 import { useWorkspaceStore } from './store/workspaceStore';
+import { useWindowTitle } from './hooks/useWindowTitle';
 import { Resizer } from './ui/Resizer';
 import { TooltipLayer } from './ui/Tooltip';
 import { applyTheme } from './workspace/applyTheme';
@@ -65,6 +68,9 @@ export function App() {
   usePlayback();
   useEffectClock();
   useEffect(() => applyTheme(document, theme), [theme]);
+  // Настольное приложение следит за файлом открытого документа; в браузере это пустая функция.
+  useEffect(() => startFileWatch(), []);
+  useWindowTitle();
   // Окна панелей без главного бесполезны: закрываются вместе с ним.
   useEffect(() => {
     window.addEventListener('pagehide', closeAllWindows);
@@ -105,6 +111,7 @@ export function App() {
       <RecoveryDialog />
       <ImportImageDialog atlas={atlas} />
       <ThemeDialog />
+      <ErrorLogDialog />
       {windows.map((id) => (
         <PanelWindow key={id} id={id} atlas={atlas} />
       ))}

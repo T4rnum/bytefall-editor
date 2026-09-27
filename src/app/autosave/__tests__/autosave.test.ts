@@ -90,7 +90,7 @@ describe('автосохранение', () => {
     expect(memory.slots.has('me')).toBe(true);
 
     const { markSaved, animation } = useDocumentStore.getState();
-    markSaved({ name: 'a.bp.json', handle: null }, animation);
+    markSaved({ name: 'a.bp.json', target: null }, animation);
     await vi.advanceTimersByTimeAsync(0);
     expect(memory.slots.has('me')).toBe(false);
   });

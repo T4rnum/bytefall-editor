@@ -60,7 +60,7 @@ describe('document store frames and history', () => {
     expect(store.dirty).toBe(false);
     store.commitAnimation('New frame', addFrame(store.animation, 0, 'duplicate'));
     const saved = useDocumentStore.getState().animation;
-    useDocumentStore.getState().markSaved({ name: 'a.bp.json', handle: null }, saved);
+    useDocumentStore.getState().markSaved({ name: 'a.bp.json', target: null }, saved);
     expect(useDocumentStore.getState().dirty).toBe(false);
     useDocumentStore.getState().setFrameIndex(1);
     expect(useDocumentStore.getState().dirty).toBe(false);

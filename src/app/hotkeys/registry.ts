@@ -15,6 +15,7 @@ import { stepFrameAction, togglePlaybackAction } from '../store/frameActions';
 import { deleteSelectedKeysAction, keySelectedObjectAction } from '../store/keyActions';
 import { goToStartAction, stepKeyAction } from '../store/timeActions';
 import { escapeEditAction } from '../store/objectEditActions';
+import { openLastAction } from '../store/desktopActions';
 import { cancelJobAction, useJobStore } from '../store/jobStore';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
@@ -56,6 +57,7 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     keys: 'Ctrl+O',
     run: () => void openDocumentAction(),
   },
+  { group: 'Файл', label: 'Открыть последний файл', keys: 'Ctrl+Shift+O', run: openLastAction },
   { group: 'Файл', label: 'Сохранить', keys: 'Ctrl+S', run: () => void saveDocumentAction(false) },
   {
     group: 'Файл',
@@ -192,6 +194,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
     label: 'Справка по клавишам',
     keys: '?',
     run: () => useUiStore.getState().setHotkeysOpen(true),
+  },
+  {
+    group: 'Вид',
+    label: 'Журнал ошибок',
+    keys: 'Alt+L',
+    run: () => useUiStore.getState().setErrorsOpen(true),
   },
 
   // Обмен цветов объявлен до инструментов: иначе его перехватил бы инструмент с клавишей X.

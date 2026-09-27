@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig({
   plugins: [react()],
+  // Версия в отчёте об ошибке: по ней видно, на какой сборке она случилась.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: { host: '127.0.0.1', port: 5173 },
   build: {
     // Страница замеров собирается вместе с приложением: мерить надо на том же коде,

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { FileTarget } from '../io/platform';
 import { type Animation, createAnimation } from '../../core/animation';
 import {
   type Document,
@@ -25,9 +26,10 @@ import { applyEdit, pruneTracks } from '../../core/keyframes';
 import { clampTime } from '../../core/time';
 import { frameIndexAt, frameStart } from '../../core/timeline';
 
+/** Открытый файл: имя и место на диске, куда «Сохранить» пишет без диалога. */
 export interface FileRef {
   readonly name: string | null;
-  readonly handle: FileSystemFileHandle | null;
+  readonly target: FileTarget | null;
 }
 
 /** Состояние, которым оперирует история: анимация и момент, где стоял пользователь. */
@@ -148,11 +150,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   ...derive(initial, 0, ''),
   history: createHistory<Checkpoint>(),
   dirty: false,
-  file: { name: null, handle: null },
+  file: { name: null, target: null },
   epoch: 0,
   dirtyKeys: null,
 
-  replaceAnimation: (animation, file = { name: null, handle: null }, dirty = false) =>
+  replaceAnimation: (animation, file = { name: null, target: null }, dirty = false) =>
     set((state) => ({
       ...derive(animation, 0, ''),
       history: createHistory<Checkpoint>(),

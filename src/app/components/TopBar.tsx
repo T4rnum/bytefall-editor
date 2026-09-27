@@ -4,7 +4,7 @@ import {
   FolderOpen,
   Grid3x3,
   ImagePlus,
-  Keyboard,
+  CircleHelp,
   Maximize,
   Redo2,
   Save,
@@ -22,8 +22,9 @@ import { openDocumentAction, saveDocumentAction } from '../store/fileActions';
 import { importImageAction } from '../store/importActions';
 import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
-import { Button, TextField } from '../ui';
+import { Button, Menu, TextField } from '../ui';
 import { ExportDialog } from './ExportDialog';
+import { RecentMenu } from './RecentMenu';
 import { WorkspaceBar } from './workspace/WorkspaceBar';
 import { NewDocumentDialog } from './NewDocumentDialog';
 import { ResizeCanvasDialog } from './ResizeCanvasDialog';
@@ -41,6 +42,7 @@ export function TopBar() {
   const setShowChecker = useEditorStore((s) => s.setShowChecker);
   const [newOpen, setNewOpen] = useState(false);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
+  const setErrorsOpen = useUiStore((s) => s.setErrorsOpen);
   const resizeOpen = useUiStore((s) => s.resizeOpen);
   const setResizeOpen = useUiStore((s) => s.setResizeOpen);
   const exportOpen = useUiStore((s) => s.exportOpen);
@@ -69,6 +71,7 @@ export function TopBar() {
         >
           <FolderOpen size={16} />
         </Button>
+        <RecentMenu />
         <Button
           icon
           label="Картинку в символы: импорт PNG, JPEG, GIF, WebP. Можно и перетащить в окно"
@@ -154,9 +157,17 @@ export function TopBar() {
         >
           <span className="checker-icon" aria-hidden="true" />
         </Button>
-        <Button icon label="Горячие клавиши" hotkey="?" onClick={() => setHotkeysOpen(true)}>
-          <Keyboard size={16} />
-        </Button>
+        <Menu
+          icon
+          label="Справка: горячие клавиши, журнал ошибок"
+          align="right"
+          items={[
+            { label: 'Горячие клавиши', hotkey: '?', onSelect: () => setHotkeysOpen(true) },
+            { label: 'Журнал ошибок', hotkey: 'Alt+L', onSelect: () => setErrorsOpen(true) },
+          ]}
+        >
+          <CircleHelp size={16} />
+        </Menu>
       </div>
 
       <NewDocumentDialog open={newOpen} onClose={() => setNewOpen(false)} />

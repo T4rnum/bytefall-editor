@@ -10,6 +10,7 @@ export interface ImageImportSource {
 interface UiState {
   readonly hotkeysOpen: boolean;
   readonly themeOpen: boolean;
+  readonly errorsOpen: boolean;
   readonly resizeOpen: boolean;
   readonly exportOpen: boolean;
   /** Открыт ли диалог импорта и с какой картинкой. */
@@ -20,6 +21,7 @@ interface UiState {
   readonly autosaveFailed: boolean;
   setHotkeysOpen: (open: boolean) => void;
   setThemeOpen: (open: boolean) => void;
+  setErrorsOpen: (open: boolean) => void;
   setResizeOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
   setImageImport: (source: ImageImportSource | null) => void;
@@ -34,6 +36,7 @@ interface UiState {
 export const useUiStore = create<UiState>((set) => ({
   hotkeysOpen: false,
   themeOpen: false,
+  errorsOpen: false,
   resizeOpen: false,
   exportOpen: false,
   imageImport: null,
@@ -41,6 +44,7 @@ export const useUiStore = create<UiState>((set) => ({
   autosaveFailed: false,
   setHotkeysOpen: (hotkeysOpen) => set({ hotkeysOpen }),
   setThemeOpen: (themeOpen) => set({ themeOpen }),
+  setErrorsOpen: (errorsOpen) => set({ errorsOpen }),
   setResizeOpen: (resizeOpen) => set({ resizeOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setImageImport: (imageImport) => set({ imageImport }),
