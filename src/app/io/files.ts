@@ -1,5 +1,6 @@
 import type { Animation } from '../../core/animation';
 import { safeFileName } from '../../core/filename';
+import { MAX_FONT_BYTES } from '../../core/font/font';
 import { DocumentFormatError, FILE_EXTENSION, serialize } from '../../core/serialization';
 import type { FileRef } from '../store/documentStore';
 import { type FileKind, type PickedFile, platform } from './platform';
@@ -41,6 +42,12 @@ const MODEL_FILES: FileKind = {
   description: '3D-модель glTF',
   extensions: MODEL_EXTENSIONS,
   mimeTypes: ['model/gltf-binary', 'model/gltf+json'],
+};
+
+const FONT_FILES: FileKind = {
+  description: 'Шрифт TTF, OTF или лист символов CP437 в PNG',
+  extensions: ['.ttf', '.otf', '.png'],
+  mimeTypes: ['font/ttf', 'font/otf', 'image/png'],
 };
 
 const PALETTE_FILES: FileKind = {
@@ -102,6 +109,14 @@ export const isModelFile = (file: { readonly name: string }): boolean =>
 export async function openModelFile(): Promise<File | null> {
   const picked = await platform.pickFile(MODEL_FILES);
   return picked ? asFile(picked) : null;
+}
+
+/** Файл шрифта: имя и байты. null, если пользователь отменил диалог. */
+export async function openFontFile(): Promise<{ name: string; bytes: Uint8Array } | null> {
+  const picked = await platform.pickFile(FONT_FILES);
+  if (!picked) return null;
+  if (picked.size > MAX_FONT_BYTES) throw new Error('файл шрифта больше мегабайта');
+  return { name: picked.name, bytes: await picked.bytes() };
 }
 
 /** Палитры меньше мегабайта: больше — это не палитра, и читать её целиком незачем. */

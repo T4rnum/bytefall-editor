@@ -35,7 +35,8 @@ const bright = (c: readonly number[]): boolean => c[0] + c[1] + c[2] > 120;
 
 export function runChecks(view: SceneView): CheckResult[] {
   const results: CheckResult[] = [];
-  const scale = 8;
+  // Пикселей на ячейку при масштабе 1: сетка шрифта, у Press Start 2P — 8.
+  const scale = view.cellPixels(1).width;
 
   const add = (name: string, passed: boolean, detail: string): void => {
     results.push({ name, passed, detail });
@@ -59,7 +60,7 @@ export function runChecks(view: SceneView): CheckResult[] {
     ),
   );
 
-  const pixels = view.renderPixels(composeFrame(doc), scale);
+  const pixels = view.renderPixels(composeFrame(doc), 1);
   const corners: [string, number, number, (c: number[]) => boolean][] = [
     ['левый верхний красный', 0, 0, (c) => c[0] > 120 && c[1] < 90],
     ['правый верхний зелёный', 69, 0, (c) => c[1] > 120 && c[0] < 90],
@@ -99,7 +100,7 @@ export function runChecks(view: SceneView): CheckResult[] {
     applyEdits(doc.layers[0].cells, new Map([[keyOf(40, 21), makeCell('#', '#ff00ff')]])),
   );
   const tiles = [...tilesFromKeys(layout, [keyOf(40, 21)])];
-  const partial = view.renderPixels(composeFrame(edited, null, previous, [], 0, tiles), scale);
+  const partial = view.renderPixels(composeFrame(edited, null, previous, [], 0, tiles), 1);
   const added = cellColor(partial, scale, 40, 21);
   const untouched = cellColor(partial, scale, 0, 0);
   add(
@@ -118,7 +119,7 @@ export function runChecks(view: SceneView): CheckResult[] {
   const transparent = { ...doc, background: null };
   view.setDocument(transparent.width, transparent.height, transparent.background);
   view.setShowChecker(true);
-  const exported = view.renderPixels(composeFrame(transparent), scale);
+  const exported = view.renderPixels(composeFrame(transparent), 1);
   const hole = cellColor(exported, scale, 10, 10);
   add('Экспорт прозрачного холста без шахматки', hole[3] === 0, `alpha ${hole[3]}`);
   const drawn = cellColor(exported, scale, 0, 0);
@@ -154,7 +155,7 @@ function checkTurnedObject(
   const bar = createObject({ name: 'bar', layerId: doc.layers[0].id, x: 10, y: 10, cells });
   doc = transformObject(addObject(doc, bar), bar.id, { rot: 90 });
   view.setDocument(doc.width, doc.height, doc.background);
-  const pixels = view.renderPixels(composeFrame(doc), scale);
+  const pixels = view.renderPixels(composeFrame(doc), 1);
   const isCyan = (c: readonly number[]): boolean => c[0] < 90 && c[1] > 150 && c[2] > 150;
   const top = cellColor(pixels, scale, 11, 9);
   const bottom = cellColor(pixels, scale, 11, 11);

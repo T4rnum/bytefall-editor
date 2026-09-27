@@ -97,7 +97,8 @@ export function tweenCameraTo(to: CameraState, durationMs = CAMERA_TWEEN_MS): vo
  */
 export function zoomWheelAction(px: number, py: number, factor: number): void {
   if (!activeView) return;
-  tweenCameraTo(zoomAroundPoint(pendingCamera(), activeView.size, px, py, factor), WHEEL_TWEEN_MS);
+  const { size, cellAspect } = activeView;
+  tweenCameraTo(zoomAroundPoint(pendingCamera(), size, px, py, factor, cellAspect), WHEEL_TWEEN_MS);
 }
 
 export function zoomByAction(factor: number): void {

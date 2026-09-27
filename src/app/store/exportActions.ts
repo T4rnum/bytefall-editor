@@ -31,7 +31,7 @@ interface Moment {
 async function renderMoments(
   animation: Animation,
   moments: readonly Moment[],
-  ppc: number,
+  scale: number,
   job: JobContext,
 ): Promise<RenderedFrame[]> {
   const view = getActiveView();
@@ -42,7 +42,7 @@ async function renderMoments(
     await job.step(i, moments.length);
     const frame: ComposedFrame = composeAt(animation, time, previous);
     previous = frame;
-    frames.push({ ...view.renderPixels(frame, ppc), delay });
+    frames.push({ ...view.renderPixels(frame, scale), delay });
   }
   await job.step(moments.length, moments.length);
   return frames;
@@ -74,7 +74,7 @@ async function exportToFile(
   }
 }
 
-export async function exportGifAction(pixelsPerCell: number): Promise<void> {
+export async function exportGifAction(scale: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   const capped = hasMotion(animation) && animation.fps > GIF_MAX_FPS;
   await exportToFile(
@@ -90,7 +90,7 @@ export async function exportGifAction(pixelsPerCell: number): Promise<void> {
       : 'GIF сохранён',
     async (job) => {
       const moments = gifTimings(gifSamples(animation), sceneDuration(animation));
-      const frames = await renderMoments(animation, moments, pixelsPerCell, job);
+      const frames = await renderMoments(animation, moments, scale, job);
       const transparent = animation.background === null;
       return encodeOffThread({ kind: 'gif', frames, transparent }, job.signal);
     },
@@ -98,7 +98,7 @@ export async function exportGifAction(pixelsPerCell: number): Promise<void> {
 }
 
 /** Листы спрайтов PNG с атласами JSON в формате Aseprite — для движков и импортёров. */
-export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<void> {
+export async function exportSpriteSheetAction(scale: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   const name = safeFileName(animation.name);
   await exportToFile(
@@ -111,14 +111,14 @@ export async function exportSpriteSheetAction(pixelsPerCell: number): Promise<vo
     },
     'Лист спрайтов сохранён',
     async (job) => {
-      const frames = await renderMoments(animation, exportSamples(animation), pixelsPerCell, job);
+      const frames = await renderMoments(animation, exportSamples(animation), scale, job);
       return encodeOffThread({ kind: 'sheet', frames, name }, job.signal);
     },
   );
 }
 
 /** Каждый момент экспорта отдельным PNG, тайминг — в JSON рядом. */
-export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
+export async function exportFramesAction(scale: number): Promise<void> {
   const { animation } = useDocumentStore.getState();
   const name = safeFileName(animation.name);
   await exportToFile(
@@ -131,7 +131,7 @@ export async function exportFramesAction(pixelsPerCell: number): Promise<void> {
     },
     'Кадры сохранены',
     async (job) => {
-      const frames = await renderMoments(animation, exportSamples(animation), pixelsPerCell, job);
+      const frames = await renderMoments(animation, exportSamples(animation), scale, job);
       return encodeOffThread({ kind: 'frames', frames, name, fps: animation.fps }, job.signal);
     },
   );
@@ -167,7 +167,7 @@ export async function exportBytefallAction(): Promise<void> {
       }
       const frames = mergeRepeats(moments);
       const glyphs = usedGlyphs(frames);
-      const cell = view.atlas.cellSize;
+      const cell = view.atlas.cellWidth;
       const grid = atlasGrid(glyphs.length, cell);
       const atlasPng = await canvasPng(view.atlas.sheet(glyphs, grid.columns));
       const header = {

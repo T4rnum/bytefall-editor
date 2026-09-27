@@ -35,7 +35,8 @@ const FORMATS: readonly { value: Format; label: string; hint: string }[] = [
   { value: 'text', label: 'Текст', hint: 'Символы кадра без цвета — для терминала и заметок.' },
 ];
 
-const SCALES = [8, 16, 32, 64].map((s) => ({ value: String(s), label: `${s} px на ячейку` }));
+/** Масштаб — кратность сетки шрифта: так пиксельный шрифт остаётся чётким при любом выборе. */
+const SCALES = [1, 2, 4, 8];
 const FRAMES = { one: 'кадр', few: 'кадра', many: 'кадров' };
 const SHEETS = { one: 'лист', few: 'листа', many: 'листов' };
 
@@ -44,20 +45,34 @@ interface Choice {
   readonly scale: number;
 }
 
-const DEFAULT: Choice = { format: 'png', scale: 16 };
+const DEFAULT: Choice = { format: 'png', scale: 2 };
 
+/**
+ * Прежде масштаб хранился в пикселях на ячейку шрифта 8×8 (8, 16, 32, 64): такое значение
+ * становится кратностью.
+ */
 function loadChoice(): Choice {
   const stored = readSetting<Partial<Choice>>('export', {});
   const format = FORMATS.some((f) => f.value === stored.format) ? stored.format : DEFAULT.format;
-  const scale = SCALES.some((s) => s.value === String(stored.scale)) ? stored.scale : DEFAULT.scale;
-  return { format: format as Format, scale: scale as number };
+  const raw =
+    typeof stored.scale === 'number' && stored.scale >= 8 ? stored.scale / 8 : stored.scale;
+  const scale = SCALES.find((s) => s === raw) ?? DEFAULT.scale;
+  return { format: format as Format, scale };
+}
+
+function scaleOptions(): { value: string; label: string }[] {
+  const { cellWidth, cellHeight } = useDocumentStore.getState().animation.font;
+  return SCALES.map((s) => ({
+    value: String(s),
+    label: `×${s} — ${cellWidth * s}×${cellHeight * s} пикс. на ячейку`,
+  }));
 }
 
 /** Что получится: размер, число кадров и листов. Считается без рендера. */
 function summary(choice: Choice): string {
   const { animation, doc } = useDocumentStore.getState();
-  const w = doc.width * choice.scale;
-  const h = doc.height * choice.scale;
+  const w = doc.width * animation.font.cellWidth * choice.scale;
+  const h = doc.height * animation.font.cellHeight * choice.scale;
   const count = exportSamples(animation).length;
   switch (choice.format) {
     case 'png':
@@ -128,9 +143,9 @@ export function ExportDialog({ onClose }: { readonly onClose: () => void }) {
         <Field label="Масштаб">
           <Select
             value={String(choice.scale)}
-            options={SCALES}
+            options={scaleOptions()}
             disabled={choice.format === 'text' || choice.format === 'bytefall'}
-            ariaLabel="Пикселей на ячейку"
+            ariaLabel="Масштаб: во сколько раз больше сетки шрифта"
             onChange={(value) => setChoice((c) => ({ ...c, scale: Number(value) }))}
           />
         </Field>

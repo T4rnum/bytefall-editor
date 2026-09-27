@@ -1,13 +1,16 @@
 /**
  * Камера вьюпорта и чистая математика вокруг неё. Отдельно от SceneView, потому что здесь нет
  * ни Three.js, ни WebGL: это просто перевод координат, и он должен покрываться быстрыми тестами.
+ *
+ * Мир — в ячейках документа. Ячейка бывает неквадратной (`aspect` — ширина к высоте, см.
+ * `core/font/font.ts`): зум — пикселей на высоту ячейки, по X ячейка занимает `zoom * aspect`.
  */
 
 export interface CameraState {
   /** Мировая точка в центре вьюпорта. */
   readonly centerX: number;
   readonly centerY: number;
-  /** Пикселей на ячейку. */
+  /** Пикселей на высоту ячейки. */
   readonly zoom: number;
 }
 
@@ -29,9 +32,10 @@ export function screenToWorld(
   view: ViewSize,
   px: number,
   py: number,
+  aspect = 1,
 ): { x: number; y: number } {
   return {
-    x: camera.centerX + (px - view.width / 2) / camera.zoom,
+    x: camera.centerX + (px - view.width / 2) / (camera.zoom * aspect),
     y: camera.centerY - (py - view.height / 2) / camera.zoom,
   };
 }
@@ -46,11 +50,12 @@ export function zoomAroundPoint(
   px: number,
   py: number,
   factor: number,
+  aspect = 1,
 ): CameraState {
   const zoom = clampZoom(camera.zoom * factor);
-  const anchor = screenToWorld(camera, view, px, py);
+  const anchor = screenToWorld(camera, view, px, py, aspect);
   return {
-    centerX: anchor.x - (px - view.width / 2) / zoom,
+    centerX: anchor.x - (px - view.width / 2) / (zoom * aspect),
     centerY: anchor.y + (py - view.height / 2) / zoom,
     zoom,
   };
@@ -74,8 +79,9 @@ export function fitCamera(
   width: number,
   height: number,
   padding = 24,
+  aspect = 1,
 ): CameraState {
-  const zoomX = (view.width - padding * 2) / width;
+  const zoomX = (view.width - padding * 2) / (width * aspect);
   const zoomY = (view.height - padding * 2) / height;
   return {
     centerX: width / 2,

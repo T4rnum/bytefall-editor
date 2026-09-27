@@ -35,7 +35,7 @@ describe('разбор TTF', () => {
     const info = parseSfnt(pressStart);
     expect(info).toMatchObject({ unitsPerEm: 1000, ascender: 1000, descender: 0, pixel: 125 });
     expect(vectorCell(info)).toEqual({ cellWidth: 8, cellHeight: 8 });
-    expect(vectorLayout(info, 8, 8)).toEqual({ size: 8, baseline: 8, left: 0, pixel: true });
+    expect(vectorLayout(info, 8)).toEqual({ size: 8, baseline: 8, pixel: true });
     expect(info.codePoints).toContain(0x416);
     expect(info.codePoints).not.toContain(0x2500);
   });
@@ -46,8 +46,8 @@ describe('разбор TTF', () => {
     expect(info.pixel).toBe(128);
     expect(info.advance).toBe(1024);
     expect(vectorCell(info)).toEqual({ cellWidth: 8, cellHeight: 16 });
-    // Ячейку сделали на два пикселя выше и шире: поле делится поровну.
-    expect(vectorLayout(info, 10, 18)).toEqual({ size: 16, baseline: 13, left: 1, pixel: true });
+    // Ячейку сделали на два пикселя выше: поле делится поровну.
+    expect(vectorLayout(info, 18)).toEqual({ size: 16, baseline: 13, pixel: true });
   });
 
   it('кривая в контуре — шрифт не пиксельный: высота 16, ширина по знаку', () => {
@@ -70,7 +70,7 @@ describe('разбор TTF', () => {
     const info = parseSfnt(curved);
     expect(info.pixel).toBeNull();
     expect(vectorCell(info)).toEqual({ cellWidth: 10, cellHeight: 16 });
-    const layout = vectorLayout(info, 10, 16);
+    const layout = vectorLayout(info, 16);
     expect(layout.size).toBeCloseTo(16);
     expect(layout.baseline).toBeCloseTo(12.8);
     expect(layout.pixel).toBe(false);

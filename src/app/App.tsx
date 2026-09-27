@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import { GlyphAtlas } from '../render/font/GlyphAtlas';
-import { PRESS_START_2P, loadFont } from '../render/font/pressStart2P';
+import { useEffect } from 'react';
 import { HotkeysDialog } from './components/HotkeysDialog';
 import { ImportImageDialog } from './components/ImportImageDialog';
 import { RecoveryDialog } from './components/RecoveryDialog';
@@ -13,11 +11,13 @@ import { PanelWindow } from './components/workspace/PanelWindow';
 import { ThemeDialog } from './components/workspace/ThemeDialog';
 import { ErrorLogDialog } from './components/ErrorLogDialog';
 import { useAutosave } from './hooks/useAutosave';
+import { useDocumentFont } from './hooks/useDocumentFont';
 import { useEffectClock } from './hooks/useEffectClock';
 import { useFileDrop } from './hooks/useFileDrop';
 import { useHotkeys } from './hooks/useHotkeys';
 import { usePlayback } from './hooks/usePlayback';
 import { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard';
+import { useFontStore } from './store/fontStore';
 import { useUiStore } from './store/uiStore';
 import { startFileWatch } from './store/desktopActions';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -27,9 +27,6 @@ import { TooltipLayer } from './ui/Tooltip';
 import { applyTheme } from './workspace/applyTheme';
 import { type ZoneId, resizeZone } from './workspace/layout';
 import { closeAllWindows } from './workspace/panelWindows';
-
-/** Пикселей на ячейку атласа: кратно 8, чтобы пиксели шрифта ложились ровно. 32 даёт 4 текселя на пиксель шрифта. */
-const ATLAS_CELL_SIZE = 32;
 
 /** Полоса изменения размера зоны: у пустой зоны её нет. */
 function ZoneResizer({ zone }: { readonly zone: ZoneId }) {
@@ -55,8 +52,8 @@ function ZoneResizer({ zone }: { readonly zone: ZoneId }) {
 }
 
 export function App() {
-  const [atlas, setAtlas] = useState<GlyphAtlas | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const atlas = useFontStore((s) => s.atlas);
+  const error = useDocumentFont();
   const windows = useWorkspaceStore((s) => s.windows);
   const theme = useWorkspaceStore((s) => s.theme);
   const hotkeysOpen = useUiStore((s) => s.hotkeysOpen);
@@ -77,18 +74,8 @@ export function App() {
     return () => window.removeEventListener('pagehide', closeAllWindows);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    loadFont()
-      .then(() => {
-        if (cancelled) return;
-        setAtlas(new GlyphAtlas({ fontFamily: PRESS_START_2P.family, cellSize: ATLAS_CELL_SIZE }));
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Прежний атлас больше не нужен холсту: его текстура освобождается, когда пришёл новый.
+  useEffect(() => () => atlas?.dispose(), [atlas]);
 
   if (error) return <div className="boot boot--error">Font failed to load: {error}</div>;
   if (!atlas) return <div className="boot">Loading font…</div>;

@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { CHARSET_GROUPS } from '../../render/font/pressStart2P';
 import { activeBrush, useEditorStore } from '../store/editorStore';
-import { Panel, type TabItem, Tabs, TextField } from '../ui';
+import { useFontStore } from '../store/fontStore';
+import { GlyphFace, Panel, type TabItem, Tabs, TextField } from '../ui';
 import { SLOT_LABELS } from './BrushPanel';
 
-const TABS: TabItem<string>[] = CHARSET_GROUPS.map((g) => ({ id: g.title, label: g.title }));
-
+/** Палитра символов шрифта документа: только то, что в шрифте есть, тем же шрифтом, что холст. */
 export function GlyphPanel() {
   const glyph = useEditorStore((s) => activeBrush(s).glyph);
   const setGlyph = useEditorStore((s) => s.setGlyph);
   const slot = useEditorStore((s) => s.activeBrush);
-  const [group, setGroup] = useState(CHARSET_GROUPS[0].title);
-  const chars = [...(CHARSET_GROUPS.find((g) => g.title === group) ?? CHARSET_GROUPS[0]).chars];
+  const groups = useFontStore((s) => s.groups);
+  const look = useFontStore((s) => s.look);
+  const [picked, setGroup] = useState<string | null>(null);
+  const tabs: TabItem<string>[] = groups.map((g) => ({ id: g.title, label: g.title }));
+  // У нового шрифта выбранной группы может не быть: тогда первая.
+  const group = groups.find((g) => g.title === picked) ?? groups[0];
+  const chars = group ? [...group.chars] : [];
 
   return (
     <Panel
@@ -33,12 +37,19 @@ export function GlyphPanel() {
             }}
           />
           <span className="glyph-preview" aria-hidden="true">
-            {glyph}
+            <GlyphFace glyph={glyph} look={look} height={18} />
           </span>
         </>
       }
     >
-      <Tabs value={group} onChange={setGroup} items={TABS} ariaLabel="Наборы символов" />
+      {tabs.length > 1 && (
+        <Tabs
+          value={group?.title ?? ''}
+          onChange={setGroup}
+          items={tabs}
+          ariaLabel="Наборы символов"
+        />
+      )}
       <div className="glyph-grid">
         {chars.map((ch) => (
           <button
@@ -48,7 +59,7 @@ export function GlyphPanel() {
             title={`U+${(ch.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`}
             onClick={() => setGlyph(ch)}
           >
-            {ch}
+            <GlyphFace glyph={ch} look={look} height={16} />
           </button>
         ))}
       </div>

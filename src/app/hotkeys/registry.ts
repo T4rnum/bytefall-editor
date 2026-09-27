@@ -178,6 +178,12 @@ const STATIC_HOTKEYS: readonly Hotkey[] = [
   },
   {
     group: 'Файл',
+    label: 'Шрифт документа',
+    keys: 'Ctrl+Alt+F',
+    run: () => useUiStore.getState().setFontOpen(true),
+  },
+  {
+    group: 'Файл',
     label: 'Экспорт',
     keys: 'Ctrl+E',
     run: () => useUiStore.getState().setExportOpen(true),

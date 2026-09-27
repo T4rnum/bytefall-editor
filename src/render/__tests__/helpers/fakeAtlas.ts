@@ -5,6 +5,8 @@ import type { GlyphSource } from '../../glyphShader';
 /** Атлас-заглушка: настоящий растеризует глифы через Canvas2D, которого вне браузера нет. */
 export class FakeAtlas implements GlyphSource {
   readonly texture = new THREE.Texture();
+  readonly gridWidth = 8;
+  readonly gridHeight = 8;
   version = 0;
   private readonly rects = new Map<string, GlyphRect>();
 

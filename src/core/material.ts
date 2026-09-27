@@ -62,8 +62,6 @@ export interface GlyphMaterial {
   readonly pixels?: PixelsMaterial | null;
 }
 
-/** Пиксель шрифта в долях ячейки: Press Start 2P рисует символ на сетке 8×8. */
-export const FONT_PIXEL = 1 / 8;
 export const MAX_OUTLINE_WIDTH = 4;
 export const MAX_GLOW_RADIUS = 2;
 export const MAX_GLOW_STRENGTH = 4;
@@ -98,7 +96,7 @@ export const hasMaterial = (material: GlyphMaterial | null): material is GlyphMa
  */
 export const MATERIAL_FLOATS = 20;
 /**
- * Смещения внутри чисел материала: контур — цвет и толщина в ячейках, свечение — цвет, радиус
+ * Смещения внутри чисел материала: контур — цвет и толщина в пикселях шрифта, свечение — цвет, радиус
  * и сила, блик — цвет и ширина, затем шаг, скорость и угол в радианах, дизеринг, мягкость
  * свечения (1 — пятном), строки развёртки и сторона крупного пикселя в пикселях шрифта.
  */
@@ -124,7 +122,7 @@ export function materialFloats(material: GlyphMaterial | null): Float32Array | n
   const out = new Float32Array(MATERIAL_FLOATS);
   if (material.outline) {
     const c = colorOf(material.outline.color);
-    out.set([c.r, c.g, c.b, material.outline.width * FONT_PIXEL], MATERIAL.outline);
+    out.set([c.r, c.g, c.b, material.outline.width], MATERIAL.outline);
   }
   if (material.glow) {
     const c = colorOf(material.glow.color);

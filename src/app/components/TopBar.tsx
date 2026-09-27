@@ -9,6 +9,7 @@ import {
   Redo2,
   Save,
   Scaling,
+  Type,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -27,6 +28,7 @@ import { ExportDialog } from './ExportDialog';
 import { RecentMenu } from './RecentMenu';
 import { WorkspaceBar } from './workspace/WorkspaceBar';
 import { NewDocumentDialog } from './NewDocumentDialog';
+import { FontDialog } from './FontDialog';
 import { ResizeCanvasDialog } from './ResizeCanvasDialog';
 
 export function TopBar() {
@@ -45,6 +47,8 @@ export function TopBar() {
   const setErrorsOpen = useUiStore((s) => s.setErrorsOpen);
   const resizeOpen = useUiStore((s) => s.resizeOpen);
   const setResizeOpen = useUiStore((s) => s.setResizeOpen);
+  const fontOpen = useUiStore((s) => s.fontOpen);
+  const setFontOpen = useUiStore((s) => s.setFontOpen);
   const exportOpen = useUiStore((s) => s.exportOpen);
   const setExportOpen = useUiStore((s) => s.setExportOpen);
 
@@ -97,6 +101,14 @@ export function TopBar() {
         </Button>
         <Button icon label="Размер холста" hotkey="Ctrl+Alt+C" onClick={() => setResizeOpen(true)}>
           <Scaling size={16} />
+        </Button>
+        <Button
+          icon
+          label="Шрифт документа: свой TTF или лист символов CP437"
+          hotkey="Ctrl+Alt+F"
+          onClick={() => setFontOpen(true)}
+        >
+          <Type size={16} />
         </Button>
       </div>
 
@@ -172,6 +184,7 @@ export function TopBar() {
 
       <NewDocumentDialog open={newOpen} onClose={() => setNewOpen(false)} />
       {resizeOpen && <ResizeCanvasDialog onClose={() => setResizeOpen(false)} />}
+      {fontOpen && <FontDialog onClose={() => setFontOpen(false)} />}
       {exportOpen && <ExportDialog onClose={() => setExportOpen(false)} />}
     </header>
   );

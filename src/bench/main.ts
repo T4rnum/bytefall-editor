@@ -1,11 +1,10 @@
-import { PRESS_START_2P, loadFont } from '../render/font/pressStart2P';
+import { BUILTIN_FONT } from '../core/font/font';
+import { loadBuiltinFace, loadDocumentFont } from '../render/font/documentFont';
 import { GlyphAtlas } from '../render/font/GlyphAtlas';
 import { type CheckResult, runChecks } from './checks';
 import { type SizeReport, createHarness, frameBudget, runAll } from './harness';
 import '../app/styles/tokens.css';
 import './bench.css';
-
-const ATLAS_CELL_SIZE = 32;
 
 const rootNode = document.getElementById('root');
 const stageNode = document.getElementById('stage');
@@ -81,8 +80,8 @@ function renderChecks(checks: readonly CheckResult[]): HTMLElement {
 async function main(): Promise<void> {
   const status = element('p', 'status', 'Загружаем шрифт…');
   root.append(status);
-  await loadFont();
-  const atlas = new GlyphAtlas({ fontFamily: PRESS_START_2P.family, cellSize: ATLAS_CELL_SIZE });
+  await loadBuiltinFace();
+  const atlas = new GlyphAtlas({ painter: (await loadDocumentFont(BUILTIN_FONT)).painter });
 
   status.textContent = 'Проверяем картинку…';
   const harness = createHarness(stage, atlas);

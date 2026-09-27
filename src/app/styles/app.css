@@ -577,6 +577,18 @@ select {
   cursor: pointer;
 }
 
+/** Символ шрифта документа: у листа символов — маска по цвету текста, без сглаживания. */
+.glyph-face {
+  display: inline-block;
+  line-height: 1;
+}
+
+.glyph-face--sheet {
+  background: currentColor;
+  mask-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
 .glyph-cell:hover {
   border-color: var(--border-strong);
 }
@@ -749,6 +761,40 @@ select {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
+}
+
+/** Кнопки выбора внутри окна: слева и с переносом, а не у края, как «Отмена» и «Применить». */
+.dialog-actions--start {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.dialog-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+/** Шрифт документа: образец шире обычного окна — строка символов в своих ячейках. */
+.dialog--font form {
+  width: 440px;
+}
+
+.font-sample {
+  display: flex;
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/** Ячейка образца: видна её форма — у шрифтов 8×16 она вдвое выше ширины. */
+.font-sample-cell {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 /** Размер холста: якорь слева, предпросмотр справа — вопрос «что срежется» виден сразу. */

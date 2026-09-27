@@ -5,7 +5,7 @@ import { useDocumentStore } from '../store/documentStore';
 import { useEditorStore } from '../store/editorStore';
 import { useUiStore } from '../store/uiStore';
 import { isEditableTarget } from '../hooks/useHotkeys';
-import { cancelCameraTween, zoomWheelAction } from '../store/viewActions';
+import { cancelCameraTween, getActiveView, zoomWheelAction } from '../store/viewActions';
 import { type PointerInfo, getTool, pickAt } from '../tools';
 import { toolPointer } from '../tools/editSession';
 import { buildToolEnv } from '../tools/env';
@@ -150,9 +150,10 @@ export function useViewportPointer({ viewRef, containerRef, dragRef }: ViewportR
       // Панорамирование ведёт камеру само: начатый кнопкой переход надо оборвать.
       cancelCameraTween();
       const { camera, setCamera } = editor;
+      const aspect = getActiveView()?.cellAspect ?? 1;
       setCamera({
         ...camera,
-        centerX: camera.centerX - (event.clientX - drag.lastX) / camera.zoom,
+        centerX: camera.centerX - (event.clientX - drag.lastX) / (camera.zoom * aspect),
         centerY: camera.centerY + (event.clientY - drag.lastY) / camera.zoom,
       });
       drag.lastX = event.clientX;

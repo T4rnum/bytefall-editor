@@ -90,7 +90,7 @@ describe('InstanceMesh', () => {
     builder.push(at, 'A', RED, TRANSPARENT, decomposeAffine(at), outline);
     mesh.update(builder.finish());
     expect(mesh.under.visible).toBe(true);
-    expect([...attr(mesh, 'aOutline').subarray(0, 4)]).toEqual([1, 0, 0, 0.25]);
+    expect([...attr(mesh, 'aOutline').subarray(0, 4)]).toEqual([1, 0, 0, 2]);
     expect(attr(mesh, 'aGlowStrength')[0]).toBe(0);
     // Подложка и символы — одна геометрия: поток заливается один раз.
     expect(mesh.under.geometry).toBe(mesh.mesh.geometry);

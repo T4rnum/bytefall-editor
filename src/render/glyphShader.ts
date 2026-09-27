@@ -8,6 +8,9 @@ import type { GlyphRect } from './font/GlyphAtlas';
 export interface GlyphSource {
   readonly texture: THREE.Texture;
   readonly version: number;
+  /** Сетка шрифта: пикселей шрифта в ячейке, см. `GlyphAtlas`. */
+  readonly gridWidth: number;
+  readonly gridHeight: number;
   getRect(glyph: string): GlyphRect;
 }
 

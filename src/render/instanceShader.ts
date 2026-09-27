@@ -9,8 +9,21 @@ import type { GlyphSource } from './glyphShader';
  * Координаты внутри символа — в долях его ячейки (`vCell`): 0..1 — сама ячейка, за её краем —
  * поле материала. Форма глифа берётся из атласа только внутри ячейки: атлас кладёт глифы вплотную,
  * и выборка за краем взяла бы соседний глиф.
+ *
+ * `uGrid` — сетка шрифта, пикселей шрифта в ячейке. Пиксели шрифта квадратные, поэтому отношение
+ * сторон ячейки — `uGrid.x / uGrid.y`. Поворот, радиус свечения и блик считаются в видимом
+ * пространстве, где X ячейки умножен на это отношение (`docs/DESIGN.md`, раздел 3): тогда символ
+ * неквадратной ячейки вращается как жёсткое тело, а свечение остаётся круглым.
  */
+const GRID = /* glsl */ `
+  uniform vec2 uGrid;
+  float aspect() {
+    return uGrid.x / uGrid.y;
+  }
+`;
+
 const VERTEX_SHADER = /* glsl */ `
+  ${GRID}
   attribute vec2 aCenter;
   attribute vec3 aPose;
   attribute vec4 aUvRect;
@@ -45,24 +58,28 @@ const VERTEX_SHADER = /* glsl */ `
     vShine = aShine;
     vShineMotion = aShineMotion;
     #ifdef UNDER
-      // Контур и свечение выходят за ячейку: квадрат шире на поле материала.
-      float margin = max(aOutline.w, aGlow.w);
+      // Контур и свечение выходят за ячейку: квадрат шире на поле материала. Контур задан в
+      // пикселях шрифта, свечение — в высотах ячейки.
+      vec2 margin = max(vec2(aOutline.w) / uGrid, vec2(aGlow.w / aspect(), aGlow.w));
     #else
-      float margin = 0.0;
+      vec2 margin = vec2(0.0);
     #endif
-    vCell = mix(vec2(-margin), vec2(1.0 + margin), uv);
-    // Квадрат символа вокруг его центра: масштаб, затем поворот (aPose.x, радианы). Ось Y
-    // документа смотрит вниз, поэтому положительный угол поворачивает по часовой стрелке.
-    vec2 local = (vCell - 0.5) * aPose.yz;
+    vCell = mix(-margin, vec2(1.0) + margin, uv);
+    // Символ вокруг его центра: масштаб, затем поворот (aPose.x, радианы) в видимом
+    // пространстве. Ось Y документа смотрит вниз, поэтому положительный угол поворачивает по
+    // часовой стрелке.
+    vec2 wide = vec2(aspect(), 1.0);
+    vec2 local = (vCell - 0.5) * aPose.yz * wide;
     float c = cos(aPose.x);
     float s = sin(aPose.x);
-    vec2 doc = aCenter + vec2(c * local.x - s * local.y, s * local.x + c * local.y);
-    vDoc = doc;
+    vec2 doc = aCenter + vec2(c * local.x - s * local.y, s * local.x + c * local.y) / wide;
+    vDoc = doc * wide;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(doc.x, -doc.y, 0.0, 1.0);
   }
 `;
 
 const FRAGMENT_SHADER = /* glsl */ `
+  ${GRID}
   uniform sampler2D uAtlas;
   /** Время кадра, секунды: по нему бежит блик, одинаково на экране и в экспорте. */
   uniform float uTime;
@@ -92,7 +109,7 @@ const FRAGMENT_SHADER = /* glsl */ `
     if (!insideCell(cell)) return 0.0;
     if (vExtra.z > 1.0) {
       float n = vExtra.z;
-      cell = (min(floor(cell * 8.0 / n) * n + floor(n * 0.5), vec2(7.0)) + 0.5) / 8.0;
+      cell = (min(floor(cell * uGrid / n) * n + floor(n * 0.5), uGrid - 1.0) + 0.5) / uGrid;
     }
     return step(0.5, texture2D(uAtlas, mix(vRect.xy, vRect.zw, cell)).a);
   }
@@ -105,15 +122,17 @@ const FRAGMENT_SHADER = /* glsl */ `
   /**
    * Свечение: размытая форма глифа — доля глифа в квадрате 7×7 выборок радиуса vGlow.w вокруг
    * пикселя с гауссовыми весами. У края символа около половины, к радиусу гаснет до нуля.
+   * Радиус — в высотах ячейки: по X в долях ячейки он делится на отношение сторон.
    */
   vec4 glow() {
     float sum = 0.0;
     float total = 0.0;
+    vec2 radius = vec2(vGlow.w / aspect(), vGlow.w);
     for (int j = -3; j <= 3; j++) {
       for (int i = -3; i <= 3; i++) {
         vec2 step = vec2(float(i), float(j)) / 3.0;
         float weight = exp(-2.0 * dot(step, step));
-        sum += weight * cover(vCell + step * vGlow.w);
+        sum += weight * cover(vCell + step * radius);
         total += weight;
       }
     }
@@ -126,19 +145,24 @@ const FRAGMENT_SHADER = /* glsl */ `
    * символа — половина силы, как у края формы, к радиусу за краем гаснет по Гауссу.
    */
   vec4 softGlow() {
-    float d = max(0.0, length(vCell - 0.5) - 0.35) / max(vGlow.w, 0.001);
+    vec2 fromCenter = (vCell - 0.5) * vec2(aspect(), 1.0);
+    float d = max(0.0, length(fromCenter) - 0.35) / max(vGlow.w, 0.001);
     float alpha = clamp(exp(-2.0 * d * d) * 0.5 * vGlowStrength, 0.0, 1.0) * vFg.a;
     return vec4(vGlow.rgb * alpha, alpha);
   }
 
-  /** Контур: пиксель вне глифа, рядом с которым глиф есть, на толщину и на половину её. */
+  /**
+   * Контур: пиксель вне глифа, рядом с которым глиф есть, на толщину и на половину её. Толщина —
+   * в пикселях шрифта.
+   */
   vec4 outline() {
     float hit = 0.0;
+    vec2 width = vec2(vOutline.w) / uGrid;
     for (int dy = -1; dy <= 1; dy++) {
       for (int dx = -1; dx <= 1; dx++) {
         vec2 dir = vec2(float(dx), float(dy));
-        hit = max(hit, cover(vCell + dir * vOutline.w));
-        hit = max(hit, cover(vCell + dir * vOutline.w * 0.5));
+        hit = max(hit, cover(vCell + dir * width));
+        hit = max(hit, cover(vCell + dir * width * 0.5));
       }
     }
     float alpha = hit * vFg.a;
@@ -174,14 +198,14 @@ const FRAGMENT_SHADER = /* glsl */ `
     #else
       float glyph = cover(vCell);
       // Дизеринг: пиксель шрифта пропадает, если его порог ниже доли узора.
-      if (vShineMotion.w > 0.0 && bayer4(floor(vCell * 8.0)) < vShineMotion.w) glyph = 0.0;
+      if (vShineMotion.w > 0.0 && bayer4(floor(vCell * uGrid)) < vShineMotion.w) glyph = 0.0;
       vec3 fg = vFg.rgb;
       if (vShine.w > 0.0) fg = mix(fg, vShine.rgb, shine());
       glyph *= vFg.a;
       if (insideCell(vCell)) color = vec4(vBg.rgb * vBg.a, vBg.a);
       color = over(vec4(fg * glyph, glyph), color);
       // Строки развёртки: каждая вторая строка пикселей шрифта темнее, и символ, и фон.
-      if (vExtra.y > 0.0 && mod(floor(vCell.y * 8.0), 2.0) > 0.5) color.rgb *= 1.0 - vExtra.y;
+      if (vExtra.y > 0.0 && mod(floor(vCell.y * uGrid.y), 2.0) > 0.5) color.rgb *= 1.0 - vExtra.y;
     #endif
     if (color.a <= 0.002) discard;
     gl_FragColor = vec4(color.rgb / color.a, color.a);
@@ -191,7 +215,11 @@ const FRAGMENT_SHADER = /* glsl */ `
 /** Материал потока: подложка (`under`) или сами символы. */
 export function createInstanceMaterial(atlas: GlyphSource, under: boolean): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { uAtlas: { value: atlas.texture }, uTime: { value: 0 } },
+    uniforms: {
+      uAtlas: { value: atlas.texture },
+      uTime: { value: 0 },
+      uGrid: { value: new THREE.Vector2(atlas.gridWidth, atlas.gridHeight) },
+    },
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
     defines: under ? { UNDER: '' } : {},

@@ -42,6 +42,8 @@ export class SceneView {
   private pending: number | null = null;
   private frame: ComposedFrame | null = null;
   private cameraState: CameraState = { centerX: 0, centerY: 0, zoom: 16 };
+  /** Ширина ячейки к высоте: камера растягивает мир по X, и неквадратная ячейка видна как есть. */
+  readonly cellAspect: number;
   private viewWidth = 1;
   private viewHeight = 1;
   private disposed = false;
@@ -69,6 +71,7 @@ export class SceneView {
     this.renderer.domElement.style.height = '100%';
     container.appendChild(this.renderer.domElement);
 
+    this.cellAspect = atlas.gridWidth / atlas.gridHeight;
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     this.camera.position.set(0, 0, 10);
     this.content = new FrameMeshes(atlas);
@@ -164,11 +167,11 @@ export class SceneView {
 
   /** Камера, при которой документ целиком виден с полями. */
   fitCamera(width: number, height: number, padding = 24): CameraState {
-    return fitCamera(this.size, width, height, padding);
+    return fitCamera(this.size, width, height, padding, this.cellAspect);
   }
 
   screenToWorld(px: number, py: number): Point {
-    return screenToWorld(this.cameraState, this.size, px, py);
+    return screenToWorld(this.cameraState, this.size, px, py, this.cellAspect);
   }
 
   /** Координаты ячейки под пикселем вьюпорта. Может выходить за пределы документа. */
@@ -203,10 +206,11 @@ export class SceneView {
    * Рендерит кадр без служебной графики в пиксели RGBA сверху вниз. Кадр может быть чужим,
    * например другим кадром анимации: после рендера возвращается текущий.
    */
-  renderPixels(frame: ComposedFrame, pixelsPerCell: number): RenderedPixels {
+  renderPixels(frame: ComposedFrame, scale: number): RenderedPixels {
     const { width, height } = frame;
-    const w = Math.round(width * pixelsPerCell);
-    const h = Math.round(height * pixelsPerCell);
+    const cell = this.cellPixels(scale);
+    const w = width * cell.width;
+    const h = height * cell.height;
     const target = new THREE.WebGLRenderTarget(w, h, { depthBuffer: false, stencilBuffer: false });
     const camera = new THREE.OrthographicCamera(0, width, 0, -height, 0.1, 100);
     camera.position.set(0, 0, 10);
@@ -256,10 +260,18 @@ export class SceneView {
     return { width: w, height: h, data };
   }
 
+  /**
+   * Ячейка в пикселях экспорта: сетка шрифта, умноженная на масштаб. Пиксельный шрифт при любом
+   * масштабе остаётся чётким — пиксель шрифта всегда целое число пикселей.
+   */
+  cellPixels(scale: number): { width: number; height: number } {
+    return { width: this.atlas.gridWidth * scale, height: this.atlas.gridHeight * scale };
+  }
+
   /** Рендерит текущий документ без служебной графики в PNG заданного масштаба. */
-  async exportPng(pixelsPerCell: number): Promise<Blob> {
+  async exportPng(scale: number): Promise<Blob> {
     if (!this.frame) throw new Error('Nothing to export');
-    const { width, height, data } = this.renderPixels(this.frame, pixelsPerCell);
+    const { width, height, data } = this.renderPixels(this.frame, scale);
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -343,7 +355,7 @@ export class SceneView {
 
   private updateCamera(): void {
     const { centerX, centerY, zoom } = this.cameraState;
-    const halfW = this.viewWidth / 2 / zoom;
+    const halfW = this.viewWidth / 2 / (zoom * this.cellAspect);
     const halfH = this.viewHeight / 2 / zoom;
     this.camera.left = -halfW;
     this.camera.right = halfW;

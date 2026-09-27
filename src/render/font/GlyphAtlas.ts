@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { GlyphPainter } from './painters';
 
 export interface GlyphRect {
   readonly u0: number;
@@ -8,9 +9,8 @@ export interface GlyphRect {
 }
 
 export interface GlyphAtlasOptions {
-  readonly fontFamily: string;
-  /** Размер ячейки атласа в пикселях. Для пиксельного шрифта кратен размеру его сетки. */
-  readonly cellSize?: number;
+  /** Чем рисуются глифы и какого размера ячейка: см. `painters.ts`. */
+  readonly painter: GlyphPainter;
   readonly columns?: number;
   readonly rows?: number;
   /** Потолок высоты текстуры в пикселях: защита от документов с тысячами разных глифов. */
@@ -26,13 +26,19 @@ export const FALLBACK_GLYPH = '?';
 const DEFAULT_MAX_TEXTURE_HEIGHT = 4096;
 
 /**
- * Атлас глифов, растеризуемый на лету через Canvas2D. Глифы добавляются по требованию,
+ * Атлас глифов, растеризуемый на лету через Canvas2D: форму символа даёт `GlyphPainter`,
+ * атлас только раскладывает ячейки. Глифы добавляются по требованию,
  * при переполнении атлас растёт вниз до потолка, а version сообщает рендереру, что UV изменились.
  * Когда потолок достигнут, новые глифы получают запасной символ вместо бесконечного роста.
  */
 export class GlyphAtlas {
   readonly texture: THREE.CanvasTexture;
-  readonly cellSize: number;
+  /** Ячейка атласа в пикселях: прямоугольная у шрифтов с неквадратной сеткой. */
+  readonly cellWidth: number;
+  readonly cellHeight: number;
+  /** Сетка шрифта: пикселей шрифта в ячейке по каждой оси. */
+  readonly gridWidth: number;
+  readonly gridHeight: number;
   version = 0;
 
   private canvas: HTMLCanvasElement;
@@ -40,11 +46,9 @@ export class GlyphAtlas {
   private readonly columns: number;
   private rows: number;
   private readonly maxRows: number;
-  private readonly fontFamily: string;
+  private readonly painter: GlyphPainter;
   private readonly indices = new Map<string, number>();
   private nextIndex = 1;
-  private fontSize = 0;
-  private baseline = 0;
   private fallbackIndex = 0;
   private exhausted = false;
   /** Отдельный холст для замера глифов: из рабочего холста атласа пиксели обратно не читаются. */
@@ -52,15 +56,18 @@ export class GlyphAtlas {
   private readonly coverages = new Map<string, number>();
 
   constructor(options: GlyphAtlasOptions) {
-    this.fontFamily = options.fontFamily;
-    this.cellSize = options.cellSize ?? 32;
+    this.painter = options.painter;
+    this.cellWidth = options.painter.cellWidth;
+    this.cellHeight = options.painter.cellHeight;
+    this.gridWidth = options.painter.gridWidth;
+    this.gridHeight = options.painter.gridHeight;
     this.columns = options.columns ?? 32;
     this.rows = options.rows ?? 16;
     const maxHeight = options.maxTextureHeight ?? DEFAULT_MAX_TEXTURE_HEIGHT;
-    this.maxRows = Math.max(this.rows, Math.floor(maxHeight / this.cellSize));
+    this.maxRows = Math.max(this.rows, Math.floor(maxHeight / this.cellHeight));
     this.canvas = document.createElement('canvas');
-    this.canvas.width = this.columns * this.cellSize;
-    this.canvas.height = this.rows * this.cellSize;
+    this.canvas.width = this.columns * this.cellWidth;
+    this.canvas.height = this.rows * this.cellHeight;
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D is not available');
     this.ctx = ctx;
@@ -70,34 +77,12 @@ export class GlyphAtlas {
     this.texture.generateMipmaps = false;
     this.texture.flipY = false;
     this.texture.colorSpace = THREE.NoColorSpace;
-    this.measureFont();
     this.fallbackIndex = this.allocate(FALLBACK_GLYPH);
   }
 
   /** Сколько глифов ещё поместится без роста и сколько всего может поместиться. */
   get capacity(): { used: number; total: number } {
     return { used: this.nextIndex, total: this.columns * this.maxRows };
-  }
-
-  /** Подбирает размер шрифта так, чтобы строка помещалась в ячейку, и запоминает базовую линию. */
-  private measureFont(): void {
-    let size = this.cellSize;
-    const measure = (): { ascent: number; descent: number } => {
-      this.ctx.font = `${size}px "${this.fontFamily}"`;
-      const m = this.ctx.measureText('M');
-      return {
-        ascent: m.fontBoundingBoxAscent ?? m.actualBoundingBoxAscent,
-        descent: m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent,
-      };
-    };
-    let { ascent, descent } = measure();
-    const lineHeight = ascent + descent;
-    if (lineHeight > this.cellSize && lineHeight > 0) {
-      size = Math.floor((size * this.cellSize) / lineHeight);
-      ({ ascent, descent } = measure());
-    }
-    this.fontSize = size;
-    this.baseline = (this.cellSize - (ascent + descent)) / 2 + ascent;
   }
 
   getRect(glyph: string): GlyphRect {
@@ -123,36 +108,27 @@ export class GlyphAtlas {
     const w = this.canvas.width;
     const h = this.canvas.height;
     return {
-      u0: (col * this.cellSize) / w,
-      v0: (row * this.cellSize) / h,
-      u1: ((col + 1) * this.cellSize) / w,
-      v1: ((row + 1) * this.cellSize) / h,
+      u0: (col * this.cellWidth) / w,
+      v0: (row * this.cellHeight) / h,
+      u1: ((col + 1) * this.cellWidth) / w,
+      v1: ((row + 1) * this.cellHeight) / h,
     };
   }
 
   private drawGlyph(glyph: string, index: number): void {
     const col = index % this.columns;
     const row = Math.floor(index / this.columns);
-    const x = col * this.cellSize;
-    const y = row * this.cellSize;
+    const x = col * this.cellWidth;
+    const y = row * this.cellHeight;
     const ctx = this.ctx;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(x, y, this.cellSize, this.cellSize);
+    ctx.rect(x, y, this.cellWidth, this.cellHeight);
     ctx.clip();
-    ctx.clearRect(x, y, this.cellSize, this.cellSize);
-    this.paint(ctx, glyph, x, y);
+    ctx.clearRect(x, y, this.cellWidth, this.cellHeight);
+    this.painter.paint(ctx, glyph, x, y);
     ctx.restore();
     this.texture.needsUpdate = true;
-  }
-
-  /** Глиф в ячейке с левым верхним углом (x, y): одинаково и для атласа, и для замера. */
-  private paint(ctx: CanvasRenderingContext2D, glyph: string, x: number, y: number): void {
-    ctx.font = `${this.fontSize}px "${this.fontFamily}"`;
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(glyph, x + this.cellSize / 2, y + this.baseline);
   }
 
   /**
@@ -163,15 +139,17 @@ export class GlyphAtlas {
     if (glyph === '') return 0;
     const known = this.coverages.get(glyph);
     if (known !== undefined) return known;
-    const size = this.cellSize;
+    const { cellWidth: w, cellHeight: h } = this;
     const ctx = this.scratchContext();
     if (!ctx) return 0.5;
-    ctx.clearRect(0, 0, size, size);
-    this.paint(ctx, glyph, 0, 0);
-    const pixels = ctx.getImageData(0, 0, size, size).data;
+    ctx.save();
+    ctx.clearRect(0, 0, w, h);
+    this.painter.paint(ctx, glyph, 0, 0);
+    ctx.restore();
+    const pixels = ctx.getImageData(0, 0, w, h).data;
     let ink = 0;
     for (let i = 3; i < pixels.length; i += 4) ink += pixels[i];
-    const value = ink / (255 * size * size);
+    const value = ink / (255 * w * h);
     this.coverages.set(glyph, value);
     return value;
   }
@@ -182,22 +160,22 @@ export class GlyphAtlas {
    * в движке не размоется и не даст полупрозрачной каймы.
    */
   sheet(glyphs: readonly string[], columns: number): HTMLCanvasElement {
-    const size = this.cellSize;
+    const { cellWidth: w, cellHeight: h } = this;
     const canvas = document.createElement('canvas');
-    canvas.width = columns * size;
-    canvas.height = Math.ceil((glyphs.length + 1) / columns) * size;
+    canvas.width = columns * w;
+    canvas.height = Math.ceil((glyphs.length + 1) / columns) * h;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) throw new Error('Canvas 2D is not available');
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(0, 0, w, h);
     glyphs.forEach((glyph, i) => {
-      const x = ((i + 1) % columns) * size;
-      const y = Math.floor((i + 1) / columns) * size;
+      const x = ((i + 1) % columns) * w;
+      const y = Math.floor((i + 1) / columns) * h;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x, y, size, size);
+      ctx.rect(x, y, w, h);
       ctx.clip();
-      this.paint(ctx, glyph, x, y);
+      this.painter.paint(ctx, glyph, x, y);
       ctx.restore();
     });
     const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -215,8 +193,8 @@ export class GlyphAtlas {
   private scratchContext(): CanvasRenderingContext2D | null {
     if (this.scratch) return this.scratch;
     const canvas = document.createElement('canvas');
-    canvas.width = this.cellSize;
-    canvas.height = this.cellSize;
+    canvas.width = this.cellWidth;
+    canvas.height = this.cellHeight;
     this.scratch = canvas.getContext('2d', { willReadFrequently: true });
     return this.scratch;
   }
@@ -234,7 +212,7 @@ export class GlyphAtlas {
     const rows = Math.min(this.rows * 2, this.maxRows);
     const next = document.createElement('canvas');
     next.width = this.canvas.width;
-    next.height = rows * this.cellSize;
+    next.height = rows * this.cellHeight;
     const ctx = next.getContext('2d');
     if (!ctx) {
       this.exhausted = true;

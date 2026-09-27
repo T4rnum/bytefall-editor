@@ -74,12 +74,13 @@ export async function saveDocumentAction(saveAs = false): Promise<void> {
   }
 }
 
-export async function exportPngAction(pixelsPerCell: number): Promise<void> {
+/** `scale` — кратность сетки шрифта: пиксель шрифта становится квадратом `scale` пикселей. */
+export async function exportPngAction(scale: number): Promise<void> {
   const view = getActiveView();
   if (!view) return;
   const { doc } = useDocumentStore.getState();
   try {
-    const blob = await view.exportPng(pixelsPerCell);
+    const blob = await view.exportPng(scale);
     if (await saveBlobFile(blob, `${safeFileName(doc.name)}.png`, '.png', 'Изображение PNG')) {
       notify('PNG сохранён');
     }

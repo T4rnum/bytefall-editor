@@ -1,4 +1,5 @@
 import { duplicateAnimationLayer, mapFrames, resizeAnimation } from '../../core/animation';
+import { type DocumentFont, sameFont } from '../../core/font/font';
 import { removeLayerKeepingChildren } from '../../core/hierarchy';
 import {
   type Layer,
@@ -136,4 +137,15 @@ export function resizeCanvasAction(width: number, height: number, anchor: Resize
   if (width === doc.width && height === doc.height) return;
   commitAnimation('Resize canvas', resizeAnimation(animation, width, height, anchor));
   useEditorStore.getState().setSelection(null);
+}
+
+/**
+ * Шрифт документа общий для всех кадров и лежит в заголовке анимации. Ячейки остаются на
+ * местах: меняется вид символов, а у шрифта другой формы — и форма ячейки.
+ */
+export function setDocumentFontAction(font: DocumentFont): void {
+  const { animation, commitAnimation } = state();
+  if (sameFont(animation.font, font)) return;
+  commitAnimation('Change font', { ...animation, font });
+  notify(`Шрифт документа: ${font.name}, ячейка ${font.cellWidth}×${font.cellHeight}`);
 }

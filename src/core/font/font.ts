@@ -93,9 +93,8 @@ export function vectorCell(info: SfntInfo): { cellWidth: number; cellHeight: num
 export interface VectorLayout {
   /** Кегль в пикселях шрифта: у пиксельного шрифта ровно его сетка на кегль. */
   readonly size: number;
-  /** Базовая линия от верха ячейки и левый край знака шириной `advance`, в пикселях шрифта. */
+  /** Базовая линия от верха ячейки, в пикселях шрифта. По ширине знак ставит рисующий. */
   readonly baseline: number;
-  readonly left: number;
   /** Пиксельный ли шрифт: тогда положение округляется до его пикселя, и знак остаётся чётким. */
   readonly pixel: boolean;
 }
@@ -104,7 +103,7 @@ export interface VectorLayout {
  * Где и каким кеглем рисовать векторный шрифт в ячейке. Строка шрифта ставится посередине
  * ячейки: если ячейку сделали выше сетки шрифта, поле делится поровну сверху и снизу.
  */
-export function vectorLayout(info: SfntInfo, cellWidth: number, cellHeight: number): VectorLayout {
+export function vectorLayout(info: SfntInfo, cellHeight: number): VectorLayout {
   const pixel = info.pixel !== null;
   const scale =
     info.pixel !== null ? 1 / info.pixel : cellHeight / (info.ascender - info.descender);
@@ -113,7 +112,6 @@ export function vectorLayout(info: SfntInfo, cellWidth: number, cellHeight: numb
   return {
     size: info.unitsPerEm * scale,
     baseline: snap((cellHeight - line) / 2 + info.ascender * scale),
-    left: snap((cellWidth - info.advance * scale) / 2),
     pixel,
   };
 }

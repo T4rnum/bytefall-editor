@@ -6,7 +6,6 @@ import { isAnimatedGraph } from '../graph/evaluate';
 import { readInstance } from '../instances';
 import {
   DEFAULT_GLOW,
-  FONT_PIXEL,
   type GlyphMaterial,
   MATERIAL,
   hasMaterial,
@@ -48,7 +47,7 @@ function ballWith(material: GlyphMaterial) {
 describe('GPU-материал объекта', () => {
   it('в числа для потока: контур, свечение, блик и дизеринг на своих местах', () => {
     const floats = [...materialFloats(mat({ outline, glow, shine, dither: { amount: 0.25 } }))!];
-    expect(floats.slice(MATERIAL.outline, MATERIAL.outline + 4)).toEqual([1, 0, 0, 2 * FONT_PIXEL]);
+    expect(floats.slice(MATERIAL.outline, MATERIAL.outline + 4)).toEqual([1, 0, 0, 2]);
     expect(floats.slice(MATERIAL.glow, MATERIAL.glow + 4)).toEqual([0, 0, 1, 0.75]);
     expect(floats[MATERIAL.glowStrength]).toBe(2);
     expect(floats.slice(MATERIAL.shine, MATERIAL.shine + 4)).toEqual([1, 1, 1, 1]);
@@ -88,7 +87,7 @@ describe('GPU-материал объекта', () => {
     expect(frame.time).toBe(250);
     const pass = frame.passes.find((p) => p.kind === 'glyphs');
     if (pass?.kind !== 'glyphs') throw new Error('ожидался поток символов');
-    expect(readInstance(pass.batch, 0).material.slice(0, 4)).toEqual([1, 0, 0, 0.25]);
+    expect(readInstance(pass.batch, 0).material.slice(0, 4)).toEqual([1, 0, 0, 2]);
   });
 
   it('бегущий блик делает сцену движением и пересобирает кадр на тиках', () => {

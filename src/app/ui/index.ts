@@ -9,6 +9,7 @@ export { Button, tooltip, type ButtonProps, type ButtonVariant, type ControlSize
 export { Checkbox, type CheckboxProps } from './Checkbox';
 export { ColorField, type ColorFieldProps } from './ColorField';
 export { Field, FieldGroup, type FieldProps } from './Field';
+export { GlyphFace, type GlyphFaceProps } from './GlyphFace';
 export { KeyButton, type KeyButtonProps, type KeyButtonState } from './KeyButton';
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { Menu, type MenuItem, type MenuProps } from './Menu';
