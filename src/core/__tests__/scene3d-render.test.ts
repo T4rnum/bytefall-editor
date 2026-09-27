@@ -118,4 +118,30 @@ describe('буферы рендера в ячейки', () => {
     const middle = [keyOf(2, 1), keyOf(3, 1)].map((k) => cells.get(k)?.glyph);
     expect(middle).toContain('|');
   });
+
+  it('плавный изгиб тонкой трубки — не складка: внутри символы света, контур только по краям', () => {
+    // Вертикальная трубка шириной три ячейки: нормаль поворачивается на 160° поперёк неё.
+    const width = 7;
+    const height = 3;
+    const sub = 4;
+    const fw = width * sub;
+    const rgba = new Uint8Array(fw * height * sub * 4);
+    const normal = new Float32Array(fw * height * sub * 3);
+    const depth = new Float32Array(fw * height * sub).fill(1);
+    for (let y = 0; y < height * sub; y++) {
+      for (let x = 8; x < 20; x++) {
+        const i = y * fw + x;
+        const angle = (((x - 8 + 0.5) / 12) * 160 - 80) * (Math.PI / 180);
+        rgba.set([200, 200, 200, 255], i * 4);
+        normal.set([Math.sin(angle), 0, Math.cos(angle)], i * 3);
+        depth[i] = 0.4 + 0.1 * (1 - Math.cos(angle));
+      }
+    }
+    const cells = buffersToCells({ width, height, sub, rgba, normal, depth }, options);
+    const edge = /^[|/\-\\]$/;
+    expect(cells.get(keyOf(3, 1))?.glyph).toBeDefined();
+    expect(cells.get(keyOf(3, 1))?.glyph).not.toMatch(edge);
+    expect(cells.get(keyOf(2, 1))?.glyph).toBe('|');
+    expect(cells.get(keyOf(4, 1))?.glyph).toBe('|');
+  });
 });

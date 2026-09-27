@@ -63,7 +63,10 @@ export function scene3DCells(layer: Layer, doc: Document): CellGrid {
 export const renderSubsamples = (width: number, height: number): number =>
   Math.min(2, subsamplesFor(width, height));
 
-/** Во сколько раз перепад глубины весит больше перепада нормали: силуэт важнее складки. */
+/**
+ * Во сколько раз перепад глубины весит больше перепада яркости у картинки: глубина — доли всего
+ * размаха сцены, и край тела в них невелик.
+ */
 const DEPTH_WEIGHT = 4;
 
 /**
@@ -71,14 +74,8 @@ const DEPTH_WEIGHT = 4;
  * функция: одинаковые буферы дают одинаковые ячейки.
  */
 export function buffersToCells(b: RenderBuffers, options: QuantizeOptions): Map<CellKey, Cell> {
-  const fw = b.width * b.sub;
-  const fh = b.height * b.sub;
-  const samples = sampleImage({ width: fw, height: fh, data: b.rgba }, b.width, b.height, b.sub);
+  const image = { width: b.width * b.sub, height: b.height * b.sub, data: b.rgba };
+  const samples = sampleImage(image, b.width, b.height, b.sub);
   const depth = b.depth.map((d) => d * DEPTH_WEIGHT);
-  const channel = (k: number): Float32Array => {
-    const out = new Float32Array(fw * fh);
-    for (let i = 0; i < out.length; i++) out[i] = b.normal[i * 3 + k];
-    return out;
-  };
-  return quantize({ ...samples, geometry: [depth, channel(0), channel(1), channel(2)] }, options);
+  return quantize({ ...samples, geometry: { depth, normal: b.normal } }, options);
 }
