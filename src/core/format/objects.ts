@@ -28,6 +28,7 @@ import {
   normalizeOverride,
 } from '../transform';
 import {
+  type CellFile,
   DocumentFormatError,
   MAX_CELLS_PER_LAYER,
   MAX_NAME_LENGTH,
@@ -108,7 +109,10 @@ function overridesToFile(overrides: GlyphOverrides): OverrideFile[] {
     .map(([key, o]) => ({ x: xOf(key), y: yOf(key), ...o }));
 }
 
-export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
+export function objectsToFile(
+  objects: readonly SceneObject[],
+  cells: (grid: CellGrid) => CellFile[] = cellsToFile,
+): ObjectFile[] {
   // Ссылка на родителя, которого в кадре нет, сделала бы файл нечитаемым: такую не пишем. Так
   // объект и рисуется — пропавший родитель считается корнем.
   const ids = new Set(objects.map((o) => o.id));
@@ -122,7 +126,7 @@ export function objectsToFile(objects: readonly SceneObject[]): ObjectFile[] {
     locked: obj.locked,
     ...(obj.opacity !== 1 ? { opacity: obj.opacity } : {}),
     ...(obj.tint !== null ? { tint: obj.tint } : {}),
-    cells: cellsToFile(obj.cells),
+    cells: cells(obj.cells),
     ...(obj.overrides.size > 0 ? { overrides: overridesToFile(obj.overrides) } : {}),
     ...(obj.graph ? { graph: graphToFile(obj.graph) } : {}),
     ...(obj.rig ? { rig: rigToFile(obj.rig) } : {}),

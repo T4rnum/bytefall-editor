@@ -9,6 +9,7 @@ import {
   createFrame,
 } from './animation';
 import { MAX_DIMENSION, MAX_PALETTE, MIN_DIMENSION } from './document';
+import type { CellGrid } from './grid';
 import type { DeformerMigration } from './format/graph';
 import {
   assertSharedLayers,
@@ -22,7 +23,15 @@ import { objectSchema, objectsFromFile, objectsToFile } from './format/objects';
 import { usedMeshes } from './scene3d/mesh';
 import { tracksFromFile, tracksSchema, tracksToFile } from './format/tracks';
 import { DEFAULT_FPS, MAX_FPS, MAX_SCENE_DURATION, MIN_FPS, MIN_SCENE_DURATION } from './time';
-import { DocumentFormatError, MAX_ID_LENGTH, MAX_NAME_LENGTH, hex, id } from './format/primitives';
+import {
+  type CellFile,
+  DocumentFormatError,
+  MAX_ID_LENGTH,
+  MAX_NAME_LENGTH,
+  cellsToFile,
+  hex,
+  id,
+} from './format/primitives';
 import { MAX_OBJECTS } from './object';
 
 export {
@@ -99,7 +108,14 @@ const documentSchema = z.object({
 export type DocumentFile = z.infer<typeof documentSchema>;
 export type FrameFile = z.infer<typeof frameSchema>;
 
-export function toFileObject(anim: Animation): DocumentFile {
+/**
+ * Файл документа объектом. `cells` пишет сетку ячеек — по умолчанию массивом, а `serialize`
+ * подставляет метку, на место которой потом встаёт готовый JSON из кэша.
+ */
+export function toFileObject(
+  anim: Animation,
+  cells: (grid: CellGrid) => CellFile[] = cellsToFile,
+): DocumentFile {
   const meshes = usedMeshes(
     anim.meshes,
     anim.frames.flatMap((f) => f.layers),
@@ -116,8 +132,8 @@ export function toFileObject(anim: Animation): DocumentFile {
     frames: anim.frames.map((frame) => ({
       id: frame.id,
       duration: frame.duration,
-      layers: layersToFile(frame.layers),
-      objects: objectsToFile(frame.objects),
+      layers: layersToFile(frame.layers, cells),
+      objects: objectsToFile(frame.objects, cells),
     })),
     fps: anim.fps,
     ...(anim.duration !== null ? { duration: anim.duration } : {}),
@@ -126,8 +142,54 @@ export function toFileObject(anim: Animation): DocumentFile {
   };
 }
 
+/**
+ * JSON ячеек по сетке. Сетки неизменяемы: сетка, которую правка не тронула, — та же ссылка, и
+ * её JSON тот же. Автосохранение пишет весь документ после каждой паузы в правках, а меняется
+ * обычно один слой одного кадра — остальное берётся отсюда.
+ */
+const cellsJson = new WeakMap<CellGrid, string>();
+let calls = 0;
+
+function cachedCellsJson(grid: CellGrid): string {
+  let json = cellsJson.get(grid);
+  if (json === undefined) {
+    json = JSON.stringify(cellsToFile(grid));
+    cellsJson.set(grid, json);
+  }
+  return json;
+}
+
+/**
+ * Документ в текст файла. Ячейки не сериализуются заново, а подставляются из кэша: вместо
+ * массива в объект файла кладётся метка, после `JSON.stringify` метка — строка в кавычках, её
+ * и заменяет готовый JSON. Метка несёт номер вызова, а метки идут строго по порядку: строка
+ * документа, случайно совпавшая с меткой, нарушит порядок, и тогда текст собирается без кэша.
+ * Результат — ровно тот же текст, что у `JSON.stringify(toFileObject(anim))`.
+ */
 export function serialize(anim: Animation): string {
-  return JSON.stringify(toFileObject(anim));
+  // Метка — строка с управляющим символом U+0001; в тексте JSON он записан как \u0001.
+  const tag = `cells-${++calls}:`;
+  const pieces: string[] = [];
+  const mark = (grid: CellGrid): CellFile[] => {
+    pieces.push(cachedCellsJson(grid));
+    return `\u0001${tag}${pieces.length - 1}` as unknown as CellFile[];
+  };
+  const text = JSON.stringify(toFileObject(anim, mark));
+  const opening = `"\\u0001${tag}`;
+  let out = '';
+  let from = 0;
+  let next = 0;
+  for (;;) {
+    const at = text.indexOf(opening, from);
+    if (at < 0) break;
+    const end = text.indexOf('"', at + opening.length);
+    if (text.slice(at + opening.length, end) !== String(next)) {
+      return JSON.stringify(toFileObject(anim));
+    }
+    out += text.slice(from, at) + pieces[next++];
+    from = end + 1;
+  }
+  return next === pieces.length ? out + text.slice(from) : JSON.stringify(toFileObject(anim));
 }
 
 export function fromFileObject(file: DocumentFile): Animation {

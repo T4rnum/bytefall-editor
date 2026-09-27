@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import type { Frame } from '../animation';
 import { type Layer, MAX_LAYERS, newId } from '../document';
+import type { CellGrid } from '../grid';
 import { MAX_EFFECTS_PER_LAYER } from '../effects';
 import { effectSchema } from './effects';
 import {
+  type CellFile,
   DocumentFormatError,
   MAX_CELLS_PER_LAYER,
   MAX_NAME_LENGTH,
@@ -33,14 +35,18 @@ const layerSchema = z.object({
 export const layersSchema = z.array(layerSchema).min(1).max(MAX_LAYERS);
 
 type LayerFile = z.infer<typeof layerSchema>;
-export function layersToFile(layers: readonly Layer[]): LayerFile[] {
+/** `cells` пишет сетку ячеек: сериализатор подменяет её кэшем, см. `serialize`. */
+export function layersToFile(
+  layers: readonly Layer[],
+  cells: (grid: CellGrid) => CellFile[] = cellsToFile,
+): LayerFile[] {
   return layers.map((layer) => ({
     id: layer.id,
     name: layer.name,
     visible: layer.visible,
     locked: layer.locked,
     opacity: layer.opacity,
-    cells: cellsToFile(layer.cells),
+    cells: cells(layer.cells),
     ...(layer.effects.length > 0 ? { effects: [...layer.effects] } : {}),
     ...(layer.scene ? { scene: scene3dToFile(layer.scene) } : {}),
   }));
