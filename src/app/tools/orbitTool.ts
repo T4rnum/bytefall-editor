@@ -1,10 +1,13 @@
 import type { Point } from '../../core/geometry';
 import { dollyCamera, orbitCamera, panCamera } from '../../core/scene3d/camera';
+import { pickBody3D } from '../../core/scene3d/pick';
 import type { Camera3D } from '../../core/scene3d/types';
 import type { PointerInfo, Tool, ToolEnv } from './types';
 
 /** Градусов орбиты на ширину холста: протащить через весь холст — пол-оборота. */
 const DEGREES_PER_CANVAS = 180;
+/** Сдвиг меньше этого, в ячейках, — щелчок: выбрать тело, а не крутить камеру. */
+const CLICK_REACH = 0.5;
 
 type Mode = 'orbit' | 'pan' | 'dolly';
 
@@ -14,6 +17,8 @@ interface Gesture {
   readonly from: Point;
   readonly mode: Mode;
   readonly key: string;
+  /** Указатель ушёл дальше щелчка: жест крутит камеру. */
+  moved: boolean;
 }
 
 let gestures = 0;
@@ -37,9 +42,13 @@ function cameraAt(env: ToolEnv, g: Gesture, point: Point): Camera3D {
   }
 }
 
+const movedFar = (g: Gesture, point: Point): boolean =>
+  g.moved || Math.hypot(point.x - g.from.x, point.y - g.from.y) >= CLICK_REACH;
+
 /**
  * Орбита: камера 3D-слоя мышью. Тянуть — вращение вокруг цели, с Shift — сдвиг вместе с целью,
  * с Alt — приближение. Жест — одна запись истории; у анимированной камеры — ключ в текущий момент.
+ * Щелчок без сдвига выбирает тело под указателем, по пустому месту — снимает выбор.
  */
 export function createOrbitTool(): Tool {
   let gesture: Gesture | null = null;
@@ -59,16 +68,26 @@ export function createOrbitTool(): Tool {
         from: info.point,
         mode,
         key: `orbit:${gestures}`,
+        moved: false,
       };
     },
     onPointerMove(env, info) {
-      if (gesture)
-        env.setCamera3D(gesture.layerId, cameraAt(env, gesture, info.point), gesture.key);
+      if (!gesture || !movedFar(gesture, info.point)) return;
+      gesture.moved = true;
+      env.setCamera3D(gesture.layerId, cameraAt(env, gesture, info.point), gesture.key);
     },
     onPointerUp(env, info) {
-      if (gesture)
-        env.setCamera3D(gesture.layerId, cameraAt(env, gesture, info.point), gesture.key);
+      const g = gesture;
       gesture = null;
+      if (!g) return;
+      if (movedFar(g, info.point)) {
+        env.setCamera3D(g.layerId, cameraAt(env, g, info.point), g.key);
+        return;
+      }
+      const { doc, scene3d } = env;
+      if (!scene3d) return;
+      const { x, y } = info.point;
+      env.selectBody3D(pickBody3D(scene3d.scene, doc.width, doc.height, doc.meshes, x, y));
     },
     hoverCursor(env) {
       return env.scene3d ? null : 'not-allowed';

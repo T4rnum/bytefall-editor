@@ -142,8 +142,8 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
     const syncEditMarks = (): void => {
       const editor = useEditorStore.getState();
       const doc = currentDoc();
-      const time = useDocumentStore.getState().time;
-      view.setEditMarks(editMarks(doc, editor, time), canvasMarks(doc, editor));
+      const { time, activeLayerId } = useDocumentStore.getState();
+      view.setEditMarks(editMarks(doc, editor, time), canvasMarks(doc, editor, activeLayerId));
     };
 
     /**
@@ -177,7 +177,10 @@ export function Viewport({ atlas }: { atlas: GlyphAtlas }) {
         recomposite();
       }
       // Символы деформированного объекта в правке движутся со временем, а с ними и их рамки.
-      if (prev && state.time !== prev.time) syncEditMarks();
+      // Рамка выбранного тела 3D — у сцены активного слоя.
+      if (prev && (state.time !== prev.time || state.activeLayerId !== prev.activeLayerId)) {
+        syncEditMarks();
+      }
       if (state.epoch !== lastEpoch) {
         lastEpoch = state.epoch;
         const editor = useEditorStore.getState();

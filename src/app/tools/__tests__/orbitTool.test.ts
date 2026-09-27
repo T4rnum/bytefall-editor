@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDocument } from '../../../core/document';
-import { createScene3D } from '../../../core/scene3d/scene';
+import { createNode3D, createScene3D } from '../../../core/scene3d/scene';
 import { createOrbitTool } from '../orbitTool';
 import { at, makeToolEnv } from './testEnv';
 
@@ -45,6 +45,22 @@ describe('инструмент «Орбита»', () => {
     tool.onPointerUp?.(env, at(10, 0, 0, false, true));
     expect(calls.cameras[1].camera.position[2]).toBeLessThan(5);
     expect(calls.cameras[1].key).not.toBe(calls.cameras[0].key);
+  });
+
+  it('щелчок без сдвига выбирает тело под указателем и камеру не трогает', () => {
+    const base = scene3dDoc();
+    const ball = createNode3D('sphere', 'Шар', { scale: [2, 2, 2] });
+    const scene = { ...base.layers[0].scene, nodes: [ball] };
+    const doc = { ...base, layers: [{ ...base.layers[0], scene }] };
+    const { env, calls } = makeToolEnv(doc);
+    const tool = createOrbitTool();
+    tool.onPointerDown?.(env, at(20, 10));
+    tool.onPointerMove?.(env, at(20.2, 10));
+    tool.onPointerUp?.(env, at(20.2, 10));
+    tool.onPointerDown?.(env, at(1, 1));
+    tool.onPointerUp?.(env, at(1, 1));
+    expect(calls.bodies).toEqual([ball.id, null]);
+    expect(calls.cameras).toEqual([]);
   });
 
   it('без 3D-слоя инструмент ничего не делает', () => {

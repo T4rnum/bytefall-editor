@@ -20,6 +20,7 @@ export interface ToolCalls {
   readonly frames: (Rect | null)[];
   readonly resizes: { width: number; height: number; anchor: ResizeAnchor }[];
   readonly cameras: { layerId: string; camera: Camera3D; key: string }[];
+  readonly bodies: (string | null)[];
   draft: Document | null;
 }
 
@@ -73,6 +74,7 @@ export function makeToolEnv(
     frames: [],
     resizes: [],
     cameras: [],
+    bodies: [],
     draft: null,
   };
 
@@ -106,6 +108,7 @@ export function makeToolEnv(
     setCanvasFrame: (rect) => calls.frames.push(rect),
     resizeCanvas: (width, height, anchor) => calls.resizes.push({ width, height, anchor }),
     setCamera3D: (layerId, camera, key) => calls.cameras.push({ layerId, camera, key }),
+    selectBody3D: (id) => calls.bodies.push(id),
   };
 
   return { env, calls };

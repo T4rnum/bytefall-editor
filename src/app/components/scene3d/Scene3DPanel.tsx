@@ -1,5 +1,6 @@
 import { FileBox, Plus, X } from 'lucide-react';
 import { useState } from 'react';
+import { useEditorStore } from '../../store/editorStore';
 import { findLayer } from '../../../core/document';
 import { type Node3DKind, PRIMITIVES_3D } from '../../../core/scene3d/types';
 import { KIND_3D_LABELS } from '../../scene3d/labels';
@@ -10,6 +11,7 @@ import { Button, Panel, Select, type SelectOption } from '../../ui';
 import { Body3DFields } from './Body3DFields';
 import { Camera3DFields, Light3DFields } from './Camera3DFields';
 import { Look3DFields } from './Look3DFields';
+import { Render3DFields } from './Render3DFields';
 
 const KINDS: readonly SelectOption<Node3DKind>[] = PRIMITIVES_3D.map((kind) => ({
   value: kind,
@@ -24,7 +26,8 @@ export function Scene3DPanel() {
   const doc = useDocumentStore((s) => s.doc);
   const activeLayerId = useDocumentStore((s) => s.activeLayerId);
   const [kind, setKind] = useState<Node3DKind>('box');
-  const [selected, setSelected] = useState<string | null>(null);
+  const selected = useEditorStore((s) => s.selectedBody3D);
+  const setSelected = useEditorStore((s) => s.setSelectedBody3D);
   const layer = findLayer(doc, activeLayerId);
   const scene = layer?.scene;
   if (!layer || !scene) return null;
@@ -98,7 +101,12 @@ export function Scene3DPanel() {
       <h4 className="inspector-heading">Свет</h4>
       <Light3DFields layerId={layer.id} scene={scene} />
       <h4 className="inspector-heading">Символы</h4>
-      <Look3DFields layerId={layer.id} quantize={scene.quantize} />
+      <Render3DFields layerId={layer.id} scene={scene} />
+      <Look3DFields
+        layerId={layer.id}
+        quantize={scene.quantize}
+        cloud={scene.render.mode === 'cloud'}
+      />
     </Panel>
   );
 }

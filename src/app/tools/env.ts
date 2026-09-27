@@ -87,5 +87,6 @@ export function buildToolEnv(): ToolEnv {
     setCanvasFrame: editor.setCanvasFrame,
     resizeCanvas: resizeCanvasAction,
     setCamera3D: setCamera3DPoseAction,
+    selectBody3D: editor.setSelectedBody3D,
   };
 }

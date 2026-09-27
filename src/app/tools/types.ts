@@ -103,6 +103,8 @@ export interface ToolEnv {
    * текущий момент. Записи одного жеста склеиваются `mergeKey`.
    */
   setCamera3D: (layerId: string, camera: Camera3D, mergeKey: string) => void;
+  /** Выбрать тело 3D-сцены активного слоя; null — снять выбор. */
+  selectBody3D: (id: string | null) => void;
 }
 
 export interface PointerInfo {

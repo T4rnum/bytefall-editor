@@ -68,6 +68,8 @@ export interface EditorState {
   readonly marquee: readonly Point[] | null;
   /** Будущий холст, пока инструмент «Холст» тянет край: в координатах нынешнего. */
   readonly canvasFrame: Rect | null;
+  /** Выбранное тело 3D-сцены активного слоя: его правит панель, вокруг него рамка на холсте. */
+  readonly selectedBody3D: string | null;
   /** Черновик документа на время перетаскивания объекта: рендерится вместо основного. */
   readonly draft: Document | null;
   readonly isPlaying: boolean;
@@ -108,6 +110,7 @@ export interface EditorState {
   setTextCursor: (cell: Point | null) => void;
   /** Выбирает один объект или снимает выбор. */
   setSelectedObject: (id: string | null) => void;
+  setSelectedBody3D: (id: string | null) => void;
   /** Выбирает несколько объектов, главным становится последний. */
   setSelectedObjects: (ids: readonly string[]) => void;
   /** Входит в правку объекта изнутри или выходит из неё; выделение символов сбрасывается. */
@@ -178,6 +181,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   cursorPoint: null,
   marquee: null,
   canvasFrame: null,
+  selectedBody3D: null,
   draft: null,
   isPlaying: false,
   selectedKeys: [],
@@ -214,6 +218,7 @@ export const useEditorStore = create<EditorState>((set) => ({
       selectedObjectIds: id ? [id] : [],
       ...keepEditing(s, id),
     })),
+  setSelectedBody3D: (selectedBody3D) => set({ selectedBody3D }),
   setSelectedObjects: (ids) =>
     set((s) => {
       const primary = ids[ids.length - 1] ?? null;

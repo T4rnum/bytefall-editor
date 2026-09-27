@@ -80,12 +80,18 @@ function LookNumber({ layerId, quantize, field, label, min, max }: LookNumberPro
   );
 }
 
+/**
+ * Как свет становится символами: рампа, контуры, тон, дизеринг, фон, палитра. У облака символов
+ * нет контуров и дизеринга — у его символа нет своей клетки, — и этих полей там нет.
+ */
 export function Look3DFields({
   layerId,
   quantize,
+  cloud,
 }: {
   layerId: string;
   quantize: QuantizeOptions;
+  cloud: boolean;
 }) {
   const set = (patch: Partial<QuantizeOptions>): void => setQuantize3DAction(layerId, patch);
   const preset = RAMP_PRESETS.some((r) => r.glyphs === quantize.ramp) ? quantize.ramp : '';
@@ -124,24 +130,28 @@ export function Look3DFields({
           />
         </Field>
       )}
-      <Field label="Контуры">
-        <Checkbox checked={quantize.edges} onChange={(edges) => set({ edges })}>
-          Силуэт и рёбра
-        </Checkbox>
-      </Field>
-      {quantize.edges && number('edgeThreshold', 'Порог контура', 0, 1)}
+      {!cloud && (
+        <Field label="Контуры">
+          <Checkbox checked={quantize.edges} onChange={(edges) => set({ edges })}>
+            Силуэт и рёбра
+          </Checkbox>
+        </Field>
+      )}
+      {!cloud && quantize.edges && number('edgeThreshold', 'Порог контура', 0, 1)}
       {number('contrast', 'Контраст', 0, 3)}
       {number('brightness', 'Яркость', -1, 1)}
-      <Field label="Дизеринг">
-        <Select
-          value={quantize.dither}
-          options={DITHERS}
-          size="sm"
-          ariaLabel="Дизеринг"
-          onChange={(dither) => set({ dither })}
-        />
-        <span className="key-spacer" aria-hidden="true" />
-      </Field>
+      {!cloud && (
+        <Field label="Дизеринг">
+          <Select
+            value={quantize.dither}
+            options={DITHERS}
+            size="sm"
+            ariaLabel="Дизеринг"
+            onChange={(dither) => set({ dither })}
+          />
+          <span className="key-spacer" aria-hidden="true" />
+        </Field>
+      )}
       <Field label="Фон">
         <Select
           value={quantize.background}

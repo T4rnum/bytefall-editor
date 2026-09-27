@@ -1,10 +1,11 @@
 import { type Affine, applyAffine } from '../../core/affine';
-import type { Document } from '../../core/document';
+import { type Document, findLayer } from '../../core/document';
 import type { Point } from '../../core/geometry';
 import { glyphQuad, placedGlyphs } from '../../core/glyphPick';
 import { findObject } from '../../core/object';
 import { type EditArea, areaCellAt, editArea } from '../../core/objectEdit';
 import { objectMatrix } from '../../core/placement';
+import { body3DBounds } from '../../core/scene3d/pick';
 import type { CanvasMarks, EditMarks } from '../../render/Overlay';
 import { loopSegments } from '../../render/lineMarks';
 import type { EditorState } from '../store/editorStore';
@@ -64,12 +65,33 @@ export function editMarks(doc: Document, editor: EditorState, time: number): Edi
 /** Сторона ручки холста в пикселях экрана: при любом зуме её одинаково легко увидеть. */
 const CANVAS_HANDLE_PX = 8;
 
+/** Рамка выбранного тела 3D-сцены слоя; пусто — тело не выбрано, слой скрыт или тела не видно. */
+function body3DFrame(doc: Document, layerId: string, bodyId: string | null): Point[] {
+  const layer = findLayer(doc, layerId);
+  if (!bodyId || !layer?.scene || !layer.visible) return [];
+  const r = body3DBounds(layer.scene, doc.width, doc.height, doc.meshes, bodyId);
+  if (!r) return [];
+  return loopSegments([
+    [
+      { x: r.x, y: r.y },
+      { x: r.x + r.w, y: r.y },
+      { x: r.x + r.w, y: r.y + r.h },
+      { x: r.x, y: r.y + r.h },
+    ],
+  ]);
+}
+
 /**
- * Рамка и ручки инструмента «Холст»: у нынешнего холста или, пока тянут край, у будущего.
- * null — инструмент не выбран.
+ * Рамки цветом акцента: холст инструмента «Холст» с ручками — у нынешнего холста или, пока тянут
+ * край, у будущего, — и выбранное тело 3D-сцены активного слоя. null — рисовать нечего.
  */
-export function canvasMarks(doc: Document, editor: EditorState): CanvasMarks | null {
-  if (editor.tool !== 'canvas') return null;
+export function canvasMarks(
+  doc: Document,
+  editor: EditorState,
+  layerId: string,
+): CanvasMarks | null {
+  const body = body3DFrame(doc, layerId, editor.selectedBody3D);
+  if (editor.tool !== 'canvas') return body.length > 0 ? { frame: body, handles: [] } : null;
   const r = editor.canvasFrame ?? { x: 0, y: 0, w: doc.width, h: doc.height };
   const corners = [
     { x: r.x, y: r.y },
@@ -88,7 +110,10 @@ export function canvasMarks(doc: Document, editor: EditorState): CanvasMarks | n
     { x: p.x + half, y: p.y + half },
     { x: p.x - half, y: p.y + half },
   ];
-  return { frame: loopSegments([corners]), handles: [...corners, ...mids].map(square) };
+  return {
+    frame: [...loopSegments([corners]), ...body],
+    handles: [...corners, ...mids].map(square),
+  };
 }
 
 /** Изменилось ли в сторе то, от чего зависит графика правки изнутри и инструмента «Холст». */
@@ -101,4 +126,5 @@ export const marksChanged = (state: EditorState, prev: EditorState): boolean =>
   state.tool !== prev.tool ||
   state.draft !== prev.draft ||
   state.canvasFrame !== prev.canvasFrame ||
+  state.selectedBody3D !== prev.selectedBody3D ||
   state.camera.zoom !== prev.camera.zoom;

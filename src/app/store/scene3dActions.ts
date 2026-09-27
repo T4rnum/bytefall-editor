@@ -15,10 +15,12 @@ import {
   MAX_NODES_3D,
   type Node3D,
   type Node3DKind,
+  RENDER_3D_MODES,
+  type Render3D,
   type Scene3D,
 } from '../../core/scene3d/types';
 import type { TrackTarget } from '../../core/tracks';
-import { KIND_3D_LABELS } from '../scene3d/labels';
+import { KIND_3D_LABELS, RENDER_3D_LABELS } from '../scene3d/labels';
 import { hasRoomForLayer } from './documentActions';
 import { useDocumentStore } from './documentStore';
 import { notify } from './notifyStore';
@@ -122,6 +124,33 @@ export function setLight3DAction(
   mergeKey?: string,
 ): void {
   editScene(layerId, 'Edit 3D light', (s) => ({ ...s, light: { ...s.light, ...patch } }), mergeKey);
+}
+
+/** Режим символов, шаг облака и размер по глубине: во всех кадрах, ключами не ведутся. */
+export function setRender3DAction(
+  layerId: string,
+  patch: Partial<Pick<Render3D, 'mode' | 'spacing' | 'sizeByDepth'>>,
+  mergeKey?: string,
+): void {
+  editScene(
+    layerId,
+    'Edit 3D render',
+    (s) => ({ ...s, render: { ...s.render, ...patch } }),
+    mergeKey,
+  );
+}
+
+/** Alt+3: следующий режим символов 3D-слоя — растр, по сетке, облако. */
+export function cycleRender3DAction(): void {
+  const { doc, activeLayerId } = state();
+  const scene = doc.layers.find((l) => l.id === activeLayerId)?.scene;
+  if (!scene) {
+    notify('Режим символов есть только у 3D-слоя', 'info');
+    return;
+  }
+  const next = RENDER_3D_MODES[(RENDER_3D_MODES.indexOf(scene.render.mode) + 1) % 3];
+  setRender3DAction(activeLayerId, { mode: next });
+  notify(`3D: ${RENDER_3D_LABELS[next].toLowerCase()}`, 'info');
 }
 
 export function setQuantize3DAction(
