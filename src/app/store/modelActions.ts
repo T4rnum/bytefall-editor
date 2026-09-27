@@ -1,10 +1,13 @@
 import { mapFrames } from '../../core/animation';
 import { addLayer, createLayer, layerIndex, newId } from '../../core/document';
+import type { RgbaImage } from '../../core/quantize';
 import { meshProblem, mergeUntextured, normalizeParts } from '../../core/scene3d/mesh';
+import { type ReliefDepth, reliefParts } from '../../core/scene3d/relief';
 import { addNode3D, createNode3D, createScene3D } from '../../core/scene3d/scene';
 import { MAX_MESHES, MAX_NODES_3D, type Mesh3D, type MeshPart3D } from '../../core/scene3d/types';
 import { MAX_FILE_BYTES, openModelFile } from '../io/files';
 import { hasRoomForLayer } from './documentActions';
+import { closeImageImport } from './importActions';
 import { useDocumentStore } from './documentStore';
 import { errorMessage, notify } from './notifyStore';
 import { withScene } from './scene3dActions';
@@ -75,4 +78,18 @@ export async function importModelAction(): Promise<void> {
   } catch (error) {
     notify(`Не удалось открыть модель: ${errorMessage(error)}`, 'error');
   }
+}
+
+/** Картинка из диалога импорта 3D-рельефом: окно закрывается, рельеф встаёт как модель. */
+export function addReliefAction(
+  source: { readonly name: string; readonly image: RgbaImage },
+  depth: ReliefDepth,
+): void {
+  const parts = normalizeParts(reliefParts(source.image, depth));
+  if (parts.length === 0) {
+    notify('В картинке нет непрозрачного: рельефу не на чем стоять', 'error');
+    return;
+  }
+  closeImageImport();
+  addModelAction(source.name, parts);
 }

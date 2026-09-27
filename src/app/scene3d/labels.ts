@@ -1,3 +1,4 @@
+import type { ReliefDepth } from '../../core/scene3d/relief';
 import type { Node3DProperty, Scene3DProperty } from '../../core/scene3d/scene';
 import type { Node3DKind } from '../../core/scene3d/types';
 
@@ -27,4 +28,9 @@ export const KIND_3D_LABELS: Readonly<Record<Node3DKind, string>> = {
   torus: 'Тор',
   plane: 'Плоскость',
   mesh: 'Модель',
+};
+
+export const RELIEF_LABELS: Readonly<Record<ReliefDepth, string>> = {
+  brightness: 'По яркости',
+  inflate: 'Подушкой по силуэту',
 };

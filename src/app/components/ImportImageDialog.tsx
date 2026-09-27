@@ -19,6 +19,7 @@ import { type ImageImportSource, useUiStore } from '../store/uiStore';
 import { fitViewAction } from '../store/viewActions';
 import { Button } from '../ui';
 import { ImportImageFields } from './ImportImageFields';
+import { ReliefSection } from './scene3d/ReliefSection';
 
 interface BodyProps {
   readonly source: ImageImportSource;
@@ -110,6 +111,7 @@ function ImportImageDialogBody({ source, atlas }: BodyProps) {
           height={converted.height}
           onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
         />
+        <ReliefSection source={source} />
         <div className="dialog-actions">
           {/* Прямо, а не через close(): событие close приходит асинхронно, а черновик на холсте
               должен исчезнуть сразу. */}
