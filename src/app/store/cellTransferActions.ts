@@ -7,7 +7,7 @@ import { type LocalEdit, applyLocalEdits, neededShift } from '../../core/objectE
 import { objectMatrix } from '../../core/placement';
 import { selectionCells } from '../../core/selection';
 import { plural } from '../ui/plural';
-import { editableActiveLayer, useDocumentStore } from './documentStore';
+import { paintableActiveLayer, useDocumentStore } from './documentStore';
 import { activeBrush, useEditorStore } from './editorStore';
 import { notify } from './notifyStore';
 import { commitObjectChange, editingObject } from './objectEditActions';
@@ -29,7 +29,7 @@ const GLYPHS = { one: 'символ', few: 'символа', many: 'символ
 export function joinSelectionToObjectAction(): void {
   const { selection, selectedObjectId, editingObjectId } = editor();
   const state = docState();
-  const layer = editableActiveLayer(state);
+  const layer = paintableActiveLayer(state);
   const obj = selectedObjectId ? findObject(state.doc, selectedObjectId) : undefined;
   if (editingObjectId) {
     notify('Выйди из правки (Tab): в правке выделение ловит символы объекта, а не ячейки слоя');
@@ -124,7 +124,7 @@ export function recolorSelectionAction(): void {
   }
   const { selection } = editor();
   const state = docState();
-  const layer = editableActiveLayer(state);
+  const layer = paintableActiveLayer(state);
   if (!selection || !layer) {
     notify('Выдели ячейки на слое или символы объекта в правке (Tab)');
     return;

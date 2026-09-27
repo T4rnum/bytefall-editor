@@ -104,6 +104,13 @@ export function createLayer(name: string, id: string = newId('layer')): Layer {
 export const canEditLayer = (layer: Layer | undefined): layer is Layer =>
   layer !== undefined && layer.visible && !layer.locked;
 
+/**
+ * В ячейки слоя можно рисовать: он редактируемый и не 3D. У 3D-слоя растр — рендер сцены, а
+ * нарисованное в его ячейках было бы не видно. Объекты на 3D-слое лежат поверх рендера.
+ */
+export const canPaintLayer = (layer: Layer | undefined): layer is Layer =>
+  canEditLayer(layer) && layer.scene === null;
+
 export interface CreateDocumentOptions {
   readonly name?: string;
   readonly width?: number;

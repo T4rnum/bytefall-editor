@@ -2,6 +2,7 @@ import { type Cell, makeCell } from '../../../core/cell';
 import type { Document, Layer, ResizeAnchor } from '../../../core/document';
 import type { Point, Rect } from '../../../core/geometry';
 import type { CellEdits } from '../../../core/grid';
+import type { Camera3D } from '../../../core/scene3d/types';
 import type { Selection } from '../../../core/selection';
 import type { ToolEnv } from '../types';
 
@@ -18,6 +19,7 @@ export interface ToolCalls {
   readonly textCursors: (Point | null)[];
   readonly frames: (Rect | null)[];
   readonly resizes: { width: number; height: number; anchor: ResizeAnchor }[];
+  readonly cameras: { layerId: string; camera: Camera3D; key: string }[];
   draft: Document | null;
 }
 
@@ -70,12 +72,15 @@ export function makeToolEnv(
     textCursors: [],
     frames: [],
     resizes: [],
+    cameras: [],
     draft: null,
   };
 
   const env: ToolEnv = {
     doc,
     layer,
+    // 3D-сцена — у активного слоя-сцены, как в приложении.
+    scene3d: layer?.scene ? { layerId: layer.id, scene: layer.scene } : null,
     target: { cells: layer?.cells ?? new Map(), width: doc.width, height: doc.height },
     editing: null,
     brush: brushes[0] ?? makeCell(''),
@@ -100,6 +105,7 @@ export function makeToolEnv(
     commitDocument: (label, next) => calls.docCommits.push({ label, doc: next }),
     setCanvasFrame: (rect) => calls.frames.push(rect),
     resizeCanvas: (width, height, anchor) => calls.resizes.push({ width, height, anchor }),
+    setCamera3D: (layerId, camera, key) => calls.cameras.push({ layerId, camera, key }),
   };
 
   return { env, calls };

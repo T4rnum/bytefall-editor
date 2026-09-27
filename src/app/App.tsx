@@ -10,6 +10,7 @@ import { HotkeysDialog } from './components/HotkeysDialog';
 import { ImportImageDialog } from './components/ImportImageDialog';
 import { LayersPanel } from './components/LayersPanel';
 import { LookPanel } from './components/LookPanel';
+import { Scene3DPanel } from './components/scene3d/Scene3DPanel';
 import { NodePanel } from './components/nodes/NodePanel';
 import { ObjectsPanel } from './components/ObjectsPanel';
 import { RecoveryDialog } from './components/RecoveryDialog';
@@ -79,6 +80,7 @@ export function App() {
         />
         <aside className="sidebar">
           <LayersPanel />
+          <Scene3DPanel />
           <ObjectsPanel />
           <CellAttrsPanel />
           <EffectsPanel />

@@ -59,10 +59,14 @@ function span(index: number, count: number, size: number): [number, number] {
 /**
  * Усредняет картинку до сетки `width` × `height` ячеек. Каждый пиксель большой картинки
  * попадает ровно в один мелкий образец; маленькая картинка растягивается, и образец берёт
- * ближайший пиксель.
+ * ближайший пиксель. `sub` задаёт образцов на сторону ячейки явно: рендер 3D рисует ровно столько.
  */
-export function sampleImage(image: RgbaImage, width: number, height: number): CellSamples {
-  const sub = subsamplesFor(width, height);
+export function sampleImage(
+  image: RgbaImage,
+  width: number,
+  height: number,
+  sub: number = subsamplesFor(width, height),
+): CellSamples {
   const fw = width * sub;
   const fh = height * sub;
   const fine = new Float32Array(fw * fh);

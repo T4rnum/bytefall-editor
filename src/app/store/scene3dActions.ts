@@ -146,3 +146,14 @@ export function setScene3DValueAction(
   const next = setTargetValue(animation, target, time, value);
   if (next !== animation) commitAnimation('Edit 3D', next, undefined, mergeKey);
 }
+
+/** Камера мышью: положение, цель и высота кадра одной записью — жест отменяется целиком. */
+export function setCamera3DPoseAction(layerId: string, camera: Camera3D, mergeKey: string): void {
+  const { animation, time, commitAnimation } = state();
+  const at = (property: 'cameraPosition' | 'cameraTarget' | 'size') =>
+    ({ node: 'scene3d', id: layerId, property }) as const;
+  let next = setTargetValue(animation, at('cameraPosition'), time, camera.position);
+  next = setTargetValue(next, at('cameraTarget'), time, camera.target);
+  next = setTargetValue(next, at('size'), time, [camera.size]);
+  if (next !== animation) commitAnimation('Orbit 3D camera', next, undefined, mergeKey);
+}

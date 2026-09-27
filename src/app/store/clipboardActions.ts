@@ -6,7 +6,7 @@ import {
   pasteEdits,
   selectionFromRect,
 } from '../../core/selection';
-import { editableActiveLayer, useDocumentStore } from './documentStore';
+import { paintableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import {
   copySelectedObjectAction,
@@ -51,7 +51,7 @@ export function deleteSelectionAction(): void {
     return;
   }
   const docState = useDocumentStore.getState();
-  const layer = editableActiveLayer(docState);
+  const layer = paintableActiveLayer(docState);
   if (!selection || !layer) return;
   docState.commitCells(layer.id, clearSelectionEdits(layer.cells, selection), 'Delete');
 }
@@ -76,7 +76,7 @@ export function pasteAction(): void {
 function pasteCells(clip: Clip): void {
   const editor = useEditorStore.getState();
   const docState = useDocumentStore.getState();
-  const layer = editableActiveLayer(docState);
+  const layer = paintableActiveLayer(docState);
   if (!layer) return;
   const { width, height } = docState.doc;
   const origin = editor.selection?.bounds ?? editor.cursorCell ?? { x: 0, y: 0 };

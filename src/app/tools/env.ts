@@ -3,7 +3,12 @@ import type { CellEdits } from '../../core/grid';
 import { clipEditsToSelection } from '../../core/selection';
 import { findLayer } from '../../core/document';
 import { resizeCanvasAction } from '../store/documentActions';
-import { editableActiveLayer, useDocumentStore } from '../store/documentStore';
+import {
+  editableActiveLayer,
+  paintableActiveLayer,
+  useDocumentStore,
+} from '../store/documentStore';
+import { setCamera3DPoseAction } from '../store/scene3dActions';
 import { type Brush, activeBrush, brushOf, useEditorStore } from '../store/editorStore';
 import { buildEditContext } from './editSession';
 import { getTool } from './index';
@@ -24,7 +29,10 @@ export function buildToolEnv(): ToolEnv {
   const edit = buildEditContext(docState.doc, editor, docState.time);
   const layer = edit
     ? (findLayer(docState.doc, edit.session.object.layerId) ?? null)
-    : editableActiveLayer(docState);
+    : paintableActiveLayer(docState);
+  // 3D-слой не рисуют, а крутят: его сцена — для инструмента «Орбита».
+  const activeLayer = editableActiveLayer(docState);
+  const scene3d = activeLayer?.scene ? { layerId: activeLayer.id, scene: activeLayer.scene } : null;
   // Пока выделение есть, кисть работает только внутри него. Сами инструменты выделения из
   // этого правила выведены: перенос ячеек обязан выходить за прежнюю маску.
   const mask = getTool(editor.tool).ignoresSelection || edit ? null : editor.selection;
@@ -33,6 +41,7 @@ export function buildToolEnv(): ToolEnv {
   return {
     doc,
     layer,
+    scene3d,
     target: edit?.target ?? {
       cells: layer?.cells ?? new Map(),
       width: doc.width,
@@ -77,5 +86,6 @@ export function buildToolEnv(): ToolEnv {
     commitDocument: docState.commitStructural,
     setCanvasFrame: editor.setCanvasFrame,
     resizeCanvas: resizeCanvasAction,
+    setCamera3D: setCamera3DPoseAction,
   };
 }

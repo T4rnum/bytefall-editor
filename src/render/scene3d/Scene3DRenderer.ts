@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CellGrid } from '../../core/grid';
-import { subsamplesFor } from '../../core/quantize';
-import { type Scene3DRequest, buffersToCells } from '../../core/scene3d/render';
+
+import { type Scene3DRequest, buffersToCells, renderSubsamples } from '../../core/scene3d/render';
 import type { Camera3D, Light3D, Node3D, Scene3D } from '../../core/scene3d/types';
 import { Geometries } from './bodies';
 import { type BodyMaterial, createBodyMaterial } from './scene3dShader';
@@ -82,7 +82,7 @@ export class Scene3DRenderer {
   }
 
   render({ scene, width, height, meshes }: Scene3DRequest): CellGrid {
-    const sub = subsamplesFor(width, height);
+    const sub = renderSubsamples(width, height);
     const fw = width * sub;
     const fh = height * sub;
     this.ensureTargets(fw, fh);

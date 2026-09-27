@@ -9,6 +9,7 @@ import {
 import { createBoneTool } from './boneTool';
 import { createCanvasTool } from './canvasTool';
 import { createObjectTool } from './objectTool';
+import { createOrbitTool } from './orbitTool';
 import { createLassoTool, createSelectTool, createWandTool } from './selectTool';
 import { createTextTool } from './textTool';
 import type { Tool, ToolId } from './types';
@@ -32,6 +33,7 @@ export const TOOLS: readonly Tool[] = [
   createObjectTool(),
   createBoneTool(),
   createCanvasTool(),
+  createOrbitTool(),
 ];
 
 const byId = new Map<ToolId, Tool>(TOOLS.map((t) => [t.id, t]));

@@ -1,7 +1,7 @@
 import type { Cell } from '../cell';
 import type { Document, Layer } from '../document';
 import { type CellGrid, type CellKey, emptyGrid } from '../grid';
-import { type QuantizeOptions, quantize, sampleImage } from '../quantize';
+import { type QuantizeOptions, quantize, sampleImage, subsamplesFor } from '../quantize';
 import type { Mesh3D, Scene3D } from './types';
 
 /**
@@ -19,9 +19,9 @@ export interface Scene3DRequest {
 }
 
 /**
- * Буферы рендера: `sub` × `sub` пикселей на ячейку (`subsamplesFor`, как у картинки того же
- * размера), строками сверху вниз. Цвет RGBA байтами без
- * домножения на альфу, нормаль — три числа в координатах камеры, глубина — 0 у камеры, 1 — пусто.
+ * Буферы рендера: `sub` × `sub` пикселей на ячейку (`renderSubsamples`), строками сверху вниз.
+ * Цвет RGBA байтами без домножения на альфу, нормаль — три числа в координатах камеры, глубина —
+ * 0 у камеры, 1 — пусто.
  */
 export interface RenderBuffers {
   readonly width: number;
@@ -55,6 +55,14 @@ export function scene3DCells(layer: Layer, doc: Document): CellGrid {
   return cells;
 }
 
+/**
+ * Пикселей рендера на сторону ячейки: два. Контуру хватает двух линий образцов, цвету — среднего
+ * по четырём, а вчетверо меньше пикселей, чем у импорта картинки, — это кадр анимации, а не
+ * разовая конвертация.
+ */
+export const renderSubsamples = (width: number, height: number): number =>
+  Math.min(2, subsamplesFor(width, height));
+
 /** Во сколько раз перепад глубины весит больше перепада нормали: силуэт важнее складки. */
 const DEPTH_WEIGHT = 4;
 
@@ -65,8 +73,7 @@ const DEPTH_WEIGHT = 4;
 export function buffersToCells(b: RenderBuffers, options: QuantizeOptions): Map<CellKey, Cell> {
   const fw = b.width * b.sub;
   const fh = b.height * b.sub;
-  const samples = sampleImage({ width: fw, height: fh, data: b.rgba }, b.width, b.height);
-  if (samples.sub !== b.sub) return quantize(samples, options);
+  const samples = sampleImage({ width: fw, height: fh, data: b.rgba }, b.width, b.height, b.sub);
   const depth = b.depth.map((d) => d * DEPTH_WEIGHT);
   const channel = (k: number): Float32Array => {
     const out = new Float32Array(fw * fh);

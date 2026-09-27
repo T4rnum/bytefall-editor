@@ -6,7 +6,7 @@ import {
   frameDocument,
   mapFrames,
 } from '../animation';
-import { createDocument } from '../document';
+import { canEditLayer, canPaintLayer, createDocument } from '../document';
 import { evaluate, readTarget } from '../evaluate';
 import { applyEdit, pruneTracks, setTargetValue, unanimate } from '../keyframes';
 import {
@@ -105,5 +105,14 @@ describe('3D-сцена слоя', () => {
     expect(copy.id).not.toBe('cube');
     expect(copied.frames[1].layers.find((l) => l.id === 'copy')!.scene!.nodes[0].id).toBe(copy.id);
     expect(findTrack(copied.tracks, { ...position, id: copy.id })!.keys).toHaveLength(2);
+  });
+});
+
+describe('3D-слой в правке', () => {
+  it('в ячейки 3D-слоя не рисуют, а сам слой и его объекты править можно', () => {
+    const layer = cubeScene().frames[0].layers[0];
+    expect(canEditLayer(layer)).toBe(true);
+    expect(canPaintLayer(layer)).toBe(false);
+    expect(canPaintLayer({ ...layer, scene: null })).toBe(true);
   });
 });

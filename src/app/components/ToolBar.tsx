@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Minus,
   Move,
+  Orbit,
   PaintBucket,
   Pencil,
   Pipette,
@@ -36,6 +37,7 @@ const ICONS: Record<ToolId, LucideIcon> = {
   object: Move,
   bone: Bone,
   canvas: Crop,
+  orbit: Orbit,
 };
 
 export function ToolBar() {

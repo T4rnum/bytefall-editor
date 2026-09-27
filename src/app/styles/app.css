@@ -953,3 +953,19 @@ kbd {
   font-size: var(--text-xs);
   white-space: nowrap;
 }
+
+/* ── 3D-сцена ─────────────────────────────────────────────────────────── */
+.scene3d-body.is-selected {
+  border-color: var(--accent);
+}
+
+.scene3d-body-name {
+  flex: 1;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

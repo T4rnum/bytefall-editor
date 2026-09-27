@@ -5,7 +5,7 @@ import { selectionFromPoints } from '../../core/selection';
 import { MAX_ATTR_STRING_LENGTH, MAX_ID_LENGTH } from '../../core/serialization';
 import { revealPanel } from '../ui/Panel';
 import { plural } from '../ui/plural';
-import { editableActiveLayer, useDocumentStore } from './documentStore';
+import { paintableActiveLayer, useDocumentStore } from './documentStore';
 import { useEditorStore } from './editorStore';
 import { notify } from './notifyStore';
 
@@ -19,7 +19,7 @@ export const CELL_ATTR_KEY_INPUT_ID = 'cell-attr-key';
 function target() {
   const state = useDocumentStore.getState();
   const { selection } = useEditorStore.getState();
-  const layer = editableActiveLayer(state);
+  const layer = paintableActiveLayer(state);
   if (!selection) {
     notify('Сначала выделите ячейки', 'error');
     return null;

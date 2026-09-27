@@ -116,9 +116,9 @@ export const DEFAULT_CAMERA: Camera3D = {
 
 export const DEFAULT_LIGHT: Light3D = {
   ambientColor: '#ffffff',
-  ambient: 0.35,
+  ambient: 0.3,
   sunColor: '#ffffff',
-  sun: 1.6,
+  sun: 0.9,
   sunAzimuth: 35,
   sunElevation: 45,
 };

@@ -5,6 +5,7 @@ import type { PlacedGlyph } from '../../core/glyphPick';
 import type { CellEdits, CellGrid, CellKey } from '../../core/grid';
 import type { SceneObject } from '../../core/object';
 import type { EditArea } from '../../core/objectEdit';
+import type { Camera3D, Scene3D } from '../../core/scene3d/types';
 import type { Selection } from '../../core/selection';
 
 export type ToolId =
@@ -21,7 +22,8 @@ export type ToolId =
   | 'text'
   | 'object'
   | 'bone'
-  | 'canvas';
+  | 'canvas'
+  | 'orbit';
 
 /**
  * Сетка, в которой рисуют: активный слой в размер холста или, в правке изнутри, область правки
@@ -56,6 +58,8 @@ export interface ToolEnv {
   readonly doc: Document;
   /** Активный слой, если его можно редактировать, иначе null. В правке изнутри — слой объекта. */
   readonly layer: Layer | null;
+  /** 3D-сцена активного слоя, если он 3D и его можно править: её крутит «Орбита». */
+  readonly scene3d: { readonly layerId: string; readonly scene: Scene3D } | null;
   readonly target: DrawTarget;
   /** Правка объекта изнутри или null, если её нет. */
   readonly editing: EditSession | null;
@@ -94,6 +98,11 @@ export interface ToolEnv {
   setCanvasFrame: (rect: Rect | null) => void;
   /** Новый размер холста во всех кадрах, содержимое прижато к якорю. */
   resizeCanvas: (width: number, height: number, anchor: ResizeAnchor) => void;
+  /**
+   * Камера 3D-сцены слоя: положение, цель и высота кадра одной записью; у анимированных — ключ в
+   * текущий момент. Записи одного жеста склеиваются `mergeKey`.
+   */
+  setCamera3D: (layerId: string, camera: Camera3D, mergeKey: string) => void;
 }
 
 export interface PointerInfo {

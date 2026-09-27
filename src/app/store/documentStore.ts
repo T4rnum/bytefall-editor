@@ -4,6 +4,7 @@ import {
   type Document,
   type Layer,
   canEditLayer,
+  canPaintLayer,
   createDocument,
   findLayer,
 } from '../../core/document';
@@ -162,7 +163,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   commitCells: (layerId, edits, label) => {
     const { doc, animation, frameIndex, time, history, activeLayerId } = get();
-    if (!canEditLayer(findLayer(doc, layerId))) return false;
+    if (!canPaintLayer(findLayer(doc, layerId))) return false;
     // Ячейки треки не трогают: у сцены на экране они те же, что в кадре.
     const entry = cellEditsEntry(doc, layerId, edits, label);
     if (!entry) return true;
@@ -242,4 +243,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 export function editableActiveLayer(state: DocumentState): Layer | null {
   const layer = findLayer(state.doc, state.activeLayerId);
   return canEditLayer(layer) ? layer : null;
+}
+
+/** Активный слой, если в его ячейки можно рисовать: у 3D-слоя растр — рендер сцены. */
+export function paintableActiveLayer(state: DocumentState): Layer | null {
+  const layer = findLayer(state.doc, state.activeLayerId);
+  return canPaintLayer(layer) ? layer : null;
 }
