@@ -75,8 +75,11 @@ function uniqueEffects<T extends { readonly id: string }>(layerId: string, effec
   return effects;
 }
 
-export /** Слои общие для всех кадров: одинаковые идентификаторы в одном порядке, иначе операции над слоями разойдутся. */
-function assertSharedLayers(frames: readonly Frame[]): void {
+/**
+ * Слои общие для всех кадров: одинаковые идентификаторы в одном порядке, иначе операции над
+ * слоями разойдутся.
+ */
+export function assertSharedLayers(frames: readonly Frame[]): void {
   const reference = frames[0].layers.map((l) => l.id).join('\n');
   frames.forEach((frame, index) => {
     if (frame.layers.map((l) => l.id).join('\n') !== reference) {
@@ -85,12 +88,12 @@ function assertSharedLayers(frames: readonly Frame[]): void {
   });
 }
 
-export /**
+/**
  * Эффекты слоя общие для всех кадров, а ключи находят эффект по идентификатору, поэтому он
  * обязан быть единственным в документе. Копия слоя из старых версий делила идентификаторы
  * эффектов с оригиналом: такие копии получают новые, одинаковые во всех кадрах.
  */
-function uniqueEffectIds(frames: readonly Frame[]): Frame[] {
+export function uniqueEffectIds(frames: readonly Frame[]): Frame[] {
   const seen = new Set<string>();
   const renames = new Map<string, string>();
   for (const layer of frames[0].layers) {
