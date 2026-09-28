@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EASE_IN, EASE_OUT } from '../../../core/easing';
 import { setKey, setKeysInterpolation, trackKey } from '../../../core/tracks';
-import { selectedEase } from '../eases';
+import { CUSTOM_EASE, selectedEase } from '../eases';
 
 const target = { node: 'object', id: 'a', property: 'rotation' } as const;
 const ref = (time: number) => ({ track: trackKey(target), time });
@@ -19,9 +19,10 @@ describe('характер выделенных ключей', () => {
     ).toBe('out');
   });
 
-  it('своя кривая, пропавшие ключи и пустое выделение — пусто', () => {
+  it('своя кривая — «своя», вместе с готовой — пусто; пропавшие ключи и пустое выделение — пусто', () => {
     const custom = setKeysInterpolation(base, [ref(0)], 'bezier', [0.1, 0.2, 0.3, 0.4]);
-    expect(selectedEase(custom, [ref(0)])).toBe('');
+    expect(selectedEase(custom, [ref(0)])).toBe(CUSTOM_EASE);
+    expect(selectedEase(custom, [ref(0), ref(100)])).toBe('');
     expect(selectedEase(base, [ref(999)])).toBe('');
     expect(selectedEase(base, [])).toBe('');
   });

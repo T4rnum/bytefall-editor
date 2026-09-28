@@ -117,6 +117,17 @@ describe('раскладка рабочего места', () => {
     expect(restoreLayout(null, PRESETS.draw)).toBe(PRESETS.draw);
   });
 
+  it('новая панель встаёт вкладкой к соседям по набору и не отбирает активную вкладку', () => {
+    // Раскладка, сохранённая до редактора кривых: внизу таймлайн и узлы, открыты узлы.
+    const saved = JSON.parse(JSON.stringify(PRESETS.animate)) as Layout;
+    const bottom = { panels: ['timeline', 'nodes'], active: 'nodes', collapsed: false };
+    const old = { ...saved, zones: { ...saved.zones, bottom: { groups: [bottom], size: 280 } } };
+    const layout = restoreLayout(old, PRESETS.animate);
+    expect(layout.zones.bottom.groups).toHaveLength(1);
+    expect(layout.zones.bottom.groups[0].panels).toEqual(['timeline', 'nodes', 'curves']);
+    expect(layout.zones.bottom.groups[0].active).toBe('nodes');
+  });
+
   it('готовые наборы: каждая панель на месте ровно один раз, у места есть клавиша', () => {
     for (const { id, hotkey } of WORKSPACES) {
       const layout = PRESETS[id];

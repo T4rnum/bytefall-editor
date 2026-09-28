@@ -27,22 +27,11 @@ import {
   stepFrameAction,
   togglePlaybackAction,
 } from '../../store/frameActions';
-import {
-  deleteSelectedKeysAction,
-  keySelectedObjectAction,
-  setKeysInterpolationAction,
-} from '../../store/keyActions';
+import { deleteSelectedKeysAction, keySelectedObjectAction } from '../../store/keyActions';
 import { setFpsAction, setSceneDurationAction } from '../../store/timeActions';
 import { Button, KeyButton, NumberField, Select } from '../../ui';
-import { EASES, selectedEase } from '../../timeline/eases';
 import { formatSeconds } from '../../timeline/timelineMath';
-
-/** Характер выделенных ключей; перерисовка — когда меняются ключи или выделение. */
-function useSelectedEase(): string {
-  const tracks = useDocumentStore((s) => s.animation.tracks);
-  const refs = useEditorStore((s) => s.selectedKeys);
-  return selectedEase(tracks, refs);
-}
+import { EaseSelect } from './EaseSelect';
 
 function PlaybackControls() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
@@ -75,7 +64,6 @@ function PlaybackControls() {
 
 function KeyControls() {
   const selected = useEditorStore((s) => s.selectedKeys.length);
-  const ease = useSelectedEase();
   const selectedObjectId = useEditorStore((s) => s.selectedObjectId);
   const transformKeyed = useDocumentStore((s) => {
     if (!selectedObjectId) return false;
@@ -94,21 +82,7 @@ function KeyControls() {
         disabled={!selectedObjectId}
         onClick={keySelectedObjectAction}
       />
-      <Select
-        value={ease}
-        options={[
-          { value: '', label: selected ? 'По-разному' : 'Ключи не выделены', disabled: true },
-          ...EASES,
-        ]}
-        size="sm"
-        disabled={selected === 0}
-        ariaLabel="Как значение идёт от выделенных ключей к следующим"
-        title="Как значение идёт от выделенных ключей к следующим"
-        onChange={(value) => {
-          const choice = EASES.find((e) => e.value === value);
-          if (choice) setKeysInterpolationAction(choice.interpolation, choice.easing);
-        }}
-      />
+      <EaseSelect />
       <Button
         icon
         size="sm"

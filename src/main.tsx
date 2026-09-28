@@ -9,6 +9,7 @@ import './app/styles/ui.css';
 import './app/styles/app.css';
 import './app/styles/timeline.css';
 import './app/styles/nodes.css';
+import './app/styles/curves.css';
 import './app/styles/dock.css';
 
 installErrorCapture();

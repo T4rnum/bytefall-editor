@@ -56,7 +56,8 @@ function findGraphNode(doc: Document, id: string) {
   return undefined;
 }
 
-function labelOf(target: TrackTarget, doc: Document): string {
+/** Имя свойства трека: «Положение», «Высота», вход узла. */
+export function labelOf(target: TrackTarget, doc: Document): string {
   switch (target.node) {
     case 'object':
       return OBJECT_LABELS[target.property];
@@ -99,7 +100,8 @@ function objectName(anim: Animation, doc: Document, id: string): string {
   return id;
 }
 
-function nodeLabel(anim: Animation, doc: Document, track: Track): string {
+/** Чьё свойство: объект, слой, эффект или узел графа с объектом, тело 3D-сцены. */
+export function nodeLabel(anim: Animation, doc: Document, track: Track): string {
   if (track.node === 'object') return objectName(anim, doc, track.id);
   if (track.node === 'layer') return doc.layers.find((l) => l.id === track.id)?.name ?? track.id;
   if (track.node === 'node') {

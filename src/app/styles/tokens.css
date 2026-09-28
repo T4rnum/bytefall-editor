@@ -92,6 +92,19 @@
   --node-link: #7d7d8a;
   --node-grid: rgb(255 255 255 / 4%);
 
+  /* ── Редактор кривых: оси как в Blender — X красная, Y зелёная, Z синяя; одиночные числа ── */
+  --curve-x: #e0625c;
+  --curve-y: #7fc25b;
+  --curve-z: #5a9de6;
+  --curve-w: #c4c4cc;
+  --curve-s1: #e6b54f;
+  --curve-s2: #c38ae8;
+  --curve-s3: #4fc6c9;
+  --curve-s4: #e8895a;
+  --curve-grid: rgb(255 255 255 / 5%);
+  --curve-zero: rgb(255 255 255 / 14%);
+  --curve-outside: rgb(0 0 0 / 22%);
+
   /* ── Слои по z ──────────────────────────────────────────────────────── */
   --z-popover: 100;
   --z-tooltip: 200;
@@ -132,6 +145,18 @@
   --scrim: rgb(0 0 0 / 30%);
 
   --node-grid: rgb(0 0 0 / 6%);
+
+  --curve-x: #c93a33;
+  --curve-y: #3f8f22;
+  --curve-z: #2466b8;
+  --curve-w: #55555f;
+  --curve-s1: #a87400;
+  --curve-s2: #8a3fc0;
+  --curve-s3: #13878b;
+  --curve-s4: #b8531f;
+  --curve-grid: rgb(0 0 0 / 6%);
+  --curve-zero: rgb(0 0 0 / 18%);
+  --curve-outside: rgb(0 0 0 / 6%);
 }
 
 /** Пользователь просит меньше анимации — отдаём меньше анимации. */

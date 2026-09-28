@@ -48,13 +48,12 @@ function onScreen(layout: Layout, id: PanelId): boolean {
 }
 
 /**
- * Узлы или таймлайн (N): видны узлы — показать таймлайн, иначе узлы. Недостающая из двух
- * встаёт вкладкой к другой, как нижняя область Blender меняет вид; нет обеих — по набору.
+ * Вид или таймлайн: узлы (N), кривые (G). Виден вид — показать таймлайн, иначе вид. Недостающая
+ * из двух панелей встаёт вкладкой к другой, как нижняя область Blender меняет вид; нет обеих —
+ * по набору.
  */
-export function toggleNodes(layout: Layout, preset: Layout): Layout {
-  const [show, other]: PanelId[] = onScreen(layout, 'nodes')
-    ? ['timeline', 'nodes']
-    : ['nodes', 'timeline'];
+export function toggleWithTimeline(layout: Layout, preset: Layout, view: PanelId): Layout {
+  const [show, other]: PanelId[] = onScreen(layout, view) ? ['timeline', view] : [view, 'timeline'];
   if (findPanel(layout, show)) return activatePanel(layout, show);
   const beside = findPanel(layout, other);
   return beside

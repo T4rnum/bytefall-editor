@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { PanelId } from '../../workspace/layout';
 import { BrushPanel } from '../BrushPanel';
 import { CellAttrsPanel } from '../CellAttrsPanel';
+import { CurvesPanel } from '../curves/CurvesPanel';
 import { ColorPanel } from '../ColorPanel';
 import { EffectsPanel } from '../EffectsPanel';
 import { GlyphPanel } from '../GlyphPanel';
@@ -56,6 +57,12 @@ export const PANELS: Readonly<Record<PanelId, PanelSpec>> = {
     title: 'Таймлайн',
     hint: 'Кадры и ключи сцены',
     render: () => <TimelinePanel />,
+    grow: true,
+  },
+  curves: {
+    title: 'Кривые',
+    hint: 'Значения ключей во времени и ручки переходов (G)',
+    render: () => <CurvesPanel />,
     grow: true,
   },
   nodes: {

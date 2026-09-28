@@ -1,0 +1,163 @@
+/**
+ * Редактор кривых: список каналов слева, поле с кривыми справа, полоса времени сверху. Цвета
+ * каналов — токены `--curve-*`, всё остальное — общие токены панели.
+ */
+.curve-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.curve-panel-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curve-empty {
+  margin: var(--space-6);
+}
+
+.curve-channels {
+  flex: none;
+  width: var(--tl-label-w);
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+  border-right: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+
+.curve-owner-name {
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curve-channel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  height: var(--tl-row-h);
+  padding: 0 var(--space-4) 0 var(--space-5);
+  overflow: hidden;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.curve-channel:hover {
+  background: var(--state-hover);
+}
+
+.curve-channel.is-hidden {
+  color: var(--text-faint);
+}
+
+.curve-swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.curve-channel.is-hidden .curve-swatch {
+  opacity: var(--disabled-opacity);
+}
+
+.curve-editor {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--workspace);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.curve-editor:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.curve-svg {
+  display: block;
+}
+
+.curve-ruler {
+  fill: var(--panel);
+  cursor: ew-resize;
+}
+
+.curve-grid-line {
+  stroke: var(--curve-grid);
+  stroke-width: 1;
+}
+
+.curve-zero-line {
+  stroke: var(--curve-zero);
+  stroke-width: 1;
+}
+
+.curve-grid-label {
+  fill: var(--text-faint);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.curve-outside {
+  fill: var(--curve-outside);
+}
+
+.curve-playhead {
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+.curve-path {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.curve-handle-line {
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.curve-handle {
+  fill: var(--panel);
+  stroke: currentColor;
+  stroke-width: 1.5;
+  cursor: move;
+}
+
+.curve-key {
+  fill: var(--panel);
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.curve-key.is-selected {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.curve-box {
+  fill: var(--state-selected);
+  stroke: var(--accent);
+  stroke-width: 1;
+}

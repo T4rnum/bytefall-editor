@@ -19,6 +19,7 @@ export const PANEL_IDS = [
   'colors',
   'glyph',
   'timeline',
+  'curves',
   'nodes',
 ] as const;
 
@@ -210,6 +211,21 @@ const savedSchema = z.object({
 });
 
 /**
+ * Панель, которой раскладка не знала, — вкладкой к соседу по группе `fallback`, не отбирая у
+ * группы её вкладку; соседей нет на виду — отдельной группой на месте из `fallback`.
+ */
+function restorePanel(layout: Layout, fallback: Layout, id: PanelId): Layout {
+  const place = findPanel(fallback, id);
+  if (!place) return { ...layout, hidden: [...layout.hidden, id] };
+  const mates = fallback.zones[place.zone].groups[place.group].panels.filter((p) => p !== id);
+  const mate = mates.map((m) => findPanel(layout, m)).find((m) => m !== null);
+  if (!mate) return attach(layout, id, { zone: place.zone, kind: 'split', index: place.group });
+  const groups = layout.zones[mate.zone].groups.slice();
+  groups[mate.group] = { ...groups[mate.group], panels: [...groups[mate.group].panels, id] };
+  return withGroups(layout, mate.zone, groups);
+}
+
+/**
  * Раскладка из хранилища. Всё сомнительное чинится: чужие и повторные панели выбрасываются,
  * пустые группы исчезают, размеры встают в пределы. Панель, которой раскладка не знает — её
  * добавила новая версия редактора, — встаёт туда, где она в `fallback`.
@@ -242,11 +258,7 @@ export function restoreLayout(raw: unknown, fallback: Layout): Layout {
   }
   let layout: Layout = { zones, hidden: take(parsed.data.hidden ?? []) };
   for (const id of PANEL_IDS) {
-    if (seen.has(id)) continue;
-    const place = findPanel(fallback, id);
-    layout = place
-      ? attach(layout, id, { zone: place.zone, kind: 'split', index: place.group })
-      : { ...layout, hidden: [...layout.hidden, id] };
+    if (!seen.has(id)) layout = restorePanel(layout, fallback, id);
   }
   return layout;
 }

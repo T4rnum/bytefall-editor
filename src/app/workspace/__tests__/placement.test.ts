@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { type Layout, findPanel, groupOf, hidePanel } from '../layout';
-import { currentPlace, homePlace, toggleNodes } from '../placement';
+import { currentPlace, homePlace, toggleWithTimeline } from '../placement';
 import { PRESETS } from '../presets';
+
+const toggleNodes = (layout: Layout, preset: Layout): Layout =>
+  toggleWithTimeline(layout, preset, 'nodes');
 
 const layout: Layout = {
   zones: {

@@ -7,7 +7,7 @@ import {
   showPanel,
 } from '../workspace/layout';
 import { closeWindowFor, openWindowFor } from '../workspace/panelWindows';
-import { currentPlace, homePlace, toggleNodes } from '../workspace/placement';
+import { currentPlace, homePlace, toggleWithTimeline } from '../workspace/placement';
 import { PRESETS, WORKSPACES, type WorkspaceId } from '../workspace/presets';
 import { notify } from './notifyStore';
 import { currentLayout, useWorkspaceStore } from './workspaceStore';
@@ -65,7 +65,13 @@ export function closePanelWindowAction(id: PanelId): void {
 /** N: узлы или таймлайн. */
 export function toggleNodesAction(): void {
   if (store().windows.includes('nodes')) return;
-  store().editLayout((l) => toggleNodes(l, PRESETS[store().workspace]));
+  store().editLayout((l) => toggleWithTimeline(l, PRESETS[store().workspace], 'nodes'));
+}
+
+/** Кривые или таймлайн (G), как N для узлов. */
+export function toggleCurvesAction(): void {
+  if (store().windows.includes('curves')) return;
+  store().editLayout((l) => toggleWithTimeline(l, PRESETS[store().workspace], 'curves'));
 }
 
 export function setWorkspaceAction(id: WorkspaceId): void {

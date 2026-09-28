@@ -23,7 +23,13 @@ export interface Ease {
   readonly easing?: Easing;
 }
 
-/** Кривая — это несколько готовых характеров, а не четыре числа, которые надо понимать. */
+/**
+ * Готовые характеры — начало, а не предел: свою кривую ставят ручками в редакторе кривых (G).
+ * Такой ключ показывается как «Своя кривая».
+ */
+/** Значение выбора у ключа с кривой, которой нет среди готовых. */
+export const CUSTOM_EASE = 'custom';
+
 export const EASES: readonly Ease[] = [
   { value: 'step', label: 'Скачком', interpolation: 'step' },
   { value: 'linear', label: 'Равномерно', interpolation: 'linear' },
@@ -34,8 +40,8 @@ export const EASES: readonly Ease[] = [
 ];
 
 /**
- * Характер выделенных ключей: один на всех или пустая строка, если они разные или среди них
- * своя кривая, которой нет в списке.
+ * Характер выделенных ключей: один на всех, `CUSTOM_EASE` — у всех своя кривая, пустая
+ * строка — характеры разные.
  */
 export function selectedEase(tracks: readonly Track[], refs: readonly KeyRef[]): string {
   const values = new Set<string>();
@@ -47,7 +53,7 @@ export function selectedEase(tracks: readonly Track[], refs: readonly KeyRef[]):
       (e) =>
         e.interpolation === key.interpolation && (!e.easing || sameEasing(e.easing, key.easing)),
     );
-    values.add(ease?.value ?? '');
+    values.add(ease?.value ?? CUSTOM_EASE);
   }
   return values.size === 1 ? [...values][0] : '';
 }

@@ -21,6 +21,7 @@ import { useUiStore } from '../store/uiStore';
 import { fitViewAction, zoomByAction } from '../store/viewActions';
 import { TOOLS, getTool } from '../tools';
 import { buildToolEnv } from '../tools/env';
+import { CURVE_HOTKEYS } from './curveHotkeys';
 import { type KeyChord, MatchQuality, matchQuality } from './match';
 import { NODE_HOTKEYS } from './nodeHotkeys';
 import { OBJECT_HOTKEYS } from './objectHotkeys';
@@ -240,6 +241,7 @@ const TOOL_HOTKEYS: readonly Hotkey[] = TOOLS.map((tool) => ({
 export const HOTKEYS: readonly Hotkey[] = [
   ...STATIC_HOTKEYS,
   ...NODE_HOTKEYS,
+  ...CURVE_HOTKEYS,
   ...SCENE_3D_HOTKEYS,
   ...WORKSPACE_HOTKEYS,
   ...TOOL_HOTKEYS,
@@ -272,6 +274,7 @@ export const HOTKEY_GROUPS: readonly HotkeyGroup[] = [
   'Правка',
   'Объекты',
   'Узлы',
+  'Кривые',
   '3D',
   'Анимация',
   'Вид',
