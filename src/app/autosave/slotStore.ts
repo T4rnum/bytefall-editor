@@ -8,6 +8,70 @@ export interface SlotStore {
   remove(session: string): Promise<void>;
 }
 
+/**
+ * Запасная запись на уход со страницы. IndexedDB асинхронна, и запись, начатая при закрытии
+ * вкладки, часто не успевает лечь: пропадают правки последних секунд. Эта пишет синхронно.
+ */
+export interface ExitStore {
+  list(): unknown[];
+  put(slot: RecoverySlot): void;
+  remove(session: string): void;
+}
+
+const EXIT_PREFIX = 'bytefall-exit:';
+
+/** Какая часть Storage нужна запасной записи: хватает и заглушки в тестах. */
+export type ExitArea = Pick<Storage, 'length' | 'key' | 'getItem' | 'setItem' | 'removeItem'>;
+
+/**
+ * localStorage пишет синхронно, поэтому копия успевает до выгрузки. Места там около пяти
+ * мегабайт: большой документ не влезет, и тогда остаётся только основная запись в IndexedDB.
+ * Хранилище может быть вовсе недоступно — тогда запасной записи просто нет.
+ */
+export function localExitStore(area?: ExitArea): ExitStore {
+  const storage = (): ExitArea | null => {
+    try {
+      return area ?? globalThis.localStorage ?? null;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    list() {
+      const s = storage();
+      const found: unknown[] = [];
+      try {
+        for (let i = 0; s && i < s.length; i++) {
+          const key = s.key(i);
+          if (!key?.startsWith(EXIT_PREFIX)) continue;
+          try {
+            found.push(JSON.parse(s.getItem(key) ?? 'null'));
+          } catch {
+            // Битая копия пропускается: её проверило бы ядро, но разобрать её нельзя вовсе.
+          }
+        }
+      } catch {
+        // Хранилище отказало посреди чтения: предлагаем то, что успели прочитать.
+      }
+      return found;
+    },
+    put(slot) {
+      try {
+        storage()?.setItem(EXIT_PREFIX + slot.session, JSON.stringify(slot));
+      } catch {
+        // Не влезло или хранилище закрыто: остаётся основная запись.
+      }
+    },
+    remove(session) {
+      try {
+        storage()?.removeItem(EXIT_PREFIX + session);
+      } catch {
+        // Стереть нечем — копия будет перекрыта следующей записью или предложена один раз.
+      }
+    },
+  };
+}
+
 const DB_NAME = 'bytefall-editor';
 const DB_VERSION = 1;
 const STORE = 'recovery';

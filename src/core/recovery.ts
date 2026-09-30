@@ -49,6 +49,22 @@ export function isRecoverySlot(value: unknown): value is RecoverySlot {
 }
 
 /**
+ * Записи из нескольких хранилищ: у каждой сессии остаётся самая свежая. Копия, сделанная на
+ * уходе со страницы, бывает новее основной записи — та не успела дописаться до выгрузки.
+ */
+export function mergeRecoverySlots(...lists: readonly (readonly unknown[])[]): RecoverySlot[] {
+  const newest = new Map<string, RecoverySlot>();
+  for (const list of lists) {
+    for (const raw of list) {
+      if (!isRecoverySlot(raw)) continue;
+      const known = newest.get(raw.session);
+      if (!known || raw.savedAt > known.savedAt) newest.set(raw.session, raw);
+    }
+  }
+  return [...newest.values()];
+}
+
+/**
  * Записи, которые стоит предложить восстановить: не принадлежащие живым вкладкам и новые первыми.
  * Запись живой вкладки не авария, а работа, которая идёт прямо сейчас в соседнем окне.
  */

@@ -46,8 +46,11 @@ export function TooltipLayer() {
     };
 
     const onOver = (e: PointerEvent): void => show(e.target, false);
-    // По клавиатуре подсказка нужна сразу: пользователь уже выбрал элемент осознанно.
-    const onFocus = (e: FocusEvent): void => show(e.target, true);
+    // По клавиатуре подсказка нужна сразу: пользователь уже выбрал элемент осознанно. Фокус от
+    // щелчка мышью её не зовёт: она легла бы поверх того, что щелчок только что открыл.
+    const onFocus = (e: FocusEvent): void => {
+      if (e.target instanceof Element && e.target.matches(':focus-visible')) show(e.target, true);
+    };
 
     document.addEventListener('pointerover', onOver);
     document.addEventListener('pointerdown', hide);

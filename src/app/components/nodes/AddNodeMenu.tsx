@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { type NodeMenuItem, type NodePick, nodeMenuItems } from '../../nodes/nodeMenu';
 import type { Point } from '../../nodes/nodeLayout';
 import { SearchField } from '../../ui';
+import { clampInto } from '../../ui/popover';
 
 export interface AddNodeMenuProps {
   /** Где открылось меню, в пикселях от угла редактора. */
@@ -30,12 +31,29 @@ export function AddNodeMenu({ at, onPick, onClose }: AddNodeMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const items = nodeMenuItems(query);
 
+  // Открытое у края поля меню сдвигается внутрь: край редактора обрезал бы его.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    const place = clampInto(
+      { left: at.x, top: at.y },
+      { width: el.offsetWidth, height: el.offsetHeight },
+      { width: box.clientWidth, height: box.clientHeight },
+    );
+    el.style.left = `${place.left}px`;
+    el.style.top = `${place.top}px`;
+  }, [at, items.length]);
+
+  // Щелчок мимо слушается в окне самого меню: редактор может жить в отдельном окне.
   useEffect(() => {
+    const view = ref.current?.ownerDocument.defaultView;
+    if (!view) return;
     const onDown = (event: PointerEvent): void => {
       if (!ref.current?.contains(event.target as Node)) onClose();
     };
-    window.addEventListener('pointerdown', onDown, true);
-    return () => window.removeEventListener('pointerdown', onDown, true);
+    view.addEventListener('pointerdown', onDown, true);
+    return () => view.removeEventListener('pointerdown', onDown, true);
   }, [onClose]);
 
   return (

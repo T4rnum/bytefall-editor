@@ -22,26 +22,28 @@ export function HotkeysDialog({ open, onClose }: Props) {
     <dialog ref={ref} className="dialog dialog--wide" onClose={onClose}>
       <div className="dialog-content">
         <h2>Горячие клавиши</h2>
-        <div className="hotkeys">
-          {HOTKEY_GROUPS.map((group) => {
-            const rows = HOTKEYS.filter((h) => h.group === group && !h.hidden);
-            if (rows.length === 0) return null;
-            return (
-              <section className="hotkeys-group" key={group}>
-                <h3>{group}</h3>
-                <dl>
-                  {rows.map((hotkey) => (
-                    <div className="hotkeys-row" key={`${hotkey.group}:${hotkey.keys}`}>
-                      <dt>{hotkey.label}</dt>
-                      <dd>
-                        <kbd>{hotkey.keys}</kbd>
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            );
-          })}
+        <div className="hotkeys-scroll">
+          <div className="hotkeys">
+            {HOTKEY_GROUPS.map((group) => {
+              const rows = HOTKEYS.filter((h) => h.group === group && !h.hidden);
+              if (rows.length === 0) return null;
+              return (
+                <section className="hotkeys-group" key={group}>
+                  <h3>{group}</h3>
+                  <dl>
+                    {rows.map((hotkey) => (
+                      <div className="hotkeys-row" key={`${hotkey.group}:${hotkey.keys}`}>
+                        <dt>{hotkey.label}</dt>
+                        <dd>
+                          <kbd>{hotkey.keys}</kbd>
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              );
+            })}
+          </div>
         </div>
         <div className="dialog-actions">
           <Button variant="primary" onClick={onClose}>

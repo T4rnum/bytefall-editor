@@ -28,7 +28,7 @@ import {
   toScreen,
 } from '../../curves/curveView';
 import { useElementSize } from '../../hooks/useElementSize';
-import { isEditableTarget } from '../../hooks/useHotkeys';
+import { focusWithin, isEditableTarget } from '../../hooks/useHotkeys';
 import { setActiveCurveEditor } from '../../store/curveActions';
 import { useDocumentStore } from '../../store/documentStore';
 import { useEditorStore } from '../../store/editorStore';
@@ -208,6 +208,7 @@ export function CurveEditor({ channels, fitKey, normalized }: EditorProps) {
     setActiveCurveEditor({
       fit: () => fitRef.current(),
       selectAll: () => selectRef.current(),
+      hasFocus: () => focusWithin(rootRef.current),
     });
     return () => setActiveCurveEditor(null);
   }, []);

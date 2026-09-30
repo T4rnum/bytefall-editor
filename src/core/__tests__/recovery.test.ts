@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { addFrame, createAnimation } from '../animation';
 import { createDocument } from '../document';
-import { isRecoverySlot, makeRecoverySlot, recoverableSlots } from '../recovery';
+import {
+  isRecoverySlot,
+  makeRecoverySlot,
+  mergeRecoverySlots,
+  recoverableSlots,
+} from '../recovery';
 import { deserialize } from '../serialization';
 
 const anim = () => createAnimation(createDocument({ name: 'Sketch', width: 12, height: 6 }));
@@ -31,6 +36,30 @@ describe('isRecoverySlot', () => {
     expect(isRecoverySlot({ ...slot, width: -1 })).toBe(false);
     expect(isRecoverySlot({ ...slot, data: 42 })).toBe(false);
     expect(isRecoverySlot({ ...slot, session: '' })).toBe(false);
+  });
+});
+
+describe('mergeRecoverySlots', () => {
+  it('оставляет у сессии самую свежую запись из любого хранилища', () => {
+    const stored = makeRecoverySlot('s1', anim(), 1000);
+    const onExit = makeRecoverySlot('s1', anim(), 3000);
+    const other = makeRecoverySlot('s2', anim(), 2000);
+    const merged = mergeRecoverySlots([stored, other], [onExit]);
+    expect(merged.map((s) => [s.session, s.savedAt])).toEqual([
+      ['s1', 3000],
+      ['s2', 2000],
+    ]);
+  });
+
+  it('копия старше основной записи основную не вытесняет', () => {
+    const stored = makeRecoverySlot('s1', anim(), 5000);
+    const stale = makeRecoverySlot('s1', anim(), 1000);
+    expect(mergeRecoverySlots([stored], [stale])).toEqual([stored]);
+  });
+
+  it('пропускает мусор в любом из списков', () => {
+    const slot = makeRecoverySlot('s1', anim(), 1000);
+    expect(mergeRecoverySlots([{ junk: true }], [null, slot])).toEqual([slot]);
   });
 });
 

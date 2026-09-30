@@ -11,6 +11,8 @@ export interface NodeEditorHandle {
   fit(): void;
   /** Открыть меню «Добавить» под указателем. */
   openAddMenu(): void;
+  /** Стоит ли фокус внутри редактора — в том документе, где он открыт: панель живёт и в окне. */
+  hasFocus(): boolean;
 }
 
 let active: NodeEditorHandle | null = null;
@@ -23,8 +25,7 @@ export function setActiveNodeEditor(handle: NodeEditorHandle | null): void {
 export const activeNodeEditor = (): NodeEditorHandle | null => active;
 
 /** Клавиши редактора узлов действуют, пока фокус в нём: X там удаляет узел, а не меняет цвета. */
-export const nodeEditorFocused = (): boolean =>
-  active !== null && document.activeElement?.closest('.node-editor') != null;
+export const nodeEditorFocused = (): boolean => active?.hasFocus() ?? false;
 
 /** Выбранный объект и те выделенные узлы, что есть в его графе. */
 function selectedInGraph(): { objectId: string; ids: string[] } | null {

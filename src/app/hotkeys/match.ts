@@ -113,3 +113,20 @@ export function matchQuality(spec: string, event: KeyChord): MatchQuality {
 export function matchesCombo(spec: string, event: KeyChord): boolean {
   return matchQuality(spec, event) !== MatchQuality.None;
 }
+
+/** Куда пришло нажатие: элемент с фокусом и его документ, без DOM-типов. */
+export interface FocusTarget {
+  readonly ownerDocument?: { readonly body: unknown; readonly documentElement: unknown } | null;
+}
+
+/**
+ * Tab водит фокус по интерфейсу, пока фокус стоит на кнопке или поле: так до любого контрола
+ * доходят клавиатурой, и подсказка у него появляется сразу. Сочетанием редактора Tab становится,
+ * только когда фокус ни на чём не стоит — после щелчка по холсту или по строке списка.
+ */
+export function tabMovesFocus(event: KeyChord, target: unknown): boolean {
+  if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return false;
+  const el = target as FocusTarget | null;
+  const doc = el?.ownerDocument;
+  return !!doc && el !== doc.body && el !== doc.documentElement;
+}

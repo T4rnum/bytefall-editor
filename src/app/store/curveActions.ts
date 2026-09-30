@@ -10,6 +10,8 @@ export interface CurveEditorHandle {
   fit(): void;
   /** Выделить все ключи видимых кривых. */
   selectAll(): void;
+  /** Стоит ли фокус внутри редактора — в том документе, где он открыт: панель живёт и в окне. */
+  hasFocus(): boolean;
 }
 
 let active: CurveEditorHandle | null = null;
@@ -22,8 +24,7 @@ export function setActiveCurveEditor(handle: CurveEditorHandle | null): void {
 export const activeCurveEditor = (): CurveEditorHandle | null => active;
 
 /** Клавиши редактора кривых действуют, пока фокус в нём: Home там вписывает кривые. */
-export const curveEditorFocused = (): boolean =>
-  active !== null && document.activeElement?.closest('.curve-editor') != null;
+export const curveEditorFocused = (): boolean => active?.hasFocus() ?? false;
 
 /** Канал, за который взялись: по значению правится только он. */
 export interface CurveGrab {

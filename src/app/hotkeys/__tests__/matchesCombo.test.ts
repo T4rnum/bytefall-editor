@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type KeyChord, matchesCombo } from '../match';
+import { type KeyChord, matchesCombo, tabMovesFocus } from '../match';
 import { findHotkey } from '../registry';
 
 /** Событие клавиатуры по умолчанию без модификаторов. */
@@ -217,5 +217,32 @@ describe('выбор записи при нескольких совпадени
       altKey: false,
     };
     expect(findHotkey(chord)).toBeNull();
+  });
+});
+
+describe('Tab: фокус или правка изнутри', () => {
+  const doc = { body: {}, documentElement: {} };
+  const button = { ownerDocument: doc };
+  const tab = (mods: Partial<KeyChord> = {}) => chord({ key: 'Tab', code: 'Tab', ...mods });
+
+  it('с кнопки Tab и Shift+Tab ведут фокус дальше', () => {
+    expect(tabMovesFocus(tab(), button)).toBe(true);
+    expect(tabMovesFocus(tab({ shiftKey: true }), button)).toBe(true);
+  });
+
+  it('когда фокус ни на чём не стоит, Tab остаётся сочетанием редактора', () => {
+    expect(tabMovesFocus(tab(), doc.body)).toBe(false);
+    expect(tabMovesFocus(tab(), doc.documentElement)).toBe(false);
+  });
+
+  it('Tab с Ctrl и Alt и другие клавиши фокус не трогают', () => {
+    expect(tabMovesFocus(tab({ ctrlKey: true }), button)).toBe(false);
+    expect(tabMovesFocus(tab({ altKey: true }), button)).toBe(false);
+    expect(tabMovesFocus(chord({ key: 'k', code: 'KeyK' }), button)).toBe(false);
+  });
+
+  it('узел без документа сочетанием не мешает', () => {
+    expect(tabMovesFocus(tab(), null)).toBe(false);
+    expect(tabMovesFocus(tab(), {})).toBe(false);
   });
 });

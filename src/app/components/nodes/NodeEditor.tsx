@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type RefObject,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -10,7 +11,8 @@ import { emptyGraph } from '../../../core/graph/build';
 import { socketType } from '../../../core/graph/edit';
 import type { NodeGraph } from '../../../core/graph/types';
 import { type SceneObject, findObject } from '../../../core/object';
-import { isEditableTarget } from '../../hooks/useHotkeys';
+import { useElementSize } from '../../hooks/useElementSize';
+import { focusWithin, isEditableTarget } from '../../hooks/useHotkeys';
 import {
   HEADER_HEIGHT,
   NODE_PAD,
@@ -131,19 +133,48 @@ function SelectBox({ view, drag }: { view: NodeView; drag: NodeDrag }) {
   return <div className="node-select-box" style={style} />;
 }
 
+/** Меню «Добавить»: где открыто, выбор пункта и возврат фокуса в редактор. */
+function useAddMenu(
+  object: SceneObject | undefined,
+  view: NodeView,
+  rootRef: RefObject<HTMLDivElement | null>,
+) {
+  const [menu, setMenu] = useState<Point | null>(null);
+  // Поле поиска уходит вместе с меню: фокус возвращается в редактор, и его клавиши работают.
+  const close = (): void => {
+    setMenu(null);
+    rootRef.current?.focus({ preventScroll: true });
+  };
+  const pick = (item: NodePick): void => {
+    if (!object) return;
+    if ('preset' in item) addPresetAction([object.id], item.preset);
+    else if (menu) {
+      const at = toGraph(view, menu.x, menu.y);
+      const id = addNodeAction(object.id, item.node, Math.round(at.x), Math.round(at.y));
+      if (id) useEditorStore.getState().setSelectedNodes([id]);
+    }
+    close();
+  };
+  return { menu, open: setMenu, close, pick };
+}
+
 /**
  * Редактор узлов выбранного объекта: поле с узлами и проводами, как в Blender. Поле
- * масштабируется целиком — узлы вместе с полями ввода, а связи рисуются под узлами.
+ * масштабируется целиком — узлы вместе с полями ввода, а связи рисуются под узлами. Корень
+ * один и тот же и без объекта: по нему меряется поле, и граф вписывается, как только у поля
+ * появился размер — панель в другой зоне или в отдельном окне получает его не сразу.
  */
 export function NodeEditor() {
   const objectId = useEditorStore((s) => s.selectedObjectId);
   const object = useDocumentStore((s) => (objectId ? findObject(s.doc, objectId) : undefined));
   const rootRef = useRef<HTMLDivElement>(null);
+  const size = useElementSize(rootRef);
   const [view, setView] = useState<NodeView>({ x: 0, y: 0, zoom: 1 });
-  const [menu, setMenu] = useState<Point | null>(null);
   const graph = object?.graph ?? EMPTY;
   const gestures = useNodeGestures({ rootRef, view, setView, objectId: object?.id ?? null, graph });
   const { drag, pointer } = gestures;
+  const add = useAddMenu(object, view, rootRef);
+  const ready = size.width > 0 && size.height > 0;
 
   const fit = useCallback(() => {
     const root = rootRef.current;
@@ -151,53 +182,45 @@ export function NodeEditor() {
   }, []);
 
   // Другой объект — другой граф: вписываем его целиком до первой отрисовки.
-  useLayoutEffect(fit, [objectId, fit]);
+  useLayoutEffect(() => {
+    if (ready) fit();
+  }, [objectId, ready, fit]);
 
+  const openMenu = add.open;
   useEffect(() => {
-    setActiveNodeEditor({ fit, openAddMenu: () => setMenu({ ...pointer.current }) });
+    setActiveNodeEditor({
+      fit,
+      openAddMenu: () => openMenu({ ...pointer.current }),
+      hasFocus: () => focusWithin(rootRef.current),
+    });
     return () => setActiveNodeEditor(null);
-  }, [fit, pointer]);
+  }, [fit, pointer, openMenu]);
 
-  if (!object) {
-    return (
-      <div className="node-editor node-editor--empty">
-        <p className="panel-hint">Выбери объект: у каждого объекта свой граф узлов.</p>
-      </div>
-    );
-  }
-
-  // Поле поиска уходит вместе с меню: фокус возвращается в редактор, и его клавиши работают.
-  const closeMenu = (): void => {
-    setMenu(null);
-    rootRef.current?.focus({ preventScroll: true });
-  };
-  const pick = (item: NodePick): void => {
-    if ('preset' in item) addPresetAction([object.id], item.preset);
-    else if (menu) {
-      const at = toGraph(view, menu.x, menu.y);
-      const id = addNodeAction(object.id, item.node, Math.round(at.x), Math.round(at.y));
-      if (id) useEditorStore.getState().setSelectedNodes([id]);
-    }
-    closeMenu();
-  };
+  const live = object !== undefined;
   return (
     <div
       ref={rootRef}
-      className="node-editor"
-      tabIndex={0}
+      className={live ? 'node-editor' : 'node-editor node-editor--empty'}
+      tabIndex={live ? 0 : undefined}
       aria-label="Редактор узлов"
-      style={{ ...SIZES, ...gridStyle(view) }}
+      style={live ? { ...SIZES, ...gridStyle(view) } : undefined}
       onPointerDownCapture={(e) => {
-        if (!isEditableTarget(e.target)) rootRef.current?.focus({ preventScroll: true });
+        if (live && !isEditableTarget(e.target)) rootRef.current?.focus({ preventScroll: true });
       }}
-      onPointerDown={gestures.onBackgroundDown}
-      onPointerMove={gestures.onPointerMove}
-      onPointerUp={gestures.onPointerUp}
-      onPointerCancel={gestures.onPointerCancel}
+      onPointerDown={live ? gestures.onBackgroundDown : undefined}
+      onPointerMove={live ? gestures.onPointerMove : undefined}
+      onPointerUp={live ? gestures.onPointerUp : undefined}
+      onPointerCancel={live ? gestures.onPointerCancel : undefined}
     >
-      <NodeCanvas object={object} view={view} drag={drag} gestures={gestures} />
-      <SelectBox view={view} drag={drag} />
-      {menu && <AddNodeMenu at={menu} onPick={pick} onClose={closeMenu} />}
+      {object ? (
+        <>
+          <NodeCanvas object={object} view={view} drag={drag} gestures={gestures} />
+          <SelectBox view={view} drag={drag} />
+          {add.menu && <AddNodeMenu at={add.menu} onPick={add.pick} onClose={add.close} />}
+        </>
+      ) : (
+        <p className="panel-hint">Выбери объект: у каждого объекта свой граф узлов.</p>
+      )}
     </div>
   );
 }

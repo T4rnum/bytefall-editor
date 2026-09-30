@@ -7,7 +7,7 @@ import type { RecoverySlot } from '../../../core/recovery';
 import { deserialize } from '../../../core/serialization';
 import { useDocumentStore } from '../../store/documentStore';
 import { type Autosave, MAX_WAIT_MS, QUIET_MS, startAutosave } from '../autosave';
-import type { SlotStore } from '../slotStore';
+import { type ExitArea, type ExitStore, type SlotStore, localExitStore } from '../slotStore';
 
 /** Хранилище в памяти: автосохранению нужно только «положить, достать, стереть». */
 function memoryStore() {
@@ -127,5 +127,105 @@ describe('автосохранение', () => {
     draw();
     await vi.advanceTimersByTimeAsync(MAX_WAIT_MS);
     expect(memory.puts).toHaveLength(0);
+  });
+});
+
+/** Запасное хранилище в памяти: синхронное, как localStorage. */
+function memoryArea(): ExitArea & { readonly data: Map<string, string>; full: boolean } {
+  const data = new Map<string, string>();
+  return {
+    data,
+    full: false,
+    get length() {
+      return data.size;
+    },
+    key: (i) => [...data.keys()][i] ?? null,
+    getItem: (key) => data.get(key) ?? null,
+    setItem(key, value) {
+      if (this.full) throw new Error('QuotaExceededError');
+      data.set(key, value);
+    },
+    removeItem: (key) => void data.delete(key),
+  };
+}
+
+describe('копия на уход со страницы', () => {
+  let memory: ReturnType<typeof memoryStore>;
+  let area: ReturnType<typeof memoryArea>;
+  let exit: ExitStore;
+  let autosave: Autosave;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useDocumentStore
+      .getState()
+      .replaceAnimation(createAnimation(createDocument({ width: 8, height: 4 })));
+    memory = memoryStore();
+    area = memoryArea();
+    exit = localExitStore(area);
+    autosave = startAutosave({ store: memory.store, exit, session: 'me' });
+  });
+
+  afterEach(() => {
+    autosave.stop();
+    vi.useRealTimers();
+  });
+
+  it('ложится сразу, ещё до того, как дописалась основная запись', () => {
+    draw();
+    autosave.flushOnExit();
+    const copies = exit.list() as RecoverySlot[];
+    expect(copies.map((c) => c.session)).toEqual(['me']);
+    expect(deserialize(copies[0].data).frames[0].layers[0].cells.size).toBe(1);
+  });
+
+  it('стирается, когда основная запись догнала её', async () => {
+    draw();
+    autosave.flushOnExit();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(memory.slots.has('me')).toBe(true);
+    expect(exit.list()).toEqual([]);
+  });
+
+  it('остаётся, если основная запись не удалась', async () => {
+    memory.failOnce();
+    draw();
+    autosave.flushOnExit();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(memory.slots.has('me')).toBe(false);
+    expect(exit.list()).toHaveLength(1);
+  });
+
+  it('стирается вместе с записью, когда документ чист', async () => {
+    memory.failOnce();
+    draw();
+    autosave.flushOnExit();
+    await vi.advanceTimersByTimeAsync(0);
+    const { markSaved, animation } = useDocumentStore.getState();
+    markSaved({ name: 'a.bp.json', target: null }, animation);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(exit.list()).toEqual([]);
+  });
+
+  it('чистый документ копии не оставляет', () => {
+    autosave.flushOnExit();
+    expect(exit.list()).toEqual([]);
+  });
+
+  it('переполненное хранилище не мешает основной записи', async () => {
+    area.full = true;
+    draw();
+    autosave.flushOnExit();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(exit.list()).toEqual([]);
+    expect(memory.slots.has('me')).toBe(true);
+  });
+
+  it('битые и чужие ключи хранилища пропускаются', () => {
+    area.data.set('bytefall-exit:broken', '{not json');
+    area.data.set('theme', '"dark"');
+    draw();
+    autosave.flushOnExit();
+    expect((exit.list() as RecoverySlot[]).map((c) => c.session)).toEqual(['me']);
   });
 });

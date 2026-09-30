@@ -2,10 +2,12 @@ import { errorMessage, notify } from '../store/notifyStore';
 import { useUiStore } from '../store/uiStore';
 import { type Autosave, startAutosave } from './autosave';
 import { SESSION_ID, holdSessionLock } from './session';
-import { type SlotStore, indexedDbStore } from './slotStore';
+import { type ExitStore, type SlotStore, indexedDbStore, localExitStore } from './slotStore';
 
 export interface AutosaveService {
   readonly store: SlotStore;
+  /** Копии, сделанные на уходе со страницы: их окно восстановления читает вместе с записями. */
+  readonly exit: ExitStore;
   readonly autosave: Autosave;
 }
 
@@ -19,10 +21,12 @@ let service: AutosaveService | null = null;
 export function autosaveService(): AutosaveService {
   if (service) return service;
   const store = indexedDbStore();
+  const exit = localExitStore();
   holdSessionLock(SESSION_ID);
   let warned = false;
   const autosave = startAutosave({
     store,
+    exit,
     session: SESSION_ID,
     onSaved: (at) => useUiStore.getState().setAutosaveStatus({ at, failed: false }),
     onError: (error) => {
@@ -33,6 +37,6 @@ export function autosaveService(): AutosaveService {
       notify(`Автосохранение недоступно: ${errorMessage(error)}`, 'error');
     },
   });
-  service = { store, autosave };
+  service = { store, exit, autosave };
   return service;
 }

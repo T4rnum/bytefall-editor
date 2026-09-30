@@ -1,7 +1,7 @@
 import type { Animation } from '../../core/animation';
 import { makeRecoverySlot } from '../../core/recovery';
 import { useDocumentStore } from '../store/documentStore';
-import type { SlotStore } from './slotStore';
+import type { ExitStore, SlotStore } from './slotStore';
 
 /** Пауза в правках, после которой пишем: запись попадает между мазками, а не посреди них. */
 export const QUIET_MS = 2000;
@@ -10,6 +10,8 @@ export const MAX_WAIT_MS = 20000;
 
 export interface AutosaveOptions {
   readonly store: SlotStore;
+  /** Синхронная копия на уход со страницы: основная запись может не успеть до выгрузки. */
+  readonly exit?: ExitStore;
   readonly session: string;
   readonly quietMs?: number;
   readonly maxWaitMs?: number;
@@ -21,6 +23,11 @@ export interface AutosaveOptions {
 export interface Autosave {
   /** Записать прямо сейчас: вкладку прячут, закрывают или только что восстановили работу. */
   flush(): Promise<void>;
+  /**
+   * Страницу прячут или выгружают: копия ложится синхронно, пока страница ещё жива, и
+   * следом начинается обычная запись. Дописалась — копия больше не нужна и стирается.
+   */
+  flushOnExit(): void;
   stop(): void;
 }
 
@@ -30,7 +37,7 @@ export interface Autosave {
  * открытия чужого терять уже нечего, а новый и открытый появляются только после подтверждения.
  */
 export function startAutosave(options: AutosaveOptions): Autosave {
-  const { store, session, onSaved, onError } = options;
+  const { store, exit, session, onSaved, onError } = options;
   const quietMs = options.quietMs ?? QUIET_MS;
   const maxWaitMs = options.maxWaitMs ?? MAX_WAIT_MS;
   const now = options.now ?? Date.now;
@@ -39,6 +46,8 @@ export function startAutosave(options: AutosaveOptions): Autosave {
   let deadline: ReturnType<typeof setTimeout> | null = null;
   /** Последняя записанная версия: её повторная запись ничего не защищает. */
   let written: Animation | null = null;
+  /** Версия в запасной копии. Стирать копию можно, только когда основная догнала её. */
+  let copied: Animation | null = null;
   /** Записи идут цепочкой, иначе медленная старая могла бы лечь поверх быстрой новой. */
   let chain: Promise<void> = Promise.resolve();
 
@@ -59,6 +68,10 @@ export function startAutosave(options: AutosaveOptions): Autosave {
       .then(
         () => {
           written = animation;
+          if (copied === animation) {
+            copied = null;
+            exit?.remove(session);
+          }
           onSaved?.(slot.savedAt);
         },
         (error: unknown) => onError?.(error),
@@ -66,9 +79,20 @@ export function startAutosave(options: AutosaveOptions): Autosave {
     return chain;
   };
 
+  const flushOnExit = (): void => {
+    const { animation, dirty } = useDocumentStore.getState();
+    if (exit && dirty && animation !== written && animation !== copied) {
+      exit.put(makeRecoverySlot(session, animation, now()));
+      copied = animation;
+    }
+    void flush();
+  };
+
   const forget = (): void => {
     clearTimers();
     written = null;
+    copied = null;
+    exit?.remove(session);
     chain = chain.then(() => store.remove(session)).catch((error: unknown) => onError?.(error));
   };
 
@@ -85,6 +109,7 @@ export function startAutosave(options: AutosaveOptions): Autosave {
 
   return {
     flush,
+    flushOnExit,
     stop: () => {
       unsubscribe();
       clearTimers();

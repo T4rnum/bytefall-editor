@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { tabMovesFocus } from '../hotkeys/match';
 import { findHotkey } from '../hotkeys/registry';
 import { useEditorStore } from '../store/editorStore';
 import { closeImageImport } from '../store/importActions';
@@ -14,6 +15,11 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as Partial<HTMLElement> | null;
   if (!el || typeof el.tagName !== 'string') return false;
   return el.isContentEditable === true || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+/** Стоит ли фокус внутри элемента. Документ — свой у элемента: панель может жить в окне. */
+export function focusWithin(el: HTMLElement | null): boolean {
+  return !!el && el.contains(el.ownerDocument.activeElement);
 }
 
 /**
@@ -35,6 +41,7 @@ function insideModal(target: EventTarget | null): boolean {
  */
 export const handleHotkey = (event: KeyboardEvent): void => {
   if (isEditableTarget(event.target) || insideModal(event.target)) return;
+  if (tabMovesFocus(event, event.target)) return;
   // Пока открыт импорт картинки, документ заперт: работают только клавиши вида, Escape
   // закрывает импорт. Иначе Ctrl+Z откатил бы документ прямо под предпросмотром.
   if (useUiStore.getState().imageImport) {

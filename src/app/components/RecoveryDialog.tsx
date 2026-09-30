@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { type RecoverySlot, recoverableSlots } from '../../core/recovery';
+import { type RecoverySlot, mergeRecoverySlots, recoverableSlots } from '../../core/recovery';
 import { deserialize } from '../../core/serialization';
 import { autosaveService } from '../autosave/service';
 import { liveSessions } from '../autosave/session';
@@ -18,10 +18,11 @@ function useRecoverableSlots(): Found {
   const [found, setFound] = useState<Found>({ slots: [], at: 0 });
   useEffect(() => {
     let cancelled = false;
-    const { store } = autosaveService();
+    const { store, exit } = autosaveService();
     Promise.all([store.list(), liveSessions()])
       .then(([raw, live]) => {
-        if (!cancelled) setFound({ slots: recoverableSlots(raw, live), at: Date.now() });
+        const slots = recoverableSlots(mergeRecoverySlots(raw, exit.list()), live);
+        if (!cancelled) setFound({ slots, at: Date.now() });
       })
       // Хранилище недоступно: предлагать нечего, а о самом автосохранении скажет служба.
       .catch(() => undefined);
@@ -58,18 +59,20 @@ export function RecoveryDialog() {
       notify(`Не удалось восстановить «${slot.name}»: ${errorMessage(error)}`, 'error');
       return;
     }
-    const { store, autosave } = autosaveService();
+    const { store, exit, autosave } = autosaveService();
     useDocumentStore.getState().replaceAnimation(animation, undefined, true);
     setOpen(false);
     // Сначала своя запись, потом стираем чужую: между ними работа не должна остаться без копии.
     await autosave.flush();
     await store.remove(slot.session).catch(() => undefined);
+    exit.remove(slot.session);
     notify(`«${slot.name}» восстановлен. Сохраните его в файл.`);
   };
 
   const discard = async (): Promise<void> => {
     setOpen(false);
-    const { store } = autosaveService();
+    const { store, exit } = autosaveService();
+    slots.forEach((slot) => exit.remove(slot.session));
     await Promise.all(slots.map((slot) => store.remove(slot.session))).catch(() => undefined);
   };
 

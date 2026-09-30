@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button, type ControlSize } from './Button';
+import { placeMenu } from './popover';
 
 export type MenuItem =
   | {
@@ -27,29 +28,58 @@ export interface MenuProps {
 
 /**
  * Кнопка со списком действий. Закрывается выбором, Escape и щелчком мимо — в том окне, где
- * меню открыто: панель может жить в отдельном окне браузера.
+ * меню открыто: панель может жить в отдельном окне браузера. Список встаёт поверх всего, по
+ * координатам окна: колонка рабочего места обрезала бы его по своему краю.
  */
 export function Menu({ children, label, items, icon, size, align = 'left', className }: MenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+
+  // Место считается до первой отрисовки: список не мелькает там, где не поместится.
+  useLayoutEffect(() => {
+    const anchor = root.current;
+    const el = list.current;
+    const view = anchor?.ownerDocument.defaultView;
+    if (!open || !anchor || !el || !view) return;
+    const place = placeMenu(
+      anchor.getBoundingClientRect(),
+      { width: el.offsetWidth, height: el.offsetHeight },
+      { width: view.innerWidth, height: view.innerHeight },
+      align,
+    );
+    el.style.left = `${place.left}px`;
+    el.style.top = `${place.top}px`;
+    el.style.visibility = 'visible';
+  }, [open, align]);
 
   useEffect(() => {
     if (!open) return;
     const view = root.current?.ownerDocument.defaultView;
     if (!view) return;
+    const close = (): void => setOpen(false);
     const onDown = (event: PointerEvent): void => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
+      if (!root.current?.contains(event.target as Node)) close();
     };
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       event.stopPropagation();
-      setOpen(false);
+      close();
+    };
+    // Список стоит по координатам окна: прокрутка колонки под ним или новый размер окна
+    // оставили бы его висеть в стороне от кнопки.
+    const onScroll = (event: Event): void => {
+      if (!list.current?.contains(event.target as Node)) close();
     };
     view.addEventListener('pointerdown', onDown, true);
     view.addEventListener('keydown', onKey, true);
+    view.addEventListener('scroll', onScroll, true);
+    view.addEventListener('resize', close);
     return () => {
       view.removeEventListener('pointerdown', onDown, true);
       view.removeEventListener('keydown', onKey, true);
+      view.removeEventListener('scroll', onScroll, true);
+      view.removeEventListener('resize', close);
     };
   }, [open]);
 
@@ -59,7 +89,7 @@ export function Menu({ children, label, items, icon, size, align = 'left', class
         {children}
       </Button>
       {open && (
-        <div className={`menu-list menu-list--${align}`} role="menu">
+        <div ref={list} className="menu-list" role="menu">
           {items.map((item, i) =>
             'separator' in item ? (
               <div key={`sep-${i}`} className="menu-separator" role="separator" />
